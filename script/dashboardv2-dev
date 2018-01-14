@@ -1,0 +1,60 @@
+#!/bin/bash
+
+set -e
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "${ROOT}/script/lib/ui.sh"
+
+usage() {
+  cat <<USAGE >&2
+usage: $0 [-h|--help] <command>
+
+COMMANDS:
+  generate       Generate protobuf client
+
+OPTIONS:
+  -h, --help    Show this message
+USAGE
+}
+
+main() {
+  if [[ "$1" = "-h" ]] || [[ "$1" = "--help" ]]; then
+    usage
+    exit
+  fi
+
+  case "$1" in
+    generate)
+      generate
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+generate() {
+  local flynn_host="${ROOT}/build/bin/flynn-host"
+  local builder_image="${ROOT}/build/image/dashboardv2.json"
+
+  local PROTOC_GEN_TS_PATH="/usr/local/node-v8.11.4-linux-x64/lib/node_modules/ts-protoc-gen/bin/protoc-gen-ts"
+  local OUT_DIR="${ROOT}/dashboardv2/generated"
+
+  "${flynn_host}" run \
+    --bind    "${ROOT}:${ROOT}" \
+    --limits  "temp_disk=1G" \
+    --workdir "${ROOT}" \
+    "${builder_image}" \
+    protoc \
+      --plugin="protoc-gen-ts=${PROTOC_GEN_TS_PATH}" \
+      --js_out="import_style=commonjs,binary:${OUT_DIR}" \
+      --ts_out="service=true:${OUT_DIR}" \
+      --proto_path="${ROOT}/controller/grpc" \
+      --proto_path="/opt/protoc/include" \
+      /opt/protoc/include/google/api/annotations.proto \
+      /opt/protoc/include/google/api/http.proto \
+      ${ROOT}/controller/grpc/controller.proto
+}
+
+main $@

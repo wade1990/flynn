@@ -19,14 +19,6 @@ export GOROOT="/usr/local/go"
 export GOPATH="/go"
 export PATH="${GOROOT}/bin:${PATH}"
 
-# install protobuf compiler
-tmpdir=$(mktemp --directory)
-trap "rm -rf ${tmpdir}" EXIT
-curl -sL https://github.com/google/protobuf/releases/download/v3.3.0/protoc-3.3.0-linux-x86_64.zip > "${tmpdir}/protoc.zip"
-unzip -d "${tmpdir}/protoc" "${tmpdir}/protoc.zip"
-mv "${tmpdir}/protoc" /opt
-ln -s /opt/protoc/bin/protoc /usr/local/bin/protoc
-
 mkdir -p "${GOPATH}/src/github.com/flynn"
 ln -nfs "$(pwd)" "${GOPATH}/src/github.com/flynn/flynn"
 

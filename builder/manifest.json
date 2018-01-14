@@ -47,6 +47,14 @@
       }]
     },
     {
+      "id": "dashboardv2",
+      "base": "ubuntu-trusty",
+      "layers": [{
+        "script": "builder/img/dashboardv2.sh",
+        "limits": { "temp_disk": "1G" }
+      }]
+    },
+    {
       "id": "builder",
       "base": "go",
       "layers": [{
