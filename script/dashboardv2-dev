@@ -11,6 +11,9 @@ usage: $0 [-h|--help] <command>
 
 COMMANDS:
   generate       Generate protobuf client
+  build          Build static assets
+  start          Start dev server
+  test           Run tests
 
 OPTIONS:
   -h, --help    Show this message
@@ -26,6 +29,15 @@ main() {
   case "$1" in
     generate)
       generate
+      ;;
+    build)
+      nodejs_command "build"
+      ;;
+    start)
+      nodejs_command "start"
+      ;;
+    test)
+      nodejs_command "test"
       ;;
     *)
       usage
@@ -55,6 +67,21 @@ generate() {
       /opt/protoc/include/google/api/annotations.proto \
       /opt/protoc/include/google/api/http.proto \
       ${ROOT}/controller/grpc/controller.proto
+}
+
+nodejs_command() {
+  local cmd=$1
+
+  local flynn_host="${ROOT}/build/bin/flynn-host"
+  local builder_image="${ROOT}/build/image/dashboardv2.json"
+
+  "${flynn_host}" run \
+    --bind    "${ROOT}:${ROOT}" \
+    --limits  "temp_disk=1G" \
+    --workdir "${ROOT}/dashboardv2" \
+    --hostnet \
+    "${builder_image}" \
+    npm run $cmd
 }
 
 main $@
