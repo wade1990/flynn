@@ -228,6 +228,30 @@ module.exports = {
             ),
             // Note: this won't work without `new ExtractTextPlugin()` in `plugins`.
           },
+          // "grommet" loaders
+          {
+            exclude: /node_modules/,
+            test: /\.js/,
+            use: [
+              { loader: require.resolve('babel-loader') }
+            ]
+          },
+          {
+            test: /\.scss$/,
+            use: [
+              {
+                loader: require.resolve('style-loader')
+              },
+              {
+                loader: require.resolve('css-loader')
+              },
+              {
+                loader: require.resolve('sass-loader'), options: {
+                  includePaths: ['./node_modules']
+                }
+              }
+            ]
+          },
           // "file" loader makes sure assets end up in the `build` folder.
           // When you `import` an asset, you get its filename.
           // This loader doesn't use a "test" so it will catch all modules

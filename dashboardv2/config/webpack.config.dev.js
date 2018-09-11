@@ -201,6 +201,30 @@ module.exports = {
               },
             ],
           },
+          // "grommet" loaders
+          {
+            exclude: /node_modules/,
+            test: /\.js/,
+            use: [
+              { loader: require.resolve('babel-loader') }
+            ]
+          },
+          {
+            test: /\.scss$/,
+            use: [
+              {
+                loader: require.resolve('style-loader')
+              },
+              {
+                loader: require.resolve('css-loader')
+              },
+              {
+                loader: require.resolve('sass-loader'), options: {
+                  includePaths: ['./node_modules']
+                }
+              }
+            ]
+          },
           // "file" loader makes sure those assets get served by WebpackDevServer.
           // When you `import` an asset, you get its (virtual) filename.
           // In production, they would get copied to the `build` folder.
