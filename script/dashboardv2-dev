@@ -55,7 +55,7 @@ generate() {
   local builder_image="${ROOT}/build/image/dashboardv2.json"
 
   local PROTOC_GEN_TS_PATH="/usr/local/node-v8.11.4-linux-x64/lib/node_modules/ts-protoc-gen/bin/protoc-gen-ts"
-  local OUT_DIR="${ROOT}/dashboardv2/generated"
+  local OUT_DIR="${ROOT}/dashboardv2/src/generated"
 
   "${flynn_host}" run \
     --bind    "${ROOT}:${ROOT}" \
