@@ -9,44 +9,47 @@ import Footer from 'grommet/components/Footer';
 import Title from 'grommet/components/Title';
 import Paragraph from 'grommet/components/Paragraph';
 
+import Client from './client';
+import { ListAppsRequest, ListAppsResponse } from './generated/controller_pb';
+import { ServiceError } from './generated/controller_pb_service';
 import ExternalAnchor from './ExternalAnchor';
 
 class Dashboard extends React.Component {
-  public render() {
-    return (
-      <App centered={false}>
-        <Split flex="right">
-          <Sidebar colorIndex="neutral-1">
-            <Header pad="medium" justify="between">
-              <Title>
-                Flynn Dashboard
-              </Title>
-            </Header>
-            <Box flex="grow" justify="start">
-            </Box>
-            <Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
-              <Paragraph size="small">
-                Flynn is designed, built, and managed by Prime Directive, Inc.<br />
-                &copy; 2013-{(new Date()).getFullYear()} Prime Directive, Inc. Flynn® is a trademark of Prime Directive, Inc.
-              </Paragraph>
-              <Paragraph size="small">
-                <ExternalAnchor href="https://flynn.io/legal/privacy">
-                  Privacy Policy
-                </ExternalAnchor>
-                &nbsp;|&nbsp;
-                <ExternalAnchor href="https://flynn.io/docs/trademark-guidelines">
-                  Trademark Guidelines
-                </ExternalAnchor>
-              </Paragraph>
-            </Footer>
-          </Sidebar>
+	public componentDidMount() {
+		Client.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
+			console.log(error, response);
+		});
+	}
 
-          <Box pad="medium">
-          </Box>
-        </Split>
-      </App>
-    );
-  }
+	public render() {
+		return (
+			<App centered={false}>
+				<Split flex="right">
+					<Sidebar colorIndex="neutral-1">
+						<Header pad="medium" justify="between">
+							<Title>Flynn Dashboard</Title>
+						</Header>
+						<Box flex="grow" justify="start" />
+						<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
+							<Paragraph size="small">
+								Flynn is designed, built, and managed by Prime Directive, Inc.
+								<br />
+								&copy; 2013-
+								{new Date().getFullYear()} Prime Directive, Inc. Flynn® is a trademark of Prime Directive, Inc.
+							</Paragraph>
+							<Paragraph size="small">
+								<ExternalAnchor href="https://flynn.io/legal/privacy">Privacy Policy</ExternalAnchor>
+								&nbsp;|&nbsp;
+								<ExternalAnchor href="https://flynn.io/docs/trademark-guidelines">Trademark Guidelines</ExternalAnchor>
+							</Paragraph>
+						</Footer>
+					</Sidebar>
+
+					<Box pad="medium" />
+				</Split>
+			</App>
+		);
+	}
 }
 
 export default Dashboard;
