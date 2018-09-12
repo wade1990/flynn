@@ -481,6 +481,42 @@
       }
     },
     {
+      "id": "go-bindata",
+      "base": "dashboardv2",
+      "layers": [{
+        "gobuild": {
+          "vendor/github.com/jteeuwen/go-bindata/go-bindata": "/bin/go-bindata"
+        }
+      }]
+    },
+    {
+      "id": "dashboardv2-compiled",
+      "base": "dashboardv2",
+      "layers": [{
+        "build_with": "go-bindata",
+        "script": "dashboardv2/img/compile.sh",
+        "inputs": [
+          "dashboardv2/*.json",
+          "dashboardv2/*.ts",
+          "dashboardv2/config/*.js",
+          "dashboardv2/scripts/*.js",
+          "dashboardv2/public/*.json",
+          "dashboardv2/public/*.png",
+          "dashboardv2/public/*.ico",
+          "dashboardv2/public/*.html",
+          "dashboardv2/src/*.ts",
+          "dashboardv2/src/*.tsx",
+          "dashboardv2/src/*.css",
+          "dashboardv2/src/generated/*.js",
+          "dashboardv2/src/generated/*.ts",
+          "dashboardv2/src/generated/google/api/*.js",
+          "dashboardv2/src/generated/google/api/*.ts",
+          "dashboardv2/src/util/*.ts"
+        ],
+        "limits": { "memory": "3G", "temp_disk": "1G" }
+      }]
+    },
+    {
       "id": "dashboard-builder",
       "base": "go",
       "layers": [{

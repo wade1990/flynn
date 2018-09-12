@@ -7,7 +7,7 @@ shasum="c69abe770f002a7415bd00f7ea13b086650c1dd925ef0c3bf8de90eabecc8790"
 dir="/usr/local"
 
 apt-get update
-apt-get install --yes unzip
+apt-get install --yes unzip python
 apt-get clean
 
 # install protobuf compiler
