@@ -101,7 +101,7 @@
     ],
     "globals": {
       "ts-jest": {
-        "tsConfigFile": "/home/vagrant/go/src/github.com/flynn/flynn/dashboardv2/tsconfig.test.json"
+        "tsConfigFile": "./tsconfig.test.json"
       }
     }
   },
