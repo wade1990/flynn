@@ -130,7 +130,11 @@ func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsR
 }
 
 func (s *server) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {
-	return convertApp(&ct.App{}), nil
+	ctApp, err := s.Client.GetApp(strings.TrimPrefix(req.Name, "apps/"))
+	if err != nil {
+		return nil, err
+	}
+	return convertApp(ctApp), nil
 }
 
 func (s *server) StreamAppLog(*StreamAppLogRequest, Controller_StreamAppLogServer) error {
