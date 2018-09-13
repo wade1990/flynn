@@ -10,11 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
-	"strings"
 	"time"
 
-	"github.com/cupcake/jsonschema"
 	"github.com/flynn/flynn/controller/client"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/pkg/cluster"
@@ -24,38 +21,12 @@ import (
 )
 
 type ControllerSuite struct {
-	schemaCache map[string]*jsonschema.Schema
 	Helper
 }
 
 var _ = c.ConcurrentSuite(&ControllerSuite{})
 
 func (s *ControllerSuite) SetUpSuite(t *c.C) {
-	var schemaPaths []string
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() && filepath.Ext(path) == ".json" {
-			schemaPaths = append(schemaPaths, path)
-		}
-		return nil
-	}
-	schemaRoot, err := filepath.Abs(filepath.Join("..", "schema"))
-	t.Assert(err, c.IsNil)
-	t.Assert(filepath.Walk(schemaRoot, walkFn), c.IsNil)
-
-	s.schemaCache = make(map[string]*jsonschema.Schema, len(schemaPaths))
-	for _, path := range schemaPaths {
-		file, err := os.Open(path)
-		t.Assert(err, c.IsNil)
-		schema := &jsonschema.Schema{Cache: s.schemaCache}
-		err = schema.ParseWithoutRefs(file)
-		t.Assert(err, c.IsNil)
-		cacheKey := "https://flynn.io/schema" + strings.TrimSuffix(strings.TrimPrefix(path, schemaRoot), ".json")
-		s.schemaCache[cacheKey] = schema
-		file.Close()
-	}
-	for _, schema := range s.schemaCache {
-		schema.ResolveRefs(false)
-	}
 }
 
 type controllerExampleRequest struct {
@@ -142,36 +113,6 @@ func (s *ControllerSuite) generateControllerExamples(t *c.C) map[string]interfac
 		examples[key] = example
 	}
 	return examples
-}
-
-func (s *ControllerSuite) TestExampleOutput(t *c.C) {
-	examples := s.generateControllerExamples(t)
-	exampleKeys := make([]string, 0, len(examples))
-	skipExamples := []string{"migrate_cluster_domain"}
-examplesLoop:
-	for key := range examples {
-		for _, skipKey := range skipExamples {
-			if key == skipKey {
-				continue examplesLoop
-			}
-		}
-		exampleKeys = append(exampleKeys, key)
-	}
-	sort.Strings(exampleKeys)
-	for _, key := range exampleKeys {
-		cacheKey := "https://flynn.io/schema/examples/controller/" + key
-		schema := s.schemaCache[cacheKey]
-		if schema == nil {
-			continue
-		}
-		data := examples[key]
-		errs := schema.Validate(nil, data)
-		var jsonData []byte
-		if len(errs) > 0 {
-			jsonData, _ = json.MarshalIndent(data, "", "\t")
-		}
-		t.Assert(errs, c.HasLen, 0, c.Commentf("%s validation errors: %v\ndata: %v\n", cacheKey, errs, string(jsonData)))
-	}
 }
 
 func (s *ControllerSuite) TestKeyRotation(t *c.C) {

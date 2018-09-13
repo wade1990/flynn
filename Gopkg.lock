@@ -145,14 +145,6 @@
   revision = "a48e304ff9331be6d5df352b6b47bd1395ab5dd7"
 
 [[projects]]
-  branch = "master"
-  digest = "1:be9a8124551f1d4d16d9d89b0e336e0cea8ec3fc9f6f752f7dc897a32ce69fbc"
-  name = "github.com/cupcake/jsonschema"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "51bf6945446b931e0f902e65a74e8bae7f794d95"
-
-[[projects]]
   digest = "1:83b7ebce1a572f124d128678ae462515884105e7b58227217009cff1d7ccb2a6"
   name = "github.com/dgryski/go-skip32"
   packages = ["."]
@@ -734,14 +726,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2aa3c781a16c48eac5b359e5635591c6de0ec9a915a129c4c979c5da3a3dd920"
-  name = "github.com/rnd42/go-jsonpointer"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "0480215403db768c5bf6db30d82908043c58422c"
-
-[[projects]]
-  branch = "master"
   digest = "1:abb4b60c28323cde32c193ce6083bb600fac462d1780cf83461b4c23ed5ce904"
   name = "github.com/sdboyer/constext"
   packages = ["."]
@@ -1045,7 +1029,6 @@
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/boltdb/bolt",
     "github.com/cheggaaa/pb",
-    "github.com/cupcake/jsonschema",
     "github.com/dgryski/go-skip32",
     "github.com/docker/distribution",
     "github.com/docker/distribution/configuration",
