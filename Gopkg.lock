@@ -438,11 +438,19 @@
   revision = "a6b377e3400b08991b80d6805d627f347f983866"
 
 [[projects]]
-  digest = "1:6666b841af471fb74da651313f72bd854133f580a8e965b41088bd5a1c18ade8"
+  branch = "master"
+  digest = "1:82c3abf9460b7b5bc619dffccf62454210823ffdbf38aba0945f859cd63b3681"
   name = "github.com/golang/protobuf"
-  packages = ["proto"]
+  packages = [
+    "proto",
+    "protoc-gen-go/descriptor",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp",
+  ]
   pruneopts = "NUT"
-  revision = "78b168c14fc28c8c711844d210f7ab845083e3b1"
+  revision = "0f2620f554cf5c8e281a2eb655a035f5a0f6dc90"
 
 [[projects]]
   digest = "1:dbd86d229eacaa86a98b10f8fb3e3fc69a1913e0f4e010e7cc1f92bf12edca92"
@@ -507,6 +515,14 @@
   packages = ["."]
   pruneopts = "NUT"
   revision = "6b1ef893dc11e0447abda6da20a5203481878dda"
+
+[[projects]]
+  digest = "1:48f1f4958fb5250ea5cb11db9e58748e320827d340c14415cc8c81b19f01c2f8"
+  name = "github.com/improbable-eng/grpc-web"
+  packages = ["go/grpcweb"]
+  pruneopts = "NUT"
+  revision = "7174732598544bdecfa12fb81ca2f1601cf1b587"
+  version = "0.3.0-beta"
 
 [[projects]]
   digest = "1:efbe016b6d198cf44f1db0ed2fbdf1b36ebf1f6956cc9b76d6affa96f022d368"
@@ -723,6 +739,14 @@
   packages = ["sparse"]
   pruneopts = "NUT"
   revision = "9cac891ad8a2029146df905ae09622eb1de8b19c"
+
+[[projects]]
+  digest = "1:834585e9a99fcf1444f2fbe8c5210f9c278d853b5d0fdf843413a7458264751b"
+  name = "github.com/rs/cors"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "3fb1b69b103a84de38a19c3c6ec073dd6caa4d3f"
+  version = "v1.5.0"
 
 [[projects]]
   branch = "master"
@@ -950,22 +974,53 @@
   revision = "4f7eeb5305a4ba1966344836ba4af9996b7b4e05"
 
 [[projects]]
-  digest = "1:d80598d0bc944fe4954b7a7b0b9d63faec7e5194792ec45d0340ad4741ac6158"
+  branch = "master"
+  digest = "1:f969b1b8bcb2a5162a5dc797b261eff0c2f099d7fc63c143ada31b002709f6a5"
+  name = "google.golang.org/genproto"
+  packages = [
+    "googleapis/api/annotations",
+    "googleapis/rpc/status",
+  ]
+  pruneopts = "NUT"
+  revision = "5a2fd4cab2d6d4a18e70c34937662526cd0c4bd1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:3488d3509a19a7b5ba36a53e91c7ea61c83dc455d48fe99a395172090b52cc7c"
   name = "google.golang.org/grpc"
   packages = [
     ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
     "codes",
+    "connectivity",
     "credentials",
     "credentials/oauth",
+    "encoding",
+    "encoding/proto",
     "grpclog",
     "internal",
+    "internal/backoff",
+    "internal/channelz",
+    "internal/envconfig",
+    "internal/grpcrand",
+    "internal/transport",
+    "keepalive",
     "metadata",
     "naming",
     "peer",
-    "transport",
+    "reflection",
+    "reflection/grpc_reflection_v1alpha",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
   ]
   pruneopts = "NUT"
-  revision = "3e1c91c1e0a72a34f68542bc029792b031835cbf"
+  revision = "acd1429515d896f3368863417570ff1bbb21b8ab"
 
 [[projects]]
   branch = "v0"
@@ -1076,10 +1131,16 @@
     "github.com/golang/dep/cmd/dep",
     "github.com/golang/glog",
     "github.com/golang/groupcache/singleflight",
+    "github.com/golang/protobuf/proto",
+    "github.com/golang/protobuf/ptypes",
+    "github.com/golang/protobuf/ptypes/any",
+    "github.com/golang/protobuf/ptypes/duration",
+    "github.com/golang/protobuf/ptypes/timestamp",
     "github.com/gorilla/context",
     "github.com/gorilla/sessions",
     "github.com/hashicorp/raft",
     "github.com/hashicorp/raft-boltdb",
+    "github.com/improbable-eng/grpc-web/go/grpcweb",
     "github.com/inconshreveable/log15",
     "github.com/jackc/pgx",
     "github.com/jtacoma/uritemplates",
@@ -1114,6 +1175,9 @@
     "golang.org/x/oauth2/google",
     "golang.org/x/sys/unix",
     "google.golang.org/api/option",
+    "google.golang.org/genproto/googleapis/api/annotations",
+    "google.golang.org/grpc",
+    "google.golang.org/grpc/reflection",
     "gopkg.in/inconshreveable/go-update.v0",
     "gopkg.in/mgo.v2",
     "gopkg.in/mgo.v2/bson",

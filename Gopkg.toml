@@ -82,3 +82,15 @@ required = [
 [[constraint]]
   branch = "v0"
   name = "gopkg.in/inconshreveable/go-update.v0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/golang/protobuf"
+
+[[constraint]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+
+[[constraint]]
+  branch = "master"
+  name = "google.golang.org/grpc"
