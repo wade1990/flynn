@@ -16,7 +16,14 @@ import AppsListNav from './AppsListNav';
 import AppComponent from './AppComponent';
 import Client from './client';
 import ExternalAnchor from './ExternalAnchor';
-import { ListAppsRequest, ListAppsResponse, GetAppRequest, App } from './generated/controller_pb';
+import {
+	ListAppsRequest,
+	ListAppsResponse,
+	GetAppRequest,
+	GetReleaseRequest,
+	App,
+	Release
+} from './generated/controller_pb';
 import { ServiceError } from './generated/controller_pb_service';
 
 export interface Props extends RouteComponentProps<{}> {}
@@ -27,6 +34,7 @@ interface State {
 	appsListError: ServiceError | null;
 
 	app: App | null;
+	release: Release | null;
 	appLoading: boolean;
 	appError: ServiceError | null;
 }
@@ -40,6 +48,7 @@ class Dashboard extends React.Component<Props, State> {
 			appsListError: null,
 
 			app: null,
+			release: null,
 			appLoading: props.location.pathname.startsWith('/apps/'),
 			appError: null
 		};
@@ -67,20 +76,52 @@ class Dashboard extends React.Component<Props, State> {
 		});
 
 		const getAppRequest = new GetAppRequest();
+		const getReleaseRequest = new GetReleaseRequest();
+		// TODO: release ID
 		const m = path.match(/\/apps\/[^\/]+/);
 		const appName = m ? m[0].slice(1) : '';
 		getAppRequest.setName(appName);
-		Client.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
-			this.setState({
-				app: response,
-				appLoading: false,
-				appError: error
+		new Promise<App>((resolve, reject) => {
+			Client.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
+				if (response && error === null) {
+					resolve(response);
+				} else {
+					reject(error);
+				}
 			});
-		});
+		})
+			.then((app: App) => {
+				getReleaseRequest.setName(app.getRelease());
+				return new Promise<Array<App | Release>>((resolve, reject) => {
+					Client.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
+						if (response && error === null) {
+							resolve([app, response]);
+						} else {
+							reject(error);
+						}
+					});
+				});
+			})
+			.then(([app, release]: [App, Release]) => {
+				this.setState({
+					app: app,
+					release: release,
+					appError: null,
+					appLoading: false
+				});
+			})
+			.catch((error: ServiceError) => {
+				this.setState({
+					app: null,
+					release: null,
+					appError: error,
+					appLoading: false
+				});
+			});
 	}
 
 	public render() {
-		const { appsList, appsListError, app, appError, appLoading } = this.state;
+		const { appsList, appsListError, app, release, appError, appLoading } = this.state;
 
 		return (
 			<GrommetApp centered={false}>
@@ -117,7 +158,7 @@ class Dashboard extends React.Component<Props, State> {
 									) : (
 										<React.Fragment>
 											{appError ? <Notification status="warning" message={appError.message} /> : null}
-											{app ? <AppComponent app={app} /> : null}
+											{app && release ? <AppComponent app={app} release={release} /> : null}
 										</React.Fragment>
 									)}
 								</React.Fragment>

@@ -1,2 +1,3 @@
 import debounced, { Func as DebouncedFunc } from './debounced';
-export { debounced, DebouncedFunc };
+import parseResourceName from './parseResourceName';
+export { debounced, DebouncedFunc, parseResourceName };
