@@ -71,7 +71,6 @@ class Dashboard extends React.Component<Props, State> {
 		const appName = m ? m[0].slice(1) : '';
 		getAppRequest.setName(appName);
 		Client.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
-			console.log(response ? response.getName() : null);
 			this.setState({
 				app: response,
 				appLoading: false,
@@ -113,9 +112,14 @@ class Dashboard extends React.Component<Props, State> {
 						<Switch>
 							<Route path="/apps/:name">
 								<React.Fragment>
-									{appError ? <Notification status="warning" message={appError.message} /> : null}
-									{appLoading ? <Loading /> : null}
-									{app ? <AppComponent app={app} /> : null}
+									{appLoading ? (
+										<Loading />
+									) : (
+										<React.Fragment>
+											{appError ? <Notification status="warning" message={appError.message} /> : null}
+											{app ? <AppComponent app={app} /> : null}
+										</React.Fragment>
+									)}
 								</React.Fragment>
 							</Route>
 						</Switch>
