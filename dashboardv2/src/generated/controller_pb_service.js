@@ -28,6 +28,15 @@ Controller.GetApp = {
   responseType: controller_pb.App
 };
 
+Controller.GetRelease = {
+  methodName: "GetRelease",
+  service: Controller,
+  requestStream: false,
+  responseStream: false,
+  requestType: controller_pb.GetReleaseRequest,
+  responseType: controller_pb.Release
+};
+
 Controller.StreamAppLog = {
   methodName: "StreamAppLog",
   service: Controller,
@@ -98,6 +107,28 @@ ControllerClient.prototype.getApp = function getApp(requestMessage, metadata, ca
     callback = arguments[1];
   }
   grpc.unary(Controller.GetApp, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onEnd: function (response) {
+      if (callback) {
+        if (response.status !== grpc.Code.OK) {
+          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+        } else {
+          callback(null, response.message);
+        }
+      }
+    }
+  });
+};
+
+ControllerClient.prototype.getRelease = function getRelease(requestMessage, metadata, callback) {
+  if (arguments.length === 2) {
+    callback = arguments[1];
+  }
+  grpc.unary(Controller.GetRelease, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,

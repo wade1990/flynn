@@ -22,6 +22,15 @@ type ControllerGetApp = {
   readonly responseType: typeof controller_pb.App;
 };
 
+type ControllerGetRelease = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof controller_pb.GetReleaseRequest;
+  readonly responseType: typeof controller_pb.Release;
+};
+
 type ControllerStreamAppLog = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -62,6 +71,7 @@ export class Controller {
   static readonly serviceName: string;
   static readonly ListApps: ControllerListApps;
   static readonly GetApp: ControllerGetApp;
+  static readonly GetRelease: ControllerGetRelease;
   static readonly StreamAppLog: ControllerStreamAppLog;
   static readonly CreateRelease: ControllerCreateRelease;
   static readonly CreateDeployment: ControllerCreateDeployment;
@@ -100,6 +110,15 @@ export class ControllerClient {
   getApp(
     requestMessage: controller_pb.GetAppRequest,
     callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
+  ): void;
+  getRelease(
+    requestMessage: controller_pb.GetReleaseRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
+  ): void;
+  getRelease(
+    requestMessage: controller_pb.GetReleaseRequest,
+    callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
   ): void;
   streamAppLog(requestMessage: controller_pb.StreamAppLogRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.LogChunk>;
   createRelease(

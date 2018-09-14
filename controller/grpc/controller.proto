@@ -12,6 +12,9 @@ service Controller {
   rpc GetApp (GetAppRequest) returns (App) {
     option (google.api.http).get = "/v2/{name=apps/-}";
   };
+  rpc GetRelease(GetReleaseRequest) returns (Release) {
+    option (google.api.http).get = "/v2/{{name=apps/-}/releases/-";
+  };
   rpc StreamAppLog (StreamAppLogRequest) returns (stream LogChunk) {
     option (google.api.http).get = "/v2/{name=apps/-}/log}";
   };
@@ -42,6 +45,11 @@ message ListAppsResponse {
 
 message GetAppRequest {
   // name = "apps/APP_ID"
+  string name = 1;
+}
+
+message GetReleaseRequest {
+  // name = "apps/APP_ID/releases/RELEASE_ID"
   string name = 1;
 }
 

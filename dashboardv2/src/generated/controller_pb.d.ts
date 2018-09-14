@@ -77,6 +77,26 @@ export namespace GetAppRequest {
   }
 }
 
+export class GetReleaseRequest extends jspb.Message {
+  getName(): string;
+  setName(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GetReleaseRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: GetReleaseRequest): GetReleaseRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: GetReleaseRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GetReleaseRequest;
+  static deserializeBinaryFromReader(message: GetReleaseRequest, reader: jspb.BinaryReader): GetReleaseRequest;
+}
+
+export namespace GetReleaseRequest {
+  export type AsObject = {
+    name: string,
+  }
+}
+
 export class StreamAppLogRequest extends jspb.Message {
   getName(): string;
   setName(value: string): void;
