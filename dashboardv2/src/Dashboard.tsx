@@ -14,7 +14,7 @@ import Title from 'grommet/components/Title';
 import Loading from './Loading';
 import AppsListNav from './AppsListNav';
 import AppComponent from './AppComponent';
-import Client from './client';
+import withClient, { ClientProps } from './withClient';
 import ExternalAnchor from './ExternalAnchor';
 import {
 	ListAppsRequest,
@@ -26,7 +26,7 @@ import {
 } from './generated/controller_pb';
 import { ServiceError } from './generated/controller_pb_service';
 
-export interface Props extends RouteComponentProps<{}> {}
+export interface Props extends RouteComponentProps<{}>, ClientProps {}
 
 interface State {
 	appsList: Array<App>;
@@ -61,7 +61,7 @@ class Dashboard extends React.Component<Props, State> {
 	}
 
 	private _fetchApps() {
-		Client.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
+		this.props.client.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
 			this.setState({
 				appsList: response ? response.getAppsList() : [],
 				appsListLoading: false,
@@ -82,7 +82,7 @@ class Dashboard extends React.Component<Props, State> {
 		const appName = m ? m[0].slice(1) : '';
 		getAppRequest.setName(appName);
 		new Promise<App>((resolve, reject) => {
-			Client.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
+			this.props.client.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
 				if (response && error === null) {
 					resolve(response);
 				} else {
@@ -93,7 +93,7 @@ class Dashboard extends React.Component<Props, State> {
 			.then((app: App) => {
 				getReleaseRequest.setName(app.getRelease());
 				return new Promise<Array<App | Release>>((resolve, reject) => {
-					Client.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
+					this.props.client.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
 						if (response && error === null) {
 							resolve([app, response]);
 						} else {
@@ -177,4 +177,4 @@ class DashboardContainer extends React.Component<Props> {
 	}
 }
 
-export default withRouter(DashboardContainer);
+export default withRouter(withClient(DashboardContainer));
