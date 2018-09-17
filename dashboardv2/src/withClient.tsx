@@ -1,11 +1,10 @@
 import * as React from 'react';
-import Client from './client';
-import { ControllerClient } from './generated/controller_pb_service';
+import { default as client, Client } from './client';
 
-export const ClientContext = React.createContext(Client);
+export const ClientContext = React.createContext(client);
 
 export interface ClientProps {
-	client: ControllerClient;
+	client: Client;
 }
 
 export default function withClient<P extends ClientProps>(Component: React.ComponentType<P>) {

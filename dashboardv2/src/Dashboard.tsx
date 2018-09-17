@@ -16,14 +16,7 @@ import AppsListNav from './AppsListNav';
 import AppComponent from './AppComponent';
 import withClient, { ClientProps } from './withClient';
 import ExternalAnchor from './ExternalAnchor';
-import {
-	ListAppsRequest,
-	ListAppsResponse,
-	GetAppRequest,
-	GetReleaseRequest,
-	App,
-	Release
-} from './generated/controller_pb';
+import { App, Release } from './generated/controller_pb';
 import { ServiceError } from './generated/controller_pb_service';
 
 export interface Props extends RouteComponentProps<{}>, ClientProps {}
@@ -61,13 +54,22 @@ class Dashboard extends React.Component<Props, State> {
 	}
 
 	private _fetchApps() {
-		this.props.client.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
-			this.setState({
-				appsList: response ? response.getAppsList() : [],
-				appsListLoading: false,
-				appsListError: error
+		this.props.client
+			.listApps()
+			.then((apps) => {
+				this.setState({
+					appsList: apps,
+					appsListLoading: false,
+					appsListError: null
+				});
+			})
+			.catch((error: ServiceError) => {
+				this.setState({
+					appsList: [],
+					appsListLoading: false,
+					appsListError: error
+				});
 			});
-		});
 	}
 
 	private _fetchApp(path: string) {
@@ -75,30 +77,13 @@ class Dashboard extends React.Component<Props, State> {
 			appLoading: true
 		});
 
-		const getAppRequest = new GetAppRequest();
-		const getReleaseRequest = new GetReleaseRequest();
 		const m = path.match(/\/apps\/[^\/]+/);
 		const appName = m ? m[0].slice(1) : '';
-		getAppRequest.setName(appName);
-		new Promise<App>((resolve, reject) => {
-			this.props.client.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
-				if (response && error === null) {
-					resolve(response);
-				} else {
-					reject(error);
-				}
-			});
-		})
+		this.props.client
+			.getApp(appName)
 			.then((app: App) => {
-				getReleaseRequest.setName(app.getRelease());
-				return new Promise<Array<App | Release>>((resolve, reject) => {
-					this.props.client.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
-						if (response && error === null) {
-							resolve([app, response]);
-						} else {
-							reject(error);
-						}
-					});
+				return this.props.client.getRelease(app.getRelease()).then((release) => {
+					return [app, release];
 				});
 			})
 			.then(([app, release]: [App, Release]) => {
