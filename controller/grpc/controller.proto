@@ -21,7 +21,7 @@ service Controller {
   rpc CreateRelease (CreateReleaseRequest) returns (Release) {
     option (google.api.http).post = "/v2/{parent=apps/-}/releases}";
   };
-  rpc CreateDeployment (CreateDeploymentRequest) returns (Deployment) {
+  rpc CreateDeployment (CreateDeploymentRequest) returns (stream Event) {
     option (google.api.http).post = "/v2/{parent=apps/-}/deployments";
   };
   rpc StreamEvents (StreamEventsRequest) returns (stream Event) {

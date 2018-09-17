@@ -216,11 +216,13 @@ func (s *server) StreamAppLog(*StreamAppLogRequest, Controller_StreamAppLogServe
 }
 
 func (s *server) CreateRelease(ctx context.Context, req *CreateReleaseRequest) (*Release, error) {
+	// TODO
 	return &Release{}, nil
 }
 
-func (s *server) CreateDeployment(context.Context, *CreateDeploymentRequest) (*Deployment, error) {
-	return &Deployment{}, nil
+func CreateDeployment(ctx context.Context, in *CreateDeploymentRequest, opts ...grpc.CallOption) (Controller_CreateDeploymentClient, error) {
+	// TODO
+	return nil, nil
 }
 
 func (s *server) StreamEvents(*StreamEventsRequest, Controller_StreamEventsServer) error {

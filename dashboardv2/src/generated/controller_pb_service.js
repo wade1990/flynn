@@ -59,9 +59,9 @@ Controller.CreateDeployment = {
   methodName: "CreateDeployment",
   service: Controller,
   requestStream: false,
-  responseStream: false,
+  responseStream: true,
   requestType: controller_pb.CreateDeploymentRequest,
-  responseType: controller_pb.Deployment
+  responseType: controller_pb.Event
 };
 
 Controller.StreamEvents = {
@@ -207,26 +207,43 @@ ControllerClient.prototype.createRelease = function createRelease(requestMessage
   });
 };
 
-ControllerClient.prototype.createDeployment = function createDeployment(requestMessage, metadata, callback) {
-  if (arguments.length === 2) {
-    callback = arguments[1];
-  }
-  grpc.unary(Controller.CreateDeployment, {
+ControllerClient.prototype.createDeployment = function createDeployment(requestMessage, metadata) {
+  var listeners = {
+    data: [],
+    end: [],
+    status: []
+  };
+  var client = grpc.invoke(Controller.CreateDeployment, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
     transport: this.options.transport,
     debug: this.options.debug,
-    onEnd: function (response) {
-      if (callback) {
-        if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
-        } else {
-          callback(null, response.message);
-        }
-      }
+    onMessage: function (responseMessage) {
+      listeners.data.forEach(function (handler) {
+        handler(responseMessage);
+      });
+    },
+    onEnd: function (status, statusMessage, trailers) {
+      listeners.end.forEach(function (handler) {
+        handler();
+      });
+      listeners.status.forEach(function (handler) {
+        handler({ code: status, details: statusMessage, metadata: trailers });
+      });
+      listeners = null;
     }
   });
+  return {
+    on: function (type, handler) {
+      listeners[type].push(handler);
+      return this;
+    },
+    cancel: function () {
+      listeners = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.streamEvents = function streamEvents(requestMessage, metadata) {

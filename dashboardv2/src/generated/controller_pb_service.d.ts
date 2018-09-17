@@ -53,9 +53,9 @@ type ControllerCreateDeployment = {
   readonly methodName: string;
   readonly service: typeof Controller;
   readonly requestStream: false;
-  readonly responseStream: false;
+  readonly responseStream: true;
   readonly requestType: typeof controller_pb.CreateDeploymentRequest;
-  readonly responseType: typeof controller_pb.Deployment;
+  readonly responseType: typeof controller_pb.Event;
 };
 
 type ControllerStreamEvents = {
@@ -130,15 +130,7 @@ export class ControllerClient {
     requestMessage: controller_pb.CreateReleaseRequest,
     callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
   ): void;
-  createDeployment(
-    requestMessage: controller_pb.CreateDeploymentRequest,
-    metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.Deployment|null) => void
-  ): void;
-  createDeployment(
-    requestMessage: controller_pb.CreateDeploymentRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.Deployment|null) => void
-  ): void;
+  createDeployment(requestMessage: controller_pb.CreateDeploymentRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Event>;
   streamEvents(requestMessage: controller_pb.StreamEventsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Event>;
 }
 
