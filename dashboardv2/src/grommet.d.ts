@@ -1002,6 +1002,7 @@ declare namespace Grommet {
 		reverse?: boolean;
 		secondary?: boolean;
 		type?: 'button' | 'reset' | 'submit';
+		hoverIndicator?: 'background';
 	}
 	export class Button extends React.Component<ButtonProps> {
 		context: GrommetContextTypes.Intl;

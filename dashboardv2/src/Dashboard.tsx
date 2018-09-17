@@ -77,7 +77,6 @@ class Dashboard extends React.Component<Props, State> {
 
 		const getAppRequest = new GetAppRequest();
 		const getReleaseRequest = new GetReleaseRequest();
-		// TODO: release ID
 		const m = path.match(/\/apps\/[^\/]+/);
 		const appName = m ? m[0].slice(1) : '';
 		getAppRequest.setName(appName);

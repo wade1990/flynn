@@ -1,0 +1,40 @@
+.env-editor {
+	> .grommetux-search-input, .grommetux-search-input > input {
+		width: 100%;
+		border-radius: 0;
+	}
+
+	> .grommetux-search-input {
+		margin-bottom: 0.25rem;
+	}
+
+	> .env-row {
+		display: flex;
+		> input[type=text], textarea {
+			width: 100%;
+			border-radius: 0;
+		}
+
+		> textarea {
+			height: 500px;
+		}
+
+		> input + input {
+			border-left: 0;
+		}
+
+		> button {
+			margin: 0.25rem 0;
+		}
+	}
+
+	> .env-row + .env-row {
+		> input[type=text] {
+			margin-top: 0.25rem;
+		}
+	}
+
+	> .env-row:last-of-type {
+		margin-bottom: 1rem;
+	}
+}
