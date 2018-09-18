@@ -74,6 +74,12 @@ message CreateDeploymentRequest {
   string request_id = 3;
 }
 
+message DeploymentEvent {
+  // deployment = "apps/APP_ID/deployments/DEPLOYMENT_ID"
+  string deployment = 1;
+  string release = 1;
+}
+
 message StreamEventsRequest {
   // parent = "apps/APP_ID"
   string parent = 1;

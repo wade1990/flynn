@@ -16,7 +16,9 @@ import (
 	"github.com/flynn/flynn/pkg/cors"
 	"github.com/flynn/flynn/pkg/httphelper"
 	"github.com/flynn/flynn/pkg/shutdown"
+	proto "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	any "github.com/golang/protobuf/ptypes/any"
 	durpb "github.com/golang/protobuf/ptypes/duration"
 	tspb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -144,9 +146,26 @@ func convertPorts(from []ct.Port) []*Port {
 	return to
 }
 
+func backConvertPorts(from []*Port) []ct.Port {
+	to := make([]ct.Port, len(from))
+	for i, p := range from {
+		to[i] = ct.Port{
+			Port:    int(p.Port),
+			Proto:   p.Proto,
+			Service: backConvertService(p.Service),
+		}
+	}
+	return to
+}
+
 func convertService(from *host.Service) *HostService {
 	// TODO(jvatic)
 	return &HostService{}
+}
+
+func backConvertService(from *HostService) *host.Service {
+	// TODO(jvatic)
+	return &host.Service{}
 }
 
 func convertVolumes(from []ct.VolumeReq) []*VolumeReq {
@@ -154,9 +173,19 @@ func convertVolumes(from []ct.VolumeReq) []*VolumeReq {
 	return []*VolumeReq{}
 }
 
+func backConvertVolumes(from []*VolumeReq) []ct.VolumeReq {
+	// TODO(jvatic)
+	return []ct.VolumeReq{}
+}
+
 func convertResources(from resource.Resources) map[string]*HostResourceSpec {
 	// TODO(jvatic)
 	return map[string]*HostResourceSpec{}
+}
+
+func backConvertResources(from map[string]*HostResourceSpec) resource.Resources {
+	// TODO(jvatic)
+	return resource.Resources{}
 }
 
 func convertMounts(from []host.Mount) []*HostMount {
@@ -164,9 +193,19 @@ func convertMounts(from []host.Mount) []*HostMount {
 	return []*HostMount{}
 }
 
+func backConvertMounts(from []*HostMount) []host.Mount {
+	// TODO(jvatic)
+	return []host.Mount{}
+}
+
 func convertAllowedDevices(from []*configs.Device) []*LibContainerDevice {
 	// TODO(jvatic)
 	return []*LibContainerDevice{}
+}
+
+func backConvertAllowedDevices(from []*LibContainerDevice) []*configs.Device {
+	// TODO(jvatic)
+	return []*configs.Device{}
 }
 
 func convertProcesses(from map[string]ct.ProcessType) map[string]*ProcessType {
@@ -186,6 +225,29 @@ func convertProcesses(from map[string]ct.ProcessType) map[string]*ProcessType {
 			Mounts:            convertMounts(t.Mounts),
 			LinuxCapabilities: t.LinuxCapabilities,
 			AllowedDevices:    convertAllowedDevices(t.AllowedDevices),
+			WriteableCgroups:  t.WriteableCgroups,
+		}
+	}
+	return to
+}
+
+func backConvertProcesses(from map[string]*ProcessType) map[string]ct.ProcessType {
+	to := make(map[string]ct.ProcessType, len(from))
+	for k, t := range from {
+		to[k] = ct.ProcessType{
+			Args:              t.Args,
+			Env:               t.Env,
+			Ports:             backConvertPorts(t.Ports),
+			Volumes:           backConvertVolumes(t.Volumes),
+			Omni:              t.Omni,
+			HostNetwork:       t.HostNetwork,
+			HostPIDNamespace:  t.HostPidNamespace,
+			Service:           t.Service,
+			Resurrect:         t.Resurrect,
+			Resources:         backConvertResources(t.Resources),
+			Mounts:            backConvertMounts(t.Mounts),
+			LinuxCapabilities: t.LinuxCapabilities,
+			AllowedDevices:    backConvertAllowedDevices(t.AllowedDevices),
 			WriteableCgroups:  t.WriteableCgroups,
 		}
 	}
@@ -216,13 +278,76 @@ func (s *server) StreamAppLog(*StreamAppLogRequest, Controller_StreamAppLogServe
 }
 
 func (s *server) CreateRelease(ctx context.Context, req *CreateReleaseRequest) (*Release, error) {
-	// TODO
-	return &Release{}, nil
+	r := req.Release
+	ctRelease := &ct.Release{
+		ArtifactIDs: r.Artifacts,
+		Env:         r.Env,
+		Meta:        r.Labels,
+		Processes:   backConvertProcesses(r.Processes),
+	}
+	if err := s.Client.CreateRelease(parseResourceName(req.Parent)["apps"], ctRelease); err != nil {
+		return nil, err
+	}
+	return convertRelease(ctRelease), nil
 }
 
-func CreateDeployment(ctx context.Context, in *CreateDeploymentRequest, opts ...grpc.CallOption) (Controller_CreateDeploymentClient, error) {
-	// TODO
-	return nil, nil
+func convertDeployment(from *ct.Deployment) *Deployment {
+	return &Deployment{}
+}
+
+func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_CreateDeploymentServer) error {
+	fmt.Printf("CreateDeployment: %#v, %#v, %s \n", parseResourceName(req.Parent), parseResourceName(req.Release), req.Release)
+	d, err := s.Client.CreateDeployment(parseResourceName(req.Parent)["apps"], parseResourceName(req.Release)["releases"])
+	if err != nil {
+		return err
+	}
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		AppID:       d.AppID,
+		ObjectID:    d.ID,
+		ObjectTypes: []ct.EventType{ct.EventTypeDeployment},
+		Past:        true,
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	for {
+		ctEvent, ok := <-events
+		if !ok {
+			break
+		}
+		if ctEvent.ObjectType != "deployment" {
+			continue
+		}
+		d, err := s.Client.GetDeployment(ctEvent.ObjectID)
+		if err != nil {
+			fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
+			continue
+		}
+		serializedDeployment, err := proto.Marshal(convertDeployment(d))
+		if err != nil {
+			fmt.Printf("Failed to serialize deployment deployment(%s): %s\n", d.ID, err)
+			continue
+		}
+		ds.Send(&Event{
+			Name:   fmt.Sprintf("events/%d", ctEvent.ID),
+			Parent: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),
+			Data: &any.Any{
+				TypeUrl: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),
+				Value:   serializedDeployment,
+			},
+		})
+		if d.Status == "complete" || d.Status == "failed" {
+			break
+		}
+	}
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
 }
 
 func (s *server) StreamEvents(*StreamEventsRequest, Controller_StreamEventsServer) error {
@@ -230,7 +355,7 @@ func (s *server) StreamEvents(*StreamEventsRequest, Controller_StreamEventsServe
 }
 
 func parseResourceName(name string) map[string]string {
-	parts := strings.Split(name, "/")
+	parts := strings.Split(strings.TrimPrefix(name, "/"), "/")
 	idMap := make(map[string]string, len(parts)/2)
 	for i := 0; i < len(parts)-1; i += 2 {
 		if i == len(parts) {
