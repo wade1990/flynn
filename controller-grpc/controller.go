@@ -256,7 +256,7 @@ func backConvertProcesses(from map[string]*ProcessType) map[string]ct.ProcessTyp
 
 func convertRelease(r *ct.Release) *Release {
 	return &Release{
-		Name:       fmt.Sprintf("/apps/%s/releases/%s", r.AppID, r.ID),
+		Name:       fmt.Sprintf("apps/%s/releases/%s", r.AppID, r.ID),
 		Artifacts:  r.ArtifactIDs,
 		Env:        r.Env,
 		Labels:     r.Meta,
@@ -355,7 +355,7 @@ func (s *server) StreamEvents(*StreamEventsRequest, Controller_StreamEventsServe
 }
 
 func parseResourceName(name string) map[string]string {
-	parts := strings.Split(strings.TrimPrefix(name, "/"), "/")
+	parts := strings.Split(name, "/")
 	idMap := make(map[string]string, len(parts)/2)
 	for i := 0; i < len(parts)-1; i += 2 {
 		if i == len(parts) {
