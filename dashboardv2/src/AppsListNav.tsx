@@ -13,6 +13,11 @@ export interface Props extends RouteComponentProps<{}> {
 }
 
 class AppsListNav extends React.Component<Props> {
+	constructor(props: Props) {
+		super(props);
+		this._navHandler = this._navHandler.bind(this);
+	}
+
 	public render() {
 		const { appsList, location } = this.props;
 
@@ -34,7 +39,7 @@ class AppsListNav extends React.Component<Props> {
 			<List selectable={true} selected={selectedAppRouteIndex}>
 				{appRoutes.map((r) => {
 					return (
-						<NavLink path={r.path} key={r.path} onNav={this.props.onNav}>
+						<NavLink path={r.path} key={r.path} onNav={this._navHandler}>
 							<ListItem justify="between" separator="horizontal">
 								{r.displayName}
 							</ListItem>
@@ -43,6 +48,14 @@ class AppsListNav extends React.Component<Props> {
 				})}
 			</List>
 		);
+	}
+
+	private _navHandler(path: string) {
+		const { location, onNav } = this.props;
+		if (location.pathname === path) {
+			return;
+		}
+		onNav(path);
 	}
 }
 
