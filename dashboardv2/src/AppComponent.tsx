@@ -77,7 +77,6 @@ class AppComponent extends React.Component<Props, State> {
 				return client
 					.createDeployment(app.getName(), release.getName())
 					.then((deployment) => {
-						console.log('deployment', deployment);
 						this.setState({
 							envPersisting: false
 						});
