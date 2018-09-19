@@ -291,12 +291,52 @@ func (s *server) CreateRelease(ctx context.Context, req *CreateReleaseRequest) (
 	return convertRelease(ctRelease), nil
 }
 
+func convertDeploymentTags(from map[string]map[string]string) map[string]*DeploymentProcessTags {
+	to := make(map[string]*DeploymentProcessTags, len(from))
+	for k, v := range from {
+		to[k] = &DeploymentProcessTags{Tags: v}
+	}
+	return to
+}
+
+func convertDeploymentProcesses(from map[string]int) map[string]int32 {
+	to := make(map[string]int32, len(from))
+	for k, v := range from {
+		to[k] = int32(v)
+	}
+	return to
+}
+
+func convertDeploymentStatus(from string) Deployment_Status {
+	switch from {
+	case "pending":
+		return Deployment_PENDING
+	case "failed":
+		return Deployment_FAILED
+	case "running":
+		return Deployment_RUNNING
+	case "complete":
+		return Deployment_COMPLETE
+	}
+	return Deployment_PENDING
+}
+
 func convertDeployment(from *ct.Deployment) *Deployment {
-	return &Deployment{}
+	return &Deployment{
+		Name:          fmt.Sprintf("apps/%s/deployments/%s", from.AppID, from.ID),
+		OldRelease:    fmt.Sprintf("apps/%s/releases/%s", from.AppID, from.OldReleaseID),
+		NewRelease:    fmt.Sprintf("apps/%s/releases/%s", from.AppID, from.NewReleaseID),
+		Strategy:      from.Strategy,
+		Status:        convertDeploymentStatus(from.Status),
+		Processes:     convertDeploymentProcesses(from.Processes),
+		Tags:          convertDeploymentTags(from.Tags),
+		DeployTimeout: from.DeployTimeout,
+		CreateTime:    timestampProto(from.CreatedAt),
+		EndTime:       timestampProto(from.FinishedAt),
+	}
 }
 
 func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_CreateDeploymentServer) error {
-	fmt.Printf("CreateDeployment: %#v, %#v, %s \n", parseResourceName(req.Parent), parseResourceName(req.Release), req.Release)
 	d, err := s.Client.CreateDeployment(parseResourceName(req.Parent)["apps"], parseResourceName(req.Release)["releases"])
 	if err != nil {
 		return err
