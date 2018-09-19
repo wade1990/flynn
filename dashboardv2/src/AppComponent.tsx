@@ -11,6 +11,7 @@ import withClient, { ClientProps } from './withClient';
 import { ServiceError } from './generated/controller_pb_service';
 import { App, Release } from './generated/controller_pb';
 import EnvEditor from './EnvEditor';
+import dataStore from './dataStore';
 
 export interface Props extends ClientProps {
 	app: App;
@@ -20,7 +21,6 @@ export interface Props extends ClientProps {
 interface State {
 	envPersisting: boolean;
 	releaseError: ServiceError | null;
-	release: Release | null; // TODO(jvatic): trigger invalidation of app and release in parent component... maybe use a cache to load things through with invalidation
 }
 
 class AppComponent extends React.Component<Props, State> {
@@ -28,16 +28,14 @@ class AppComponent extends React.Component<Props, State> {
 		super(props);
 		this.state = {
 			envPersisting: false,
-			releaseError: null,
-			release: null
+			releaseError: null
 		};
 		this._envPersistHandler = this._envPersistHandler.bind(this);
 	}
 
 	public render() {
-		const { app } = this.props;
+		const { app, release } = this.props;
 		const { envPersisting, releaseError } = this.state;
-		const release = this.state.release || this.props.release;
 		return (
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
@@ -45,6 +43,7 @@ class AppComponent extends React.Component<Props, State> {
 					<AccordionPanel heading="Environment">
 						{releaseError ? <Notification status="warning" message={releaseError.message} /> : null}
 						<EnvEditor
+							key={release.getName()}
 							entries={release.getEnvMap().getEntryList()}
 							persist={this._envPersistHandler}
 							persisting={envPersisting}
@@ -75,13 +74,20 @@ class AppComponent extends React.Component<Props, State> {
 				return client.createRelease(app.getName(), newRelease);
 			})
 			.then((release) => {
-				return client.createDeployment(app.getName(), release.getName()).then((deployment) => {
-					console.log('deployment', deployment);
-					this.setState({
-						release,
-						envPersisting: false
+				return client
+					.createDeployment(app.getName(), release.getName())
+					.then((deployment) => {
+						console.log('deployment', deployment);
+						this.setState({
+							envPersisting: false
+						});
+					})
+					.then(() => {
+						dataStore.del(app.getRelease());
+						return client.getApp(app.getName()).then((app) => {
+							dataStore.add(app);
+						});
 					});
-				});
 			})
 			.catch((error: ServiceError) => {
 				this.setState({

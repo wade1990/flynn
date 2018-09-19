@@ -18,8 +18,17 @@ import withClient, { ClientProps } from './withClient';
 import ExternalAnchor from './ExternalAnchor';
 import { App, Release } from './generated/controller_pb';
 import { ServiceError } from './generated/controller_pb_service';
+import dataStore, { DataStore } from './dataStore';
 
 export interface Props extends RouteComponentProps<{}>, ClientProps {}
+
+// DEBUG:
+declare global {
+	interface Window {
+		dataStore: DataStore;
+	}
+}
+window.dataStore = dataStore;
 
 interface State {
 	appsList: Array<App>;
@@ -33,6 +42,9 @@ interface State {
 }
 
 class Dashboard extends React.Component<Props, State> {
+	private _appsUnsub: () => void;
+	private _appUnsub: () => void;
+	private _releaseUnsub: () => void;
 	constructor(props: Props) {
 		super(props);
 		this.state = {
@@ -45,8 +57,15 @@ class Dashboard extends React.Component<Props, State> {
 			appLoading: props.location.pathname.startsWith('/apps/'),
 			appError: null
 		};
+		this._appsUnsub = () => {};
+		this._appUnsub = () => {};
+		this._releaseUnsub = () => {};
 		this._fetchApp = this._fetchApp.bind(this);
+		this._handleAppsListChange = this._handleAppsListChange.bind(this);
+		this._handleAppChange = this._handleAppChange.bind(this);
+		this._handleReleaseChange = this._handleReleaseChange.bind(this);
 	}
+
 	public componentDidMount() {
 		const { location } = this.props;
 		this._fetchApps();
@@ -54,9 +73,11 @@ class Dashboard extends React.Component<Props, State> {
 	}
 
 	private _fetchApps() {
+		this._appsUnsub();
 		this.props.client
 			.listApps()
 			.then((apps) => {
+				this._appsUnsub = dataStore.add(...apps).arrayWatcher(this._handleAppsListChange).unsubscribe;
 				this.setState({
 					appsList: apps,
 					appsListLoading: false,
@@ -72,7 +93,16 @@ class Dashboard extends React.Component<Props, State> {
 			});
 	}
 
+	private _handleAppsListChange(apps: any[], name: string, data: any) {
+		this.setState({
+			appsList: apps as App[]
+		});
+	}
+
 	private _fetchApp(path: string) {
+		this._appUnsub();
+		this._releaseUnsub();
+
 		this.setState({
 			appLoading: true
 		});
@@ -82,11 +112,13 @@ class Dashboard extends React.Component<Props, State> {
 		this.props.client
 			.getApp(appName)
 			.then((app: App) => {
+				this._appUnsub = dataStore.add(app)(this._handleAppChange).unsubscribe;
 				return this.props.client.getRelease(app.getRelease()).then((release) => {
 					return [app, release];
 				});
 			})
 			.then(([app, release]: [App, Release]) => {
+				this._releaseUnsub = dataStore.add(release)(this._handleReleaseChange).unsubscribe;
 				this.setState({
 					app: app,
 					release: release,
@@ -102,6 +134,29 @@ class Dashboard extends React.Component<Props, State> {
 					appLoading: false
 				});
 			});
+	}
+
+	private _handleAppChange(name: string, data: any) {
+		const app = (data || null) as App | null;
+		let release = this.state.release;
+		if (this.state.app && app && app.getRelease() !== this.state.app.getRelease()) {
+			this._releaseUnsub();
+			this._releaseUnsub = dataStore.watch(app.getRelease())(this._handleReleaseChange).unsubscribe;
+			const newRelease = dataStore.get(app.getRelease());
+			if (newRelease) {
+				release = newRelease as Release;
+			}
+		}
+		this.setState({
+			app,
+			release
+		});
+	}
+
+	private _handleReleaseChange(name: string, data: any) {
+		this.setState({
+			release: (data || null) as Release | null
+		});
 	}
 
 	public render() {

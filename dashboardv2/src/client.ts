@@ -14,6 +14,7 @@ import {
 	Deployment,
 	Event
 } from './generated/controller_pb';
+import dataStore from './dataStore';
 
 export interface Client {
 	listApps: () => Promise<App[]>;
@@ -33,7 +34,9 @@ class _Client implements Client {
 		return new Promise<App[]>((resolve, reject) => {
 			this._cc.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
 				if (error === null) {
-					resolve(response ? response.getAppsList() : []);
+					const apps = response ? response.getAppsList() : [];
+					dataStore.add(...apps);
+					resolve(apps);
 				} else {
 					reject(error);
 				}
@@ -47,6 +50,7 @@ class _Client implements Client {
 		return new Promise<App>((resolve, reject) => {
 			this._cc.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
 				if (response && error === null) {
+					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -61,6 +65,7 @@ class _Client implements Client {
 		return new Promise<Release>((resolve, reject) => {
 			this._cc.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
+					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -76,6 +81,7 @@ class _Client implements Client {
 		return new Promise<Release>((resolve, reject) => {
 			this._cc.createRelease(req, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
+					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -97,6 +103,7 @@ class _Client implements Client {
 				if (isDeploymentEvent(parentName, p, data)) {
 					console.log('isDeploymentEvent', data);
 					deployment = data;
+					// TODO: decode deployment and add to dataStore
 				}
 			});
 			stream.on('status', (s: Status) => {
