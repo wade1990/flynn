@@ -23,6 +23,7 @@ interface EnvStateInternalState {
 }
 
 class EnvState {
+	public length: number;
 	public deletedLength: number;
 	public hasChanges: boolean;
 	private _entries: Entries;
@@ -43,6 +44,7 @@ class EnvState {
 						}, {}),
 					filterText: ''
 			  };
+		this.length = entries.getLength();
 		this._setDeletedLength();
 	}
 
@@ -86,7 +88,7 @@ class EnvState {
 					[] as Array<T>
 				)
 				// there's always an empty entry at the end for adding new env
-				.concat(fn(['', ''], this._entries.getLength()))
+				.concat(fn(['', ''], this.length))
 		);
 	}
 
@@ -107,9 +109,10 @@ class EnvState {
 		this._setDeletedLength();
 		const entries = this._entries.toArray().slice(); // don't modify old map
 		entries[index] = [key, (entries[index] || [])[1] || ''];
+		this.length = entries.length;
 		this._entries = new jspb.Map(entries);
 		this._trackChanges(index);
-		if (this._state.uniqueKeyMap[key] > -1 && this._state.uniqueKeyMap[key] !== index) {
+		if (this._state.uniqueKeyMap[key] > -1 && this._state.uniqueKeyMap[key] !== index && index < entries.length) {
 			// duplicate key, remove old one
 			this.removeEntryAtIndex(this._state.uniqueKeyMap[key]);
 			this._state.uniqueKeyMap[key] = index;
@@ -119,8 +122,14 @@ class EnvState {
 	public setValueAtIndex(index: number, val: string) {
 		const entries = this._entries.toArray().slice(); // don't modify old map
 		entries[index] = [(entries[index] || [])[0] || '', val];
+		this.length = entries.length;
 		this._entries = new jspb.Map(entries);
-		this._trackChanges(index);
+		if (val === '' && (entries[index] || [])[0] === '') {
+			// if there's no key or value, remove it
+			this.removeEntryAtIndex(index);
+		} else {
+			this._trackChanges(index);
+		}
 	}
 
 	public removeEntryAtIndex(index: number) {
