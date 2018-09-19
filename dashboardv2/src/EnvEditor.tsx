@@ -146,7 +146,7 @@ class EnvState {
 			} else {
 				delete changedIndices[index];
 			}
-		} else if (entriesEqual(originalEntries[index], this._entries[index])) {
+		} else if (entriesEqual(originalEntries.toArray()[index], this._entries.toArray()[index])) {
 			delete changedIndices[index];
 		} else {
 			changedIndices[index] = true;
