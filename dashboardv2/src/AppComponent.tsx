@@ -44,7 +44,7 @@ class AppComponent extends React.Component<Props, State> {
 						{releaseError ? <Notification status="warning" message={releaseError.message} /> : null}
 						<EnvEditor
 							key={release.getName()}
-							entries={release.getEnvMap().getEntryList()}
+							entries={release.getEnvMap()}
 							persist={this._envPersistHandler}
 							persisting={envPersisting}
 						/>
@@ -54,9 +54,9 @@ class AppComponent extends React.Component<Props, State> {
 		);
 	}
 
-	private _envPersistHandler(next: Array<[string, string]>) {
+	private _envPersistHandler(next: jspb.Map<string, string>) {
 		const { client, app, release } = this.props;
-		const envDiff = protoMapDiff(release.getEnvMap(), new jspb.Map(next));
+		const envDiff = protoMapDiff(release.getEnvMap(), next);
 		this.setState({
 			envPersisting: true
 		});

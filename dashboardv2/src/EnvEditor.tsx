@@ -1,25 +1,17 @@
 import * as React from 'react';
+import * as jspb from 'google-protobuf';
 import fz from 'fz';
 
 import Button from 'grommet/components/Button';
 import { CheckmarkIcon, SearchInput } from 'grommet';
+import protoMapDiff, { DiffOption } from './util/protoMapDiff';
 
 import './EnvEditor.scss';
 
-export type Entries = Array<[string, string]>;
+export type Entries = jspb.Map<string, string>;
 
 function entriesEqual(a: [string, string], b: [string, string]): boolean {
 	return a && b && a[0] === b[0] && a[1] === b[1];
-}
-
-export interface Props {
-	entries: Entries;
-	persist: (next: Entries) => void;
-	persisting: boolean;
-}
-
-interface State {
-	entries: EnvState;
 }
 
 interface EnvStateInternalState {
@@ -43,13 +35,12 @@ class EnvState {
 					originalEntries: entries,
 					changedIndices: {},
 					deletedIndices: {},
-					uniqueKeyMap: entries.reduce(
-						(m: { [key: string]: number }, [key, value]: [string, string], index: number) => {
+					uniqueKeyMap: entries
+						.toArray()
+						.reduce((m: { [key: string]: number }, [key, value]: [string, string], index: number) => {
 							m[key] = index;
 							return m;
-						},
-						{}
-					),
+						}, {}),
 					filterText: ''
 			  };
 		this._setDeletedLength();
@@ -63,11 +54,17 @@ class EnvState {
 		return new EnvState(this._entries, Object.assign({}, this._state, { filterText }));
 	}
 
+	public get(key: string): string | undefined {
+		return this._entries.get(key);
+	}
+
 	public entries(): Entries {
-		return this._entries.filter(
-			(entry: [string, string], index: number): boolean => {
-				return this._state.deletedIndices[index] !== true;
-			}
+		return new jspb.Map(
+			this._entries.toArray().filter(
+				(entry: [string, string], index: number): boolean => {
+					return this._state.deletedIndices[index] !== true && entry[0] !== '' && entry[1] !== '';
+				}
+			)
 		);
 	}
 
@@ -75,6 +72,7 @@ class EnvState {
 		const filterText = this._state.filterText;
 		return (
 			this._entries
+				.toArray()
 				.reduce<T[]>(
 					(prev: T[], entry: [string, string], index: number): T[] => {
 						if (this._state.deletedIndices[index] === true) {
@@ -88,12 +86,12 @@ class EnvState {
 					[] as Array<T>
 				)
 				// there's always an empty entry at the end for adding new env
-				.concat(fn(['', ''], this._entries.length))
+				.concat(fn(['', ''], this._entries.getLength()))
 		);
 	}
 
 	public mapDeleted<T>(fn: (entry: [string, string], index: number) => T): T[] {
-		return this._entries.reduce<T[]>(
+		return this._entries.toArray().reduce<T[]>(
 			(prev: T[], entry: [string, string], index: number): T[] => {
 				if (this._state.deletedIndices[index] !== true) {
 					return prev;
@@ -107,8 +105,9 @@ class EnvState {
 	public setKeyAtIndex(index: number, key: string) {
 		delete this._state.deletedIndices[index]; // allow restoring an item
 		this._setDeletedLength();
-		this._entries = this._entries.slice(); // don't modify old array
-		this._entries[index] = [key, (this._entries[index] || [])[1] || ''];
+		const entries = this._entries.toArray().slice(); // don't modify old map
+		entries[index] = [key, (entries[index] || [])[1] || ''];
+		this._entries = new jspb.Map(entries);
 		this._trackChanges(index);
 		if (this._state.uniqueKeyMap[key] > -1 && this._state.uniqueKeyMap[key] !== index) {
 			// duplicate key, remove old one
@@ -118,8 +117,9 @@ class EnvState {
 	}
 
 	public setValueAtIndex(index: number, val: string) {
-		this._entries = this._entries.slice(); // don't modify old array
-		this._entries[index] = [(this._entries[index] || [])[0] || '', val];
+		const entries = this._entries.toArray().slice(); // don't modify old map
+		entries[index] = [(entries[index] || [])[0] || '', val];
+		this._entries = new jspb.Map(entries);
 		this._trackChanges(index);
 	}
 
@@ -132,7 +132,7 @@ class EnvState {
 	private _trackChanges(index: number) {
 		const { deletedIndices, changedIndices, originalEntries } = this._state;
 		if (deletedIndices[index] === true) {
-			if (index < originalEntries.length) {
+			if (index < originalEntries.getLength()) {
 				changedIndices[index] = true;
 			} else {
 				delete changedIndices[index];
@@ -238,19 +238,37 @@ class EnvInput extends React.Component<EnvInputProps, EnvInputState> {
 	}
 }
 
+export interface Props {
+	entries: Entries;
+	persist: (next: Entries) => void;
+	persisting: boolean;
+}
+
+interface State {
+	entries: EnvState;
+	confirming: boolean;
+}
+
 export default class EnvEditor extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
-			entries: new EnvState(props.entries)
+			entries: new EnvState(props.entries),
+			confirming: false
 		};
 		this._searchInputHandler = this._searchInputHandler.bind(this);
 		this._submitHandler = this._submitHandler.bind(this);
+		this._submitConfirmHandler = this._submitConfirmHandler.bind(this);
 	}
 
 	public render() {
 		const { persisting } = this.props;
-		const { entries } = this.state;
+		const { entries, confirming } = this.state;
+
+		if (confirming) {
+			return this._renderConfirm();
+		}
+
 		return (
 			<form onSubmit={this._submitHandler} className="env-editor">
 				<SearchInput onDOMChange={this._searchInputHandler} />
@@ -272,48 +290,67 @@ export default class EnvEditor extends React.Component<Props, State> {
 						</div>
 					);
 				})}
-				{entries.deletedLength ? <p>Deleted:</p> : null}
-				{entries.mapDeleted(([key, value]: [string, string], index: number) => {
-					return (
-						<div key={index} className="env-row">
-							<EnvInput
-								placeholder=""
-								value={key}
-								disabled={true}
-								onChange={this._keyChangeHandler.bind(this, index)}
-							/>
-							<EnvInput
-								placeholder=""
-								value={value}
-								disabled={true}
-								onChange={this._valueChangeHandler.bind(this, index)}
-							/>
-							&nbsp;
-							<Button
-								type="button"
-								label="Restore"
-								hoverIndicator="background"
-								onClick={
-									persisting
-										? undefined
-										: () => {
-												this._keyChangeHandler(index, key);
-										  }
-								}
-							/>
-						</div>
-					);
-				})}
 				{persisting ? (
 					// Disable save button with saving indicator
-					<Button type="button" primary icon={<CheckmarkIcon />} label="Saving..." />
+					<Button type="button" primary icon={<CheckmarkIcon />} label="Deploying..." />
 				) : entries.hasChanges ? (
 					// Enable save button
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Save" />
+					<Button type="submit" primary icon={<CheckmarkIcon />} label="Review Changes" />
 				) : (
 					// Disable save button
-					<Button type="button" primary icon={<CheckmarkIcon />} label="Save" />
+					<Button type="button" primary icon={<CheckmarkIcon />} label="Review Changes" />
 				)}
+			</form>
+		);
+	}
+
+	private _renderConfirm() {
+		const { entries } = this.state;
+		const prevEntries = this.props.entries;
+
+		const diff = protoMapDiff(prevEntries, entries.entries(), DiffOption.INCLUDE_UNCHANGED).sort((a, b) => {
+			return a.key.localeCompare(b.key);
+		});
+
+		return (
+			<form onSubmit={this._submitConfirmHandler} className="env-editor">
+				<pre>
+					{diff.map((item) => {
+						let value;
+						let prefix = ' ';
+						switch (item.op) {
+							case 'keep':
+								value = entries.get(item.key);
+								break;
+							case 'remove':
+								prefix = '-';
+								value = prevEntries.get(item.key);
+								break;
+							case 'add':
+								prefix = '+';
+								value = entries.get(item.key);
+								break;
+						}
+						return (
+							<span key={item.op + item.key} className={'env-diff-' + item.op}>
+								{prefix} {item.key} = {value}
+								<br />
+							</span>
+						);
+					})}
+				</pre>
+				<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy" />
+				&nbsp;
+				<Button
+					type="button"
+					label="Continue Editing"
+					onClick={(e: React.SyntheticEvent) => {
+						e.preventDefault();
+						this.setState({
+							confirming: false
+						});
+					}}
+				/>
 			</form>
 		);
 	}
@@ -347,6 +384,16 @@ export default class EnvEditor extends React.Component<Props, State> {
 
 	private _submitHandler(e: React.SyntheticEvent) {
 		e.preventDefault();
+		this.setState({
+			confirming: true
+		});
+	}
+
+	private _submitConfirmHandler(e: React.SyntheticEvent) {
+		e.preventDefault();
+		this.setState({
+			confirming: false
+		});
 		this.props.persist(this.state.entries.entries());
 	}
 }
