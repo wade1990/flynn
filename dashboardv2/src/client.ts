@@ -100,10 +100,9 @@ class _Client implements Client {
 			stream.on('data', (event: Event) => {
 				const p = event.getParent();
 				const data = event.getData();
-				if (isDeploymentEvent(parentName, p, data)) {
-					console.log('isDeploymentEvent', data);
-					deployment = data;
-					// TODO: decode deployment and add to dataStore
+				if (event.hasData() && data && isDeploymentEvent(parentName, p)) {
+					deployment = Deployment.deserializeBinary(data.getValue_asU8());
+					dataStore.add(deployment);
 				}
 			});
 			stream.on('status', (s: Status) => {
@@ -114,14 +113,12 @@ class _Client implements Client {
 					reject(new Error(s.details));
 				}
 			});
-			stream.on('end', () => {
-				console.log('end');
-			});
+			stream.on('end', () => {});
 		});
 	}
 }
 
-function isDeploymentEvent(parentName: string, eventParent: string, data: any): data is Deployment {
+function isDeploymentEvent(parentName: string, eventParent: string): boolean {
 	if (eventParent.startsWith(parentName + '/deployments/')) {
 		return true;
 	} else {
