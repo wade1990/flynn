@@ -22,6 +22,15 @@ type ControllerGetApp = {
   readonly responseType: typeof controller_pb.App;
 };
 
+type ControllerUpdateApp = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof controller_pb.UpdateAppRequest;
+  readonly responseType: typeof controller_pb.App;
+};
+
 type ControllerGetRelease = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -29,6 +38,15 @@ type ControllerGetRelease = {
   readonly responseStream: false;
   readonly requestType: typeof controller_pb.GetReleaseRequest;
   readonly responseType: typeof controller_pb.Release;
+};
+
+type ControllerListReleases = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof controller_pb.ListReleasesRequest;
+  readonly responseType: typeof controller_pb.ListReleasesResponse;
 };
 
 type ControllerStreamAppLog = {
@@ -71,7 +89,9 @@ export class Controller {
   static readonly serviceName: string;
   static readonly ListApps: ControllerListApps;
   static readonly GetApp: ControllerGetApp;
+  static readonly UpdateApp: ControllerUpdateApp;
   static readonly GetRelease: ControllerGetRelease;
+  static readonly ListReleases: ControllerListReleases;
   static readonly StreamAppLog: ControllerStreamAppLog;
   static readonly CreateRelease: ControllerCreateRelease;
   static readonly CreateDeployment: ControllerCreateDeployment;
@@ -111,6 +131,15 @@ export class ControllerClient {
     requestMessage: controller_pb.GetAppRequest,
     callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
   ): void;
+  updateApp(
+    requestMessage: controller_pb.UpdateAppRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
+  ): void;
+  updateApp(
+    requestMessage: controller_pb.UpdateAppRequest,
+    callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
+  ): void;
   getRelease(
     requestMessage: controller_pb.GetReleaseRequest,
     metadata: grpc.Metadata,
@@ -119,6 +148,15 @@ export class ControllerClient {
   getRelease(
     requestMessage: controller_pb.GetReleaseRequest,
     callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
+  ): void;
+  listReleases(
+    requestMessage: controller_pb.ListReleasesRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError, responseMessage: controller_pb.ListReleasesResponse|null) => void
+  ): void;
+  listReleases(
+    requestMessage: controller_pb.ListReleasesRequest,
+    callback: (error: ServiceError, responseMessage: controller_pb.ListReleasesResponse|null) => void
   ): void;
   streamAppLog(requestMessage: controller_pb.StreamAppLogRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.LogChunk>;
   createRelease(

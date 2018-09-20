@@ -6,14 +6,23 @@ import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/field_mask.proto";
 
 service Controller {
-  rpc ListApps (ListAppsRequest) returns (ListAppsResponse) {}
+  rpc ListApps (ListAppsRequest) returns (ListAppsResponse) {
+    option (google.api.http).get = "/v2/apps";
+  };
   rpc GetApp (GetAppRequest) returns (App) {
     option (google.api.http).get = "/v2/{name=apps/-}";
   };
+  rpc UpdateApp (UpdateAppRequest) returns (App) {
+    option (google.api.http).post = "/v2/{app.name=apps/-}";
+  };
   rpc GetRelease(GetReleaseRequest) returns (Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/releases/-";
+  };
+  rpc ListReleases(ListReleasesRequest) returns (ListReleasesResponse) {
+    option (google.api.http).get = "/v2/{{name=apps/-}/releases";
   };
   rpc StreamAppLog (StreamAppLogRequest) returns (stream LogChunk) {
     option (google.api.http).get = "/v2/{name=apps/-}/log}";
@@ -48,6 +57,22 @@ message GetAppRequest {
   string name = 1;
 }
 
+message UpdateAppRequest {
+  App app = 1;
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+message ListReleasesRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string parent = 3;
+}
+
+message ListReleasesResponse {
+  repeated Release releases = 1;
+  string next_page_token = 2;
+}
+
 message GetReleaseRequest {
   // name = "apps/APP_ID/releases/RELEASE_ID"
   string name = 1;
@@ -72,12 +97,6 @@ message CreateDeploymentRequest {
   // release = Release.name
   string release = 2;
   string request_id = 3;
-}
-
-message DeploymentEvent {
-  // deployment = "apps/APP_ID/deployments/DEPLOYMENT_ID"
-  string deployment = 1;
-  string release = 1;
 }
 
 message StreamEventsRequest {

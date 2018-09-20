@@ -6,6 +6,7 @@ import * as google_api_annotations_pb from "./google/api/annotations_pb";
 import * as google_protobuf_timestamp_pb from "google-protobuf/google/protobuf/timestamp_pb";
 import * as google_protobuf_duration_pb from "google-protobuf/google/protobuf/duration_pb";
 import * as google_protobuf_any_pb from "google-protobuf/google/protobuf/any_pb";
+import * as google_protobuf_field_mask_pb from "google-protobuf/google/protobuf/field_mask_pb";
 
 export class ListAppsRequest extends jspb.Message {
   getPageSize(): number;
@@ -74,6 +75,88 @@ export class GetAppRequest extends jspb.Message {
 export namespace GetAppRequest {
   export type AsObject = {
     name: string,
+  }
+}
+
+export class UpdateAppRequest extends jspb.Message {
+  hasApp(): boolean;
+  clearApp(): void;
+  getApp(): App | undefined;
+  setApp(value?: App): void;
+
+  hasUpdateMask(): boolean;
+  clearUpdateMask(): void;
+  getUpdateMask(): google_protobuf_field_mask_pb.FieldMask | undefined;
+  setUpdateMask(value?: google_protobuf_field_mask_pb.FieldMask): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): UpdateAppRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: UpdateAppRequest): UpdateAppRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: UpdateAppRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): UpdateAppRequest;
+  static deserializeBinaryFromReader(message: UpdateAppRequest, reader: jspb.BinaryReader): UpdateAppRequest;
+}
+
+export namespace UpdateAppRequest {
+  export type AsObject = {
+    app?: App.AsObject,
+    updateMask?: google_protobuf_field_mask_pb.FieldMask.AsObject,
+  }
+}
+
+export class ListReleasesRequest extends jspb.Message {
+  getPageSize(): number;
+  setPageSize(value: number): void;
+
+  getPageToken(): string;
+  setPageToken(value: string): void;
+
+  getParent(): string;
+  setParent(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListReleasesRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: ListReleasesRequest): ListReleasesRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListReleasesRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListReleasesRequest;
+  static deserializeBinaryFromReader(message: ListReleasesRequest, reader: jspb.BinaryReader): ListReleasesRequest;
+}
+
+export namespace ListReleasesRequest {
+  export type AsObject = {
+    pageSize: number,
+    pageToken: string,
+    parent: string,
+  }
+}
+
+export class ListReleasesResponse extends jspb.Message {
+  clearReleasesList(): void;
+  getReleasesList(): Array<Release>;
+  setReleasesList(value: Array<Release>): void;
+  addReleases(value?: Release, index?: number): Release;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListReleasesResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: ListReleasesResponse): ListReleasesResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListReleasesResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListReleasesResponse;
+  static deserializeBinaryFromReader(message: ListReleasesResponse, reader: jspb.BinaryReader): ListReleasesResponse;
+}
+
+export namespace ListReleasesResponse {
+  export type AsObject = {
+    releasesList: Array<Release.AsObject>,
+    nextPageToken: string,
   }
 }
 

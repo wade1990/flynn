@@ -134,6 +134,27 @@ func (s *server) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {
 	return convertApp(ctApp), nil
 }
 
+func backConvertApp(a *App) *ct.App {
+	return &ct.App{
+		ID:            parseResourceName(a.Name)["apps"],
+		Name:          a.DisplayName,
+		Meta:          a.Labels,
+		Strategy:      a.Strategy,
+		ReleaseID:     parseResourceName(a.Release)["releases"],
+		DeployTimeout: a.DeployTimeout,
+		CreatedAt:     timestampFromProto(a.CreateTime),
+		UpdatedAt:     timestampFromProto(a.UpdateTime),
+	}
+}
+
+func (s *server) UpdateApp(ctx context.Context, req *UpdateAppRequest) (*App, error) {
+	ctApp := backConvertApp(req.App)
+	if err := s.Client.UpdateApp(ctApp); err != nil {
+		return nil, err
+	}
+	return convertApp(ctApp), nil
+}
+
 func convertPorts(from []ct.Port) []*Port {
 	to := make([]*Port, len(from))
 	for i, p := range from {
@@ -271,6 +292,30 @@ func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Relea
 		return nil, err
 	}
 	return convertRelease(release), nil
+}
+
+func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*ListReleasesResponse, error) {
+	appID := parseResourceName(req.Parent)["apps"]
+	var ctReleases []*ct.Release
+	if appID == "" {
+		res, err := s.Client.ReleaseList()
+		if err != nil {
+			return nil, err
+		}
+		ctReleases = res
+	} else {
+		res, err := s.Client.AppReleaseList(appID)
+		if err != nil {
+			return nil, err
+		}
+		ctReleases = res
+	}
+
+	releases := make([]*Release, len(ctReleases))
+	for i, r := range ctReleases {
+		releases[i] = convertRelease(r)
+	}
+	return &ListReleasesResponse{Releases: releases}, nil
 }
 
 func (s *server) StreamAppLog(*StreamAppLogRequest, Controller_StreamAppLogServer) error {
@@ -419,4 +464,12 @@ func timestampProto(t *time.Time) *tspb.Timestamp {
 	}
 	tp, _ := ptypes.TimestampProto(*t)
 	return tp
+}
+
+func timestampFromProto(t *tspb.Timestamp) *time.Time {
+	if t == nil {
+		return nil
+	}
+	ts, _ := ptypes.Timestamp(t)
+	return &ts
 }
