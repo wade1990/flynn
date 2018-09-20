@@ -1,13 +1,20 @@
-interface Named {
+import { isEqual } from 'lodash';
+
+interface Resource {
 	getName: () => string;
+	toObject: () => Object;
+}
+
+function isResourceEqual(a: Resource, b: Resource): boolean {
+	return isEqual(a.toObject(), b.toObject());
 }
 
 interface WatchFuncCallback {
-	(name: string, data: Named | undefined): void;
+	(name: string, data: Resource | undefined): void;
 }
 
 interface WatchFuncArrayCallback {
-	(arr: Named[], name: string, data: Named | undefined): void;
+	(arr: Resource[], name: string, data: Resource | undefined): void;
 }
 
 interface WatchFunc {
@@ -17,34 +24,39 @@ interface WatchFunc {
 }
 
 export interface DataStoreInterface {
-	add: (...items: Named[]) => WatchFunc;
-	get: (name: string) => Named | undefined;
+	add: (...items: Resource[]) => WatchFunc;
+	get: (name: string) => Resource | undefined;
 	del: (name: string) => void;
 	watch: (...names: string[]) => WatchFunc;
 }
 
 export class DataStore implements DataStoreInterface {
 	private _cbs: Set<WatchFuncCallback>;
-	private _d: { [k: string]: Named };
+	private _d: { [k: string]: Resource };
 	constructor() {
 		this._d = {};
 		this._cbs = new Set<WatchFuncCallback>();
 	}
 
-	public add(...items: Named[]): WatchFunc {
+	public add(...items: Resource[]): WatchFunc {
 		const names = [] as string[];
 		items.forEach((item) => {
 			const name = item.getName();
 			names.push(name);
-			this._d[name] = item;
 
+			if (this._d[name] && isResourceEqual(item, this._d[name])) {
+				// this exact resource is already in the datastore
+				return;
+			}
+
+			this._d[name] = item;
 			this._publish(name, item);
 		});
 
 		return this.watch(...names);
 	}
 
-	public get(name: string): Named | undefined {
+	public get(name: string): Resource | undefined {
 		return this._d[name];
 	}
 
@@ -58,7 +70,7 @@ export class DataStore implements DataStoreInterface {
 		const cbs = new Set<WatchFuncCallback>();
 		const watchFunc = Object.assign(
 			(cb: WatchFuncCallback) => {
-				const filteredCb = (name: string, data: Named) => {
+				const filteredCb = (name: string, data: Resource) => {
 					if (names.has(name)) {
 						cb(name, data);
 					}
@@ -69,7 +81,7 @@ export class DataStore implements DataStoreInterface {
 			},
 			{
 				arrayWatcher: (cb: WatchFuncArrayCallback) => {
-					const filteredCb = (name: string, data: Named) => {
+					const filteredCb = (name: string, data: Resource) => {
 						if (names.has(name)) {
 							const arr = namesArr.reduce(
 								(arr, name) => {
@@ -79,7 +91,7 @@ export class DataStore implements DataStoreInterface {
 									}
 									return arr;
 								},
-								[] as Named[]
+								[] as Resource[]
 							);
 							cb(arr, name, data);
 						}
@@ -99,7 +111,7 @@ export class DataStore implements DataStoreInterface {
 		return watchFunc;
 	}
 
-	private _publish(name: string, data: Named | undefined) {
+	private _publish(name: string, data: Resource | undefined) {
 		this._cbs.forEach((cb: WatchFuncCallback) => {
 			cb(name, data);
 		});

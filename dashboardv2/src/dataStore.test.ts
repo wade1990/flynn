@@ -12,6 +12,10 @@ class FakeResource {
 		return this._name;
 	}
 
+	public toObject() {
+		return { name: this._name, props: this._props };
+	}
+
 	public getProps() {
 		return this._props;
 	}
@@ -52,7 +56,23 @@ it('only stores one value per key', () => {
 	ds.add(app1);
 	ds.add(app1_dup);
 
-	expect(ds.get(appName1)).toEqual(app1_dup);
+	expect(ds.get(appName1)).toBe(app1_dup);
+});
+
+it('only stores value if different from existing', () => {
+	const ds = new DataStore();
+
+	const appName1 = 'apps/APP_ID_1';
+	const app1 = new FakeResource(appName1);
+	const app1_dup1 = new FakeResource(appName1);
+	const app1_dup2 = new FakeResource(appName1, { _dup: 2 });
+
+	ds.add(app1);
+	ds.add(app1_dup1);
+	expect(ds.get(appName1)).toBe(app1);
+
+	ds.add(app1_dup2);
+	expect(ds.get(appName1)).toBe(app1_dup2);
 });
 
 it('can del values', () => {
@@ -203,4 +223,30 @@ it('watches for changes in an array', () => {
 	app1_dup = new FakeResource(appName1, { _dup: 3 });
 	ds.add(app1_dup);
 	expect(watchFnCalled).toBe(2);
+});
+
+it('only calls watcher when resource changes', () => {
+	const ds = new DataStore();
+
+	const appName1 = 'apps/APP_ID_1';
+	const app1 = new FakeResource(appName1);
+	const app1_dup1 = new FakeResource(appName1);
+	const app1_dup2 = new FakeResource(appName1, { _dup: 2 });
+
+	let watcherCalled = 0;
+	ds.watch(appName1)((name, resource) => {
+		watcherCalled++;
+	});
+
+	ds.add(app1);
+	expect(ds.get(appName1)).toBe(app1);
+	expect(watcherCalled).toEqual(1);
+
+	ds.add(app1_dup1);
+	expect(ds.get(appName1)).toBe(app1);
+	expect(watcherCalled).toEqual(1);
+
+	ds.add(app1_dup2);
+	expect(ds.get(appName1)).toBe(app1_dup2);
+	expect(watcherCalled).toEqual(2);
 });
