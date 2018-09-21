@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	fmt "fmt"
 	"net/http"
 	"os"
@@ -430,6 +431,12 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 		if ctEvent.ObjectType != "deployment" {
 			continue
 		}
+		var de *ct.DeploymentEvent
+		if err := json.Unmarshal(ctEvent.Data, &de); err != nil {
+			fmt.Printf("Failed to unmarshal deployment event(%s): %s\n", ctEvent.ObjectID, err)
+			continue
+		}
+
 		d, err := s.Client.GetDeployment(ctEvent.ObjectID)
 		if err != nil {
 			fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
@@ -448,7 +455,11 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 				Value:   serializedDeployment,
 			},
 		})
-		if d.Status == "complete" || d.Status == "failed" {
+
+		if d.Status == "failed" {
+			return fmt.Errorf(de.Error)
+		}
+		if d.Status == "complete" {
 			break
 		}
 	}

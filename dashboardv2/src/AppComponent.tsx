@@ -95,6 +95,7 @@ class AppComponent extends React.Component<Props, State> {
 			})
 			.catch((error: ServiceError) => {
 				this.setState({
+					envPersisting: false,
 					releaseError: error
 				});
 			});
