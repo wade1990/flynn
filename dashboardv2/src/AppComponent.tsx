@@ -10,6 +10,7 @@ import protoMapReplace from './util/protoMapReplace';
 import withClient, { ClientProps } from './withClient';
 import { ServiceError } from './generated/controller_pb_service';
 import { App, Release } from './generated/controller_pb';
+import ReleaseHistory from './ReleaseHistory';
 import EnvEditor from './EnvEditor';
 import dataStore from './dataStore';
 
@@ -40,6 +41,10 @@ class AppComponent extends React.Component<Props, State> {
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
 				<Accordion openMulti={true} animate={false} active={0}>
+					<AccordionPanel heading="Release History">
+						<ReleaseHistory currentReleaseName={release.getName()} />
+					</AccordionPanel>
+
 					<AccordionPanel heading="Environment">
 						{releaseError ? <Notification status="warning" message={releaseError.message} /> : null}
 						<EnvEditor

@@ -317,37 +317,9 @@ export default class EnvEditor extends React.Component<Props, State> {
 		const { entries } = this.state;
 		const prevEntries = this.props.entries;
 
-		const diff = protoMapDiff(prevEntries, entries.entries(), DiffOption.INCLUDE_UNCHANGED).sort((a, b) => {
-			return a.key.localeCompare(b.key);
-		});
-
 		return (
 			<form onSubmit={this._submitConfirmHandler} className="env-editor">
-				<pre>
-					{diff.map((item) => {
-						let value;
-						let prefix = ' ';
-						switch (item.op) {
-							case 'keep':
-								value = entries.get(item.key);
-								break;
-							case 'remove':
-								prefix = '-';
-								value = prevEntries.get(item.key);
-								break;
-							case 'add':
-								prefix = '+';
-								value = entries.get(item.key);
-								break;
-						}
-						return (
-							<span key={item.op + item.key} className={'env-diff-' + item.op}>
-								{prefix} {item.key} = {value}
-								<br />
-							</span>
-						);
-					})}
-				</pre>
+				{renderEnvDiff(prevEntries, entries.entries())}
 				<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy" />
 				&nbsp;
 				<Button
@@ -405,4 +377,38 @@ export default class EnvEditor extends React.Component<Props, State> {
 		});
 		this.props.persist(this.state.entries.entries());
 	}
+}
+
+export function renderEnvDiff(prevEnv: Entries, env: Entries) {
+	const diff = protoMapDiff(prevEnv, env, DiffOption.INCLUDE_UNCHANGED).sort((a, b) => {
+		return a.key.localeCompare(b.key);
+	});
+
+	return (
+		<pre>
+			{diff.map((item) => {
+				let value;
+				let prefix = ' ';
+				switch (item.op) {
+					case 'keep':
+						value = env.get(item.key);
+						break;
+					case 'remove':
+						prefix = '-';
+						value = prevEnv.get(item.key);
+						break;
+					case 'add':
+						prefix = '+';
+						value = env.get(item.key);
+						break;
+				}
+				return (
+					<span key={item.op + item.key} className={'env-diff-' + item.op}>
+						{prefix} {item.key} = {value}
+						<br />
+					</span>
+				);
+			})}
+		</pre>
+	);
 }

@@ -15,6 +15,7 @@ import Loading from './Loading';
 import AppsListNav from './AppsListNav';
 import AppComponent from './AppComponent';
 import withClient, { ClientProps } from './withClient';
+import { AppNameContext } from './withAppName';
 import ExternalAnchor from './ExternalAnchor';
 import { App, Release } from './generated/controller_pb';
 import { ServiceError } from './generated/controller_pb_service';
@@ -113,12 +114,18 @@ class Dashboard extends React.Component<Props, State> {
 			.getApp(appName)
 			.then((app: App) => {
 				this._appUnsub = dataStore.add(app)(this._handleAppChange).unsubscribe;
-				return this.props.client.getRelease(app.getRelease()).then((release) => {
+				const releaseName = app.getRelease();
+				if (releaseName === '') {
+					return [app, new Release()];
+				}
+				return this.props.client.getRelease(releaseName).then((release) => {
 					return [app, release];
 				});
 			})
 			.then(([app, release]: [App, Release]) => {
-				this._releaseUnsub = dataStore.add(release)(this._handleReleaseChange).unsubscribe;
+				if (release.getName()) {
+					this._releaseUnsub = dataStore.add(release)(this._handleReleaseChange).unsubscribe;
+				}
 				this.setState({
 					app: app,
 					release: release,
@@ -159,52 +166,63 @@ class Dashboard extends React.Component<Props, State> {
 		});
 	}
 
+	private _appName() {
+		const { location } = this.props;
+		const m = location.pathname.match(/\/apps\/[^\/]+/);
+		return m ? m[0].slice(1) : '';
+	}
+
 	public render() {
 		const { appsList, appsListError, app, release, appError, appLoading } = this.state;
+		const appName = this._appName();
 
 		return (
 			<GrommetApp centered={false}>
-				<Split flex="right">
-					<Sidebar colorIndex="neutral-1">
-						<Header pad="medium" justify="between">
-							<Title>Flynn Dashboard</Title>
-						</Header>
-						<Box flex="grow" justify="start">
-							{appsListError ? <Notification status="warning" message={appsListError.message} /> : null}
-							<AppsListNav appsList={appsList} onNav={this._fetchApp} />
-						</Box>
-						<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
-							<Paragraph size="small">
-								Flynn is designed, built, and managed by Prime Directive, Inc.
-								<br />
-								&copy; 2013-
-								{new Date().getFullYear()} Prime Directive, Inc. Flynn® is a trademark of Prime Directive, Inc.
-							</Paragraph>
-							<Paragraph size="small">
-								<ExternalAnchor href="https://flynn.io/legal/privacy">Privacy Policy</ExternalAnchor>
-								&nbsp;|&nbsp;
-								<ExternalAnchor href="https://flynn.io/docs/trademark-guidelines">Trademark Guidelines</ExternalAnchor>
-							</Paragraph>
-						</Footer>
-					</Sidebar>
+				<AppNameContext.Provider value={appName}>
+					<Split flex="right">
+						<Sidebar colorIndex="neutral-1">
+							<Header pad="medium" justify="between">
+								<Title>Flynn Dashboard</Title>
+							</Header>
+							<Box flex="grow" justify="start">
+								{appsListError ? <Notification status="warning" message={appsListError.message} /> : null}
+								<AppsListNav appsList={appsList} onNav={this._fetchApp} />
+							</Box>
+							<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
+								<Paragraph size="small">
+									Flynn is designed, built, and managed by Prime Directive, Inc.
+									<br />
+									&copy; 2013-
+									{new Date().getFullYear()} Prime Directive, Inc. Flynn® is a trademark of Prime Directive, Inc.
+								</Paragraph>
+								<Paragraph size="small">
+									<ExternalAnchor href="https://flynn.io/legal/privacy">Privacy Policy</ExternalAnchor>
+									&nbsp;|&nbsp;
+									<ExternalAnchor href="https://flynn.io/docs/trademark-guidelines">
+										Trademark Guidelines
+									</ExternalAnchor>
+								</Paragraph>
+							</Footer>
+						</Sidebar>
 
-					<Box pad="medium">
-						<Switch>
-							<Route path="/apps/:name">
-								<React.Fragment>
-									{appLoading ? (
-										<Loading />
-									) : (
-										<React.Fragment>
-											{appError ? <Notification status="warning" message={appError.message} /> : null}
-											{app && release ? <AppComponent app={app} release={release} /> : null}
-										</React.Fragment>
-									)}
-								</React.Fragment>
-							</Route>
-						</Switch>
-					</Box>
-				</Split>
+						<Box pad="medium">
+							<Switch>
+								<Route path="/apps/:name">
+									<React.Fragment>
+										{appLoading ? (
+											<Loading />
+										) : (
+											<React.Fragment>
+												{appError ? <Notification status="warning" message={appError.message} /> : null}
+												{app && release ? <AppComponent app={app} release={release} /> : null}
+											</React.Fragment>
+										)}
+									</React.Fragment>
+								</Route>
+							</Switch>
+						</Box>
+					</Split>
+				</AppNameContext.Provider>
 			</GrommetApp>
 		);
 	}

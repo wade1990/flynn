@@ -6,9 +6,12 @@ import {
 	ListAppsRequest,
 	ListAppsResponse,
 	GetAppRequest,
+	UpdateAppRequest,
 	App,
 	GetReleaseRequest,
 	CreateReleaseRequest,
+	ListReleasesRequest,
+	ListReleasesResponse,
 	Release,
 	CreateDeploymentRequest,
 	Deployment,
@@ -19,7 +22,9 @@ import dataStore from './dataStore';
 export interface Client {
 	listApps: () => Promise<App[]>;
 	getApp: (name: string) => Promise<App>;
+	updateApp: (app: App) => Promise<App>;
 	getRelease: (name: string) => Promise<Release>;
+	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
 }
@@ -59,6 +64,21 @@ class _Client implements Client {
 		});
 	}
 
+	public updateApp(app: App): Promise<App> {
+		return new Promise<App>((resolve, reject) => {
+			const req = new UpdateAppRequest();
+			req.setApp(app);
+			this._cc.updateApp(req, (error: ServiceError, response: App | null) => {
+				if (response && error === null) {
+					dataStore.add(response);
+					resolve(response);
+				} else {
+					reject(error);
+				}
+			});
+		});
+	}
+
 	public getRelease(name: string): Promise<Release> {
 		const getReleaseRequest = new GetReleaseRequest();
 		getReleaseRequest.setName(name);
@@ -67,6 +87,28 @@ class _Client implements Client {
 				if (response && error === null) {
 					dataStore.add(response);
 					resolve(response);
+				} else {
+					reject(error);
+				}
+			});
+		});
+	}
+
+	public listReleases(parentName: string, filterLabels?: { [key: string]: string }): Promise<Release[]> {
+		return new Promise<Release[]>((resolve, reject) => {
+			const req = new ListReleasesRequest();
+			req.setParent(parentName);
+			if (filterLabels) {
+				const fl = req.getFilterLabelsMap();
+				for (const [k, v] of Object.entries(filterLabels)) {
+					fl.set(k, v);
+				}
+			}
+			this._cc.listReleases(req, (error: ServiceError, response: ListReleasesResponse) => {
+				if (response && error === null) {
+					const releases = response.getReleasesList();
+					dataStore.add(...releases);
+					resolve(releases);
 				} else {
 					reject(error);
 				}

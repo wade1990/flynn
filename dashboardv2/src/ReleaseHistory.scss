@@ -1,0 +1,27 @@
+@import 'grommet/scss/aruba/aruba.defaults';
+
+.releases-list {
+	list-style-type: none;
+	margin: 0px;
+	padding: 0px;
+	overflow: auto;
+
+	> li {
+		color: $text-color;
+
+		&:hover {
+			background-color: $hover-background-color;
+			color: $hover-text-color;
+		}
+
+		&.selected {
+			background-color: $selected-background-color;
+			color: $selected-text-color;
+		}
+	}
+
+	> li + li {
+		border-top: 1px solid $border-color;
+		padding-top: 0.5rem;
+	}
+}
