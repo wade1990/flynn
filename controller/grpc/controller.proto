@@ -1,6 +1,6 @@
 syntax = 'proto3';
 package controller;
-option go_package = 'controllergrpc';
+option go_package = 'main';
 
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
@@ -66,6 +66,7 @@ message ListReleasesRequest {
   int32 page_size = 1;
   string page_token = 2;
   string parent = 3;
+  map<string, string> filter_labels = 4;
 }
 
 message ListReleasesResponse {
@@ -129,6 +130,11 @@ message Release {
   map<string, string> labels = 5;
   map<string, ProcessType> processes = 6;
   google.protobuf.Timestamp create_time = 7;
+}
+
+message AppRelease {
+  Release prev_release = 1;
+  Release release = 2;
 }
 
 message Deployment {

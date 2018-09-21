@@ -116,6 +116,8 @@ export class ListReleasesRequest extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
 
+  getFilterLabelsMap(): jspb.Map<string, string>;
+  clearFilterLabelsMap(): void;
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ListReleasesRequest.AsObject;
   static toObject(includeInstance: boolean, msg: ListReleasesRequest): ListReleasesRequest.AsObject;
@@ -131,6 +133,7 @@ export namespace ListReleasesRequest {
     pageSize: number,
     pageToken: string,
     parent: string,
+    filterLabelsMap: Array<[string, string]>,
   }
 }
 

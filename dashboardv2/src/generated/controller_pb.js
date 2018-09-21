@@ -803,7 +803,8 @@ proto.controller.ListReleasesRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     pageSize: jspb.Message.getFieldWithDefault(msg, 1, 0),
     pageToken: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    parent: jspb.Message.getFieldWithDefault(msg, 3, "")
+    parent: jspb.Message.getFieldWithDefault(msg, 3, ""),
+    filterLabelsMap: (f = msg.getFilterLabelsMap()) ? f.toObject(includeInstance, undefined) : []
   };
 
   if (includeInstance) {
@@ -851,6 +852,12 @@ proto.controller.ListReleasesRequest.deserializeBinaryFromReader = function(msg,
     case 3:
       var value = /** @type {string} */ (reader.readString());
       msg.setParent(value);
+      break;
+    case 4:
+      var value = msg.getFilterLabelsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "");
+         });
       break;
     default:
       reader.skipField();
@@ -902,6 +909,10 @@ proto.controller.ListReleasesRequest.serializeBinaryToWriter = function(message,
       f
     );
   }
+  f = message.getFilterLabelsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
+  }
 };
 
 
@@ -947,6 +958,24 @@ proto.controller.ListReleasesRequest.prototype.getParent = function() {
 /** @param {string} value */
 proto.controller.ListReleasesRequest.prototype.setParent = function(value) {
   jspb.Message.setProto3StringField(this, 3, value);
+};
+
+
+/**
+ * map<string, string> filter_labels = 4;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,string>}
+ */
+proto.controller.ListReleasesRequest.prototype.getFilterLabelsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,string>} */ (
+      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
+      null));
+};
+
+
+proto.controller.ListReleasesRequest.prototype.clearFilterLabelsMap = function() {
+  this.getFilterLabelsMap().clear();
 };
 
 

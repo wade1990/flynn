@@ -99,12 +99,16 @@ type server struct {
 }
 
 func convertApp(a *ct.App) *App {
+	var releaseName string
+	if a.ReleaseID != "" {
+		releaseName = path.Join("apps", a.ID, "releases", a.ReleaseID)
+	}
 	return &App{
 		Name:          path.Join("apps", a.ID),
 		DisplayName:   a.Name,
 		Labels:        a.Meta,
 		Strategy:      a.Strategy,
-		Release:       path.Join("apps", a.ID, "releases", a.ReleaseID),
+		Release:       releaseName,
 		DeployTimeout: a.DeployTimeout,
 		CreateTime:    timestampProto(a.CreatedAt),
 		UpdateTime:    timestampProto(a.UpdatedAt),
@@ -287,7 +291,11 @@ func convertRelease(r *ct.Release) *Release {
 }
 
 func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
-	release, err := s.Client.GetRelease(parseResourceName(req.Name)["releases"])
+	releaseID := parseResourceName(req.Name)["releases"]
+	if releaseID == "" {
+		return nil, controller.ErrNotFound
+	}
+	release, err := s.Client.GetRelease(releaseID)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +323,24 @@ func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*L
 	for i, r := range ctReleases {
 		releases[i] = convertRelease(r)
 	}
-	return &ListReleasesResponse{Releases: releases}, nil
+
+	var filtered []*Release
+	if len(req.FilterLabels) == 0 {
+		filtered = releases
+	} else {
+		filtered = make([]*Release, 0, len(releases))
+		for _, r := range releases {
+			for fk, fv := range req.FilterLabels {
+				rv, ok := r.Labels[fk]
+				if rv == fv || (ok && fv == "*") {
+					filtered = append(filtered, r)
+					break
+				}
+			}
+		}
+	}
+
+	return &ListReleasesResponse{Releases: filtered}, nil
 }
 
 func (s *server) StreamAppLog(*StreamAppLogRequest, Controller_StreamAppLogServer) error {
