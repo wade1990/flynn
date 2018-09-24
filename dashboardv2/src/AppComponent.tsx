@@ -22,6 +22,8 @@ export interface Props extends ClientProps {
 interface State {
 	envPersisting: boolean;
 	releaseError: ServiceError | null;
+	releaseDeploying: boolean;
+	releaseDeployError: ServiceError | null;
 }
 
 class AppComponent extends React.Component<Props, State> {
@@ -29,20 +31,29 @@ class AppComponent extends React.Component<Props, State> {
 		super(props);
 		this.state = {
 			envPersisting: false,
-			releaseError: null
+			releaseError: null,
+			releaseDeploying: false,
+			releaseDeployError: null
 		};
 		this._envPersistHandler = this._envPersistHandler.bind(this);
+		this._deployReleaseHandler = this._deployReleaseHandler.bind(this);
 	}
 
 	public render() {
 		const { app, release } = this.props;
-		const { envPersisting, releaseError } = this.state;
+		const { envPersisting, releaseError, releaseDeploying, releaseDeployError } = this.state;
 		return (
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
 				<Accordion openMulti={true} animate={false} active={0}>
 					<AccordionPanel heading="Release History">
-						<ReleaseHistory currentReleaseName={release.getName()} />
+						{releaseDeployError ? <Notification status="warning" message={releaseDeployError.message} /> : null}
+
+						<ReleaseHistory
+							currentReleaseName={release.getName()}
+							persisting={releaseDeploying}
+							persist={this._deployReleaseHandler}
+						/>
 					</AccordionPanel>
 
 					<AccordionPanel heading="Environment">
@@ -57,6 +68,29 @@ class AppComponent extends React.Component<Props, State> {
 				</Accordion>
 			</React.Fragment>
 		);
+	}
+
+	private _deployReleaseHandler(releaseName: string) {
+		const { client, app } = this.props;
+		this.setState({
+			releaseDeploying: true
+		});
+		client
+			.createDeployment(app.getName(), releaseName)
+			.then(() => {
+				return client.getApp(app.getName());
+			})
+			.then(() => {
+				this.setState({
+					releaseDeploying: false
+				});
+			})
+			.catch((error: ServiceError) => {
+				this.setState({
+					releaseDeploying: false,
+					releaseDeployError: error
+				});
+			});
 	}
 
 	private _envPersistHandler(next: jspb.Map<string, string>) {

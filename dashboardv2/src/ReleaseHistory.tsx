@@ -65,9 +65,11 @@ function mapReleases<T>(releases: Release[], fn: (releases: [Release, Release | 
 	);
 }
 
-export interface Props extends ClientProps, RouteComponentProps<{}> {
+export interface Props {
 	releases: Release[];
 	currentReleaseName: string;
+	persisting: boolean;
+	persist: (releaseName: string) => void;
 }
 
 interface State {
@@ -86,7 +88,7 @@ export class ReleaseHistory extends React.Component<Props, State> {
 	}
 
 	public render() {
-		const { releases, currentReleaseName } = this.props;
+		const { releases, currentReleaseName, persisting } = this.props;
 		const { selectedReleaseName, releasesListFilter } = this.state;
 
 		const getListItemClassName = (r: Release): string => {
@@ -175,9 +177,9 @@ export class ReleaseHistory extends React.Component<Props, State> {
 					})}
 				</ul>
 
-				{currentReleaseName === selectedReleaseName ? (
+				{persisting || currentReleaseName === selectedReleaseName ? (
 					// disabled button
-					<Button primary label="Deploy Release" />
+					<Button primary label={persisting ? 'Deploying...' : 'Deploy Release'} />
 				) : (
 					<Button type="submit" primary label="Deploy Release" />
 				)}
@@ -206,11 +208,18 @@ export class ReleaseHistory extends React.Component<Props, State> {
 
 	private _submitHandler(e: React.SyntheticEvent) {
 		e.preventDefault();
+		const { selectedReleaseName } = this.state;
+		if (selectedReleaseName == '') {
+			return;
+		}
+		this.props.persist(selectedReleaseName);
 	}
 }
 
 export interface WrappedProps extends ClientProps, AppNameProps, RouteComponentProps<{}> {
 	currentReleaseName: string;
+	persisting: boolean;
+	persist: (releaseName: string) => void;
 }
 
 interface WrappedState {
@@ -269,7 +278,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	}
 
 	public render() {
-		const { appName, client, ...props } = this.props;
+		const { currentReleaseName, persisting, persist } = this.props;
 		const { releasesLoading, releasesError, releases } = this.state;
 		if (releasesLoading) {
 			return <Loading />;
@@ -277,7 +286,14 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		if (releasesError) {
 			return <Notification status="warning" message={releasesError.message} />;
 		}
-		return <ReleaseHistory {...props as Props} releases={releases} />;
+		return (
+			<ReleaseHistory
+				currentReleaseName={currentReleaseName}
+				releases={releases}
+				persisting={persisting}
+				persist={persist}
+			/>
+		);
 	}
 }
 
