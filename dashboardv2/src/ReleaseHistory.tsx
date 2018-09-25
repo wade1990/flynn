@@ -13,6 +13,7 @@ import dataStore from './dataStore';
 import { Release } from './generated/controller_pb';
 import Loading from './Loading';
 import { renderEnvDiff } from './EnvEditor';
+import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 import './ReleaseHistory.scss';
 
@@ -29,11 +30,21 @@ function isCodeRelease(release: Release, prevRelease: Release | null): boolean {
 	return true;
 }
 
-function mapCodeReleases<T>(releases: Release[], fn: (releases: [Release, Release | null], index: number) => T): T[] {
+function isEnvRelease(release: Release, prevRelease: Release | null): boolean {
+	return !isCodeRelease(release, prevRelease);
+}
+
+type ReleasesFilterFunc = (release: Release, prevRelease: Release | null) => boolean;
+
+function mapReleases<T>(
+	releases: Release[],
+	fn: (releases: [Release, Release | null], index: number) => T,
+	...filters: ReleasesFilterFunc[]
+): T[] {
 	return releases.reduce<T[]>(
 		(res: T[], release: Release, index: number): T[] => {
 			const prev = releases[index + 1] || null;
-			if (!isCodeRelease(release, prev)) {
+			if (!filters.find((fn) => fn(release, prev))) {
 				return res;
 			}
 			return res.concat(fn([release, prev], index));
@@ -42,30 +53,7 @@ function mapCodeReleases<T>(releases: Release[], fn: (releases: [Release, Releas
 	);
 }
 
-function mapEnvReleases<T>(releases: Release[], fn: (releases: [Release, Release | null], index: number) => T): T[] {
-	return releases.reduce<T[]>(
-		(res: T[], release: Release, index: number): T[] => {
-			const prev = releases[index + 1] || null;
-			if (isCodeRelease(release, prev)) {
-				return res;
-			}
-			return res.concat(fn([release, prev], index));
-		},
-		[] as Array<T>
-	);
-}
-
-function mapReleases<T>(releases: Release[], fn: (releases: [Release, Release | null], index: number) => T): T[] {
-	return releases.reduce<T[]>(
-		(res: T[], release: Release, index: number): T[] => {
-			const prev = releases[index + 1] || null;
-			return res.concat(fn([release, prev], index));
-		},
-		[] as Array<T>
-	);
-}
-
-export interface Props {
+export interface Props extends RouteComponentProps<{}> {
 	releases: Release[];
 	currentReleaseName: string;
 	persisting: boolean;
@@ -74,22 +62,23 @@ export interface Props {
 
 interface State {
 	selectedReleaseName: string;
-	releasesListFilter: 'code' | 'env' | 'all';
 }
 
 export class ReleaseHistory extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
-			selectedReleaseName: props.currentReleaseName,
-			releasesListFilter: 'code'
+			selectedReleaseName: props.currentReleaseName
 		};
 		this._submitHandler = this._submitHandler.bind(this);
 	}
 
 	public render() {
-		const { releases, currentReleaseName, persisting } = this.props;
-		const { selectedReleaseName, releasesListFilter } = this.state;
+		const { releases, currentReleaseName, persisting, location, history } = this.props;
+		const { selectedReleaseName } = this.state;
+
+		const urlParams = parseURLParams(location.search);
+		const releasesListFilters = urlParams['rhf'] || ['code'];
 
 		const getListItemClassName = (r: Release): string => {
 			if (r.getName() === selectedReleaseName) {
@@ -98,83 +87,89 @@ export class ReleaseHistory extends React.Component<Props, State> {
 			return '';
 		};
 
-		let mapFn = mapReleases;
-		switch (releasesListFilter) {
-			case 'code':
-				mapFn = mapCodeReleases;
-				break;
-			case 'env':
-				mapFn = mapEnvReleases;
-				break;
-		}
+		let mapFilters: ReleasesFilterFunc[] = [];
+		releasesListFilters.forEach((v) => {
+			switch (v) {
+				case 'code':
+					mapFilters.push(isCodeRelease);
+					break;
+				case 'env':
+					mapFilters.push(isEnvRelease);
+					break;
+			}
+		});
+
+		const rhfToggleChangeHanlder = (filterName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+			const rhf = new Set(urlParams.rhf || releasesListFilters);
+			if (e.target.checked) {
+				rhf.add(filterName);
+			} else {
+				rhf.delete(filterName);
+				if (filterName === 'code' && (urlParams.rhf || []).indexOf(filterName) === -1) {
+					// turning off 'code' will turn on 'env'
+					rhf.add('env');
+				}
+			}
+			if (rhf.has('code') && rhf.size === 1) {
+				rhf.delete('code');
+			}
+			history.replace(
+				location.pathname +
+					urlParamsToString(
+						Object.assign({}, urlParams, {
+							rhf: [...rhf]
+						})
+					)
+			);
+		};
 
 		return (
 			<form onSubmit={this._submitHandler}>
 				<ul className="releases-list">
 					<CheckBox
 						toggle
-						checked={['code', 'all'].indexOf(releasesListFilter) !== -1}
+						checked={releasesListFilters.indexOf('code') > -1}
 						label="Code"
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-							let f;
-							if (releasesListFilter === 'all') {
-								f = 'env';
-							} else if (releasesListFilter === 'env') {
-								f = 'all';
-							} else {
-								f = e.target.checked ? 'code' : 'env';
-							}
-							this.setState({
-								releasesListFilter: f as 'code' | 'env' | 'all'
-							});
-						}}
+						onChange={rhfToggleChangeHanlder.bind(this, 'code')}
 					/>
 
 					<CheckBox
 						toggle
-						checked={['env', 'all'].indexOf(releasesListFilter) !== -1}
+						checked={releasesListFilters.indexOf('env') > -1}
 						label="Env"
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-							let f;
-							if (releasesListFilter === 'all') {
-								f = 'code';
-							} else if (releasesListFilter === 'code') {
-								f = 'all';
-							} else {
-								f = e.target.checked ? 'env' : 'code';
-							}
-							this.setState({
-								releasesListFilter: f as 'code' | 'env' | 'all'
-							});
-						}}
+						onChange={rhfToggleChangeHanlder.bind(this, 'env')}
 					/>
 
 					<br />
 					<br />
 
-					{mapFn(releases, ([r, p]) => {
-						return (
-							<li className={getListItemClassName(r)} key={r.getName()}>
-								<label>
-									<CheckBox
-										checked={selectedReleaseName === r.getName()}
-										onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-											if (e.target.checked) {
-												this.setState({
-													selectedReleaseName: r.getName()
-												});
-											} else {
-												this.setState({
-													selectedReleaseName: currentReleaseName
-												});
-											}
-										}}
-									/>
-									{this._renderRelease(r, p)}
-								</label>
-							</li>
-						);
-					})}
+					{mapReleases(
+						releases,
+						([r, p]) => {
+							return (
+								<li className={getListItemClassName(r)} key={r.getName()}>
+									<label>
+										<CheckBox
+											checked={selectedReleaseName === r.getName()}
+											onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+												if (e.target.checked) {
+													this.setState({
+														selectedReleaseName: r.getName()
+													});
+												} else {
+													this.setState({
+														selectedReleaseName: currentReleaseName
+													});
+												}
+											}}
+										/>
+										{this._renderRelease(r, p)}
+									</label>
+								</li>
+							);
+						},
+						...mapFilters
+					)}
 				</ul>
 
 				{persisting || currentReleaseName === selectedReleaseName ? (
@@ -278,7 +273,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	}
 
 	public render() {
-		const { currentReleaseName, persisting, persist } = this.props;
+		const { appName, client, ...props } = this.props;
 		const { releasesLoading, releasesError, releases } = this.state;
 		if (releasesLoading) {
 			return <Loading />;
@@ -286,14 +281,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		if (releasesError) {
 			return <Notification status="warning" message={releasesError.message} />;
 		}
-		return (
-			<ReleaseHistory
-				currentReleaseName={currentReleaseName}
-				releases={releases}
-				persisting={persisting}
-				persist={persist}
-			/>
-		);
+		return <ReleaseHistory {...props as Props} releases={releases} />;
 	}
 }
 
