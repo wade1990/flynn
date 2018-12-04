@@ -507,6 +507,7 @@
           "dashboardv2/src/*.ts",
           "dashboardv2/src/*.tsx",
           "dashboardv2/src/*.css",
+          "dashboardv2/src/*.scss",
           "dashboardv2/src/generated/*.js",
           "dashboardv2/src/generated/*.ts",
           "dashboardv2/src/generated/google/api/*.js",
