@@ -2,10 +2,6 @@
 
 set -eo pipefail
 
-version="8.11.4"
-shasum="c69abe770f002a7415bd00f7ea13b086650c1dd925ef0c3bf8de90eabecc8790"
-dir="/usr/local"
-
 apt-get update
 apt-get install --yes unzip python
 apt-get clean
@@ -25,15 +21,22 @@ tar xzf /tmp/common-protos.tar.gz -C "/opt/protoc/include" --strip-components=1
 rm /tmp/common-protos.tar.gz
 
 # install nodejs
-curl -fSLo /tmp/node.tar.gz "https://nodejs.org/dist/v${version}/node-v${version}-linux-x64.tar.gz"
-echo "${shasum}  /tmp/node.tar.gz" | shasum -c -
-tar xzf /tmp/node.tar.gz -C "${dir}"
+nodeversion="8.11.4"
+nodeshasum="c69abe770f002a7415bd00f7ea13b086650c1dd925ef0c3bf8de90eabecc8790"
+nodedir="/usr/local"
+curl -fSLo /tmp/node.tar.gz "https://nodejs.org/dist/v${nodeversion}/node-v${nodeversion}-linux-x64.tar.gz"
+echo "${nodeshasum}  /tmp/node.tar.gz" | shasum -c -
+tar xzf /tmp/node.tar.gz -C "${nodedir}"
 rm /tmp/node.tar.gz
 
 # link nodejs binary
-nodebin="${dir}/node-v${version}-linux-x64/bin"
-ln -nfs ${nodebin}/node ${dir}/bin/node
-ln -nfs ${nodebin}/npm ${dir}/bin/npm
+nodebin="${nodedir}/node-v${nodeversion}-linux-x64/bin"
+ln -nfs ${nodebin}/node ${nodedir}/bin/node
+ln -nfs ${nodebin}/npm ${nodedir}/bin/npm
 
 # install typescript protoc (https://github.com/improbable-eng/ts-protoc-gen)
 npm install -g ts-protoc-gen
+
+# install yarn
+curl -o- -L https://yarnpkg.com/install.sh | bash # TODO(jvatic): perform checksum
+ln -s /.yarn/bin/yarn /usr/local/bin/yarn

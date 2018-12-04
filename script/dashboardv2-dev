@@ -98,7 +98,7 @@ nodejs_command() {
     --workdir "${ROOT}/dashboardv2" \
     --hostnet \
     "${builder_image}" \
-    npm run $cmd
+    yarn run $cmd
 }
 
 main $@
