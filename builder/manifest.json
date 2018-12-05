@@ -47,6 +47,22 @@
       }]
     },
     {
+      "id": "protoc",
+      "base": "go",
+      "layers": [{
+        "script": "builder/img/protoc.sh",
+        "limits": { "temp_disk": "1G" }
+      }]
+    },
+    {
+      "id": "grpc-go",
+      "base": "protoc",
+      "layers": [{
+        "script": "builder/img/grpc-go.sh",
+        "limits": { "temp_disk": "1G" }
+      }]
+    },
+    {
       "id": "dashboardv2",
       "base": "ubuntu-trusty",
       "layers": [{
