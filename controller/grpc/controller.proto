@@ -5,7 +5,6 @@ option go_package = 'main';
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
-import "google/protobuf/any.proto";
 import "google/protobuf/field_mask.proto";
 
 service Controller {
@@ -137,6 +136,13 @@ message AppRelease {
   Release release = 2;
 }
 
+enum DeploymentStatus {
+  PENDING = 0;
+  FAILED = 1;
+  RUNNING = 2;
+  COMPLETE = 3;
+}
+
 message Deployment {
   // name = "apps/APP_ID/deployments/DEPLOYMENT_ID"
   string name = 1;
@@ -145,13 +151,7 @@ message Deployment {
   // new_release = Release.name
   string new_release = 4;
   string strategy = 5;
-  enum Status {
-    PENDING = 0;
-    FAILED = 1;
-    RUNNING = 2;
-    COMPLETE = 3;
-  }
-  Status status = 6;
+  DeploymentStatus status = 6;
   map<string, int32> processes = 7;
   // profobuf doesn't support maps within maps, so map[string]map[string]string
   // could not be reproduced
@@ -166,13 +166,168 @@ message DeploymentProcessTags {
   map<string, string> tags = 1;
 }
 
+message Certificate {
+  // name = "certificates/CERTIFICATE_ID"
+  string name = 1;
+  // routes is a list of route names (e.g. "routes/ROUTE_ID")
+  repeated string routes = 2;
+  // cert is the optional TLS public certificate
+  string cert = 3;
+  // key is the optional TLS private key
+  string key = 4;
+  google.protobuf.Timestamp create_time = 5;
+  google.protobuf.Timestamp update_time = 6;
+}
+
+message Route {
+  // name = "routes/ROUTE_ID"
+  string name = 1;
+  // parent = "apps/APP_ID"
+  string parent = 2;
+  enum RouteType {
+    HTTP = 0;
+    TCP = 1;
+  }
+  RouteType type = 3;
+  // service_name is the ID of the service.
+  string service_name = 4;
+  // port is the TCP port to listen on.
+  int32 port = 5;
+  // leader is whether or not traffic should only be routed to the leader or
+  // all instances
+  bool leader = 6;
+  google.protobuf.Timestamp create_time = 7;
+  google.protobuf.Timestamp update_time = 8;
+  // domain is the domain name of this Route. It is only used for HTTP routes.
+  string domain = 9;
+  // certificate contains TLSCert and TLSKey
+  Certificate certificate = 10;
+  // sticky is whether or not to use sticky sessions for this route. It is only
+  // used for HTTP routes.
+  bool sticky = 11;
+  // path is the optional prefix to route to this service. It's exclusive with
+  // the TLS options and can only be set if a "default" route with the same domain
+  // and no path already exists in the route table.
+  string path = 12;
+  // drain_backends is whether or not to track requests and trigger
+  // drain events on backend shutdown when all requests have completed
+  // (used by the scheduler to only stop jobs once all requests have
+  // completed).
+  bool drain_backends = 13;
+}
+
+message Resource {
+  // name = "providers/PROVIDER_ID/resources/RESOURCE_ID"
+  string name = 1;
+  string external_id  = 2;
+  map<string, string> env = 3;
+  repeated string apps = 4;
+  google.protobuf.Timestamp create_time = 5;
+}
+
+message Job { // TODO
+}
+
 message Event {
   // name = "events/EVENT_ID"
   string name = 1;
-  // parent = Any.name
+  // parent = Any.name, corresponds to ObjectType and ObjectID on ct.Event
   string parent = 2;
-  google.protobuf.Any data = 3;
-  google.protobuf.Timestamp create_time = 4;
+  google.protobuf.Timestamp create_time = 3;
+  App app = 4;
+  AppDeletionEvent app_deletion = 5;
+  AppReleaseEvent app_release = 6;
+  DeploymentEvent deployment = 7;
+  Job job = 8;
+  ScaleRequestEvent scale_request = 9;
+  Release release = 10;
+  ReleaseDeletionEvent release_deletion = 11;
+  ArtifactEvent artifact = 12;
+  ProviderEvent provider = 13;
+  Resource resource = 14;
+  ResourceDeletionEvent resource_deletion = 15;
+  ResourceAppDeletionEvent resource_app_deletion = 16;
+  Route route = 17;
+  RouteDeletionEvent route_deletion = 18;
+  DomainMigrationEvent domain_migration = 19;
+  ClusterBackupEvent cluster_backup = 20;
+  AppGarbageCollectionEvent app_garbage_collection = 21;
+  Sink sink = 22;
+  SinkDeletionEvent sink_deletion = 23;
+  Volume volume = 24;
+}
+
+message AppDeletionEvent {
+  // name = "apps/APP_ID"
+  string name = 1;
+  repeated Route deleted_routes = 2;
+  repeated Resource deleted_resources = 3;
+  repeated Release deleted_releases = 4;
+}
+
+message AppReleaseEvent {
+  Release prev_release = 1;
+  Release release = 2;
+}
+
+message DeploymentEvent {
+  Deployment deployment = 1;
+  string job_type = 2;
+  enum JobState {
+    PENDING = 0;
+    BLOCKED = 1;
+    STARTING = 2;
+    UP = 3;
+    STOPPING = 5;
+    DOWN = 6;
+
+    // CRASHED and FAILURE are no longer valid job states,
+    // but we still need to handle them in case they are set by old
+    // schedulers still using the legacy code.
+    CRASHED = 7;
+    FAILED = 8;
+  }
+  JobState job_state = 3;
+  string error = 4;
+}
+
+message ScaleRequestEvent { // TODO
+}
+
+message ReleaseDeletionEvent { // TODO
+}
+
+message ArtifactEvent { // TODO
+}
+
+message ProviderEvent { // TODO
+}
+
+message ResourceDeletionEvent { // TODO
+}
+
+message ResourceAppDeletionEvent { // TODO
+}
+
+message RouteDeletionEvent { // TODO
+}
+
+message DomainMigrationEvent { // TODO
+}
+
+message ClusterBackupEvent { // TODO
+}
+
+message AppGarbageCollectionEvent { // TODO
+}
+
+message SinkDeletionEvent { // TODO
+}
+
+message Sink { // TODO
+}
+
+message Volume { // TODO
 }
 
 message ProcessType {

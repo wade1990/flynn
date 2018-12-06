@@ -100,74 +100,91 @@ export class Controller {
 
 export type ServiceError = { message: string, code: number; metadata: grpc.Metadata }
 export type Status = { details: string, code: number; metadata: grpc.Metadata }
-export type ServiceClientOptions = { transport: grpc.TransportConstructor; debug?: boolean }
 
+interface UnaryResponse {
+  cancel(): void;
+}
 interface ResponseStream<T> {
   cancel(): void;
   on(type: 'data', handler: (message: T) => void): ResponseStream<T>;
   on(type: 'end', handler: () => void): ResponseStream<T>;
   on(type: 'status', handler: (status: Status) => void): ResponseStream<T>;
 }
+interface RequestStream<T> {
+  write(message: T): RequestStream<T>;
+  end(): void;
+  cancel(): void;
+  on(type: 'end', handler: () => void): RequestStream<T>;
+  on(type: 'status', handler: (status: Status) => void): RequestStream<T>;
+}
+interface BidirectionalStream<ReqT, ResT> {
+  write(message: ReqT): BidirectionalStream<ReqT, ResT>;
+  end(): void;
+  cancel(): void;
+  on(type: 'data', handler: (message: ResT) => void): BidirectionalStream<ReqT, ResT>;
+  on(type: 'end', handler: () => void): BidirectionalStream<ReqT, ResT>;
+  on(type: 'status', handler: (status: Status) => void): BidirectionalStream<ReqT, ResT>;
+}
 
 export class ControllerClient {
   readonly serviceHost: string;
 
-  constructor(serviceHost: string, options?: ServiceClientOptions);
+  constructor(serviceHost: string, options?: grpc.RpcOptions);
   listApps(
     requestMessage: controller_pb.ListAppsRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.ListAppsResponse|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.ListAppsResponse|null) => void
+  ): UnaryResponse;
   listApps(
     requestMessage: controller_pb.ListAppsRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.ListAppsResponse|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.ListAppsResponse|null) => void
+  ): UnaryResponse;
   getApp(
     requestMessage: controller_pb.GetAppRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
+  ): UnaryResponse;
   getApp(
     requestMessage: controller_pb.GetAppRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
+  ): UnaryResponse;
   updateApp(
     requestMessage: controller_pb.UpdateAppRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
+  ): UnaryResponse;
   updateApp(
     requestMessage: controller_pb.UpdateAppRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.App|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
+  ): UnaryResponse;
   getRelease(
     requestMessage: controller_pb.GetReleaseRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
+  ): UnaryResponse;
   getRelease(
     requestMessage: controller_pb.GetReleaseRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
+  ): UnaryResponse;
   listReleases(
     requestMessage: controller_pb.ListReleasesRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.ListReleasesResponse|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.ListReleasesResponse|null) => void
+  ): UnaryResponse;
   listReleases(
     requestMessage: controller_pb.ListReleasesRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.ListReleasesResponse|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.ListReleasesResponse|null) => void
+  ): UnaryResponse;
   streamAppLog(requestMessage: controller_pb.StreamAppLogRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.LogChunk>;
   createRelease(
     requestMessage: controller_pb.CreateReleaseRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
+  ): UnaryResponse;
   createRelease(
     requestMessage: controller_pb.CreateReleaseRequest,
-    callback: (error: ServiceError, responseMessage: controller_pb.Release|null) => void
-  ): void;
+    callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
+  ): UnaryResponse;
   createDeployment(requestMessage: controller_pb.CreateDeploymentRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Event>;
   streamEvents(requestMessage: controller_pb.StreamEventsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Event>;
 }

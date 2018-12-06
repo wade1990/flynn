@@ -140,11 +140,13 @@ class _Client implements Client {
 		return new Promise<Deployment>((resolve, reject) => {
 			const stream = this._cc.createDeployment(req);
 			stream.on('data', (event: Event) => {
-				const p = event.getParent();
-				const data = event.getData();
-				if (event.hasData() && data && isDeploymentEvent(parentName, p)) {
-					deployment = Deployment.deserializeBinary(data.getValue_asU8());
-					dataStore.add(deployment);
+				if (event.hasDeployment()) {
+					const de = event.getDeployment();
+					const d = de && de.getDeployment();
+					if (d) {
+						deployment = d;
+						dataStore.add(deployment);
+					}
 				}
 			});
 			stream.on('status', (s: Status) => {
@@ -157,14 +159,6 @@ class _Client implements Client {
 			});
 			stream.on('end', () => {});
 		});
-	}
-}
-
-function isDeploymentEvent(parentName: string, eventParent: string): boolean {
-	if (eventParent.startsWith(parentName + '/deployments/')) {
-		return true;
-	} else {
-		return false;
 	}
 }
 

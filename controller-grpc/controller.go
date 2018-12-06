@@ -17,9 +17,7 @@ import (
 	"github.com/flynn/flynn/pkg/cors"
 	"github.com/flynn/flynn/pkg/httphelper"
 	"github.com/flynn/flynn/pkg/shutdown"
-	proto "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	any "github.com/golang/protobuf/ptypes/any"
 	durpb "github.com/golang/protobuf/ptypes/duration"
 	tspb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -378,18 +376,18 @@ func convertDeploymentProcesses(from map[string]int) map[string]int32 {
 	return to
 }
 
-func convertDeploymentStatus(from string) Deployment_Status {
+func convertDeploymentStatus(from string) DeploymentStatus {
 	switch from {
 	case "pending":
-		return Deployment_PENDING
+		return DeploymentStatus_PENDING
 	case "failed":
-		return Deployment_FAILED
+		return DeploymentStatus_FAILED
 	case "running":
-		return Deployment_RUNNING
+		return DeploymentStatus_RUNNING
 	case "complete":
-		return Deployment_COMPLETE
+		return DeploymentStatus_COMPLETE
 	}
-	return Deployment_PENDING
+	return DeploymentStatus_PENDING
 }
 
 func convertDeployment(from *ct.Deployment) *Deployment {
@@ -405,6 +403,28 @@ func convertDeployment(from *ct.Deployment) *Deployment {
 		CreateTime:    timestampProto(from.CreatedAt),
 		EndTime:       timestampProto(from.FinishedAt),
 	}
+}
+
+func convertDeploymentEventJobState(from ct.JobState) DeploymentEvent_JobState {
+	switch from {
+	case "pending":
+		return DeploymentEvent_PENDING
+	case "blocked":
+		return DeploymentEvent_BLOCKED
+	case "starting":
+		return DeploymentEvent_STARTING
+	case "up":
+		return DeploymentEvent_UP
+	case "stopping":
+		return DeploymentEvent_STOPPING
+	case "down":
+		return DeploymentEvent_DOWN
+	case "crashed":
+		return DeploymentEvent_CRASHED
+	case "failed":
+		return DeploymentEvent_FAILED
+	}
+	return DeploymentEvent_PENDING
 }
 
 func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_CreateDeploymentServer) error {
@@ -442,17 +462,14 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 			fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
 			continue
 		}
-		serializedDeployment, err := proto.Marshal(convertDeployment(d))
-		if err != nil {
-			fmt.Printf("Failed to serialize deployment deployment(%s): %s\n", d.ID, err)
-			continue
-		}
 		ds.Send(&Event{
 			Name:   fmt.Sprintf("events/%d", ctEvent.ID),
 			Parent: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),
-			Data: &any.Any{
-				TypeUrl: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),
-				Value:   serializedDeployment,
+			Deployment: &DeploymentEvent{
+				Deployment: convertDeployment(d),
+				JobType:    de.JobType,
+				JobState:   convertDeploymentEventJobState(de.JobState),
+				Error:      de.Error,
 			},
 		})
 
@@ -471,8 +488,32 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 	return eventStream.Err()
 }
 
-func (s *server) StreamEvents(*StreamEventsRequest, Controller_StreamEventsServer) error {
-	return nil
+func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEventsServer) error {
+	// TODO(jvatic): Build StreamEventsOptions from StreamEventsRequest
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		ObjectTypes: []ct.EventType{},
+		Past:        true,
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	for {
+		ctEvent, ok := <-events
+		if !ok {
+			break
+		}
+		// TODO(jvatic): Build Event
+		es.Send(&Event{
+			Name: fmt.Sprintf("events/%d", ctEvent.ID),
+		})
+	}
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+	return eventStream.Err()
 }
 
 func parseResourceName(name string) map[string]string {

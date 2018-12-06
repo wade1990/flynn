@@ -102,7 +102,7 @@ ControllerClient.prototype.listApps = function listApps(requestMessage, metadata
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  grpc.unary(Controller.ListApps, {
+  var client = grpc.unary(Controller.ListApps, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -111,20 +111,29 @@ ControllerClient.prototype.listApps = function listApps(requestMessage, metadata
     onEnd: function (response) {
       if (callback) {
         if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
         } else {
           callback(null, response.message);
         }
       }
     }
   });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.getApp = function getApp(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  grpc.unary(Controller.GetApp, {
+  var client = grpc.unary(Controller.GetApp, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -133,20 +142,29 @@ ControllerClient.prototype.getApp = function getApp(requestMessage, metadata, ca
     onEnd: function (response) {
       if (callback) {
         if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
         } else {
           callback(null, response.message);
         }
       }
     }
   });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.updateApp = function updateApp(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  grpc.unary(Controller.UpdateApp, {
+  var client = grpc.unary(Controller.UpdateApp, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -155,20 +173,29 @@ ControllerClient.prototype.updateApp = function updateApp(requestMessage, metada
     onEnd: function (response) {
       if (callback) {
         if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
         } else {
           callback(null, response.message);
         }
       }
     }
   });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.getRelease = function getRelease(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  grpc.unary(Controller.GetRelease, {
+  var client = grpc.unary(Controller.GetRelease, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -177,20 +204,29 @@ ControllerClient.prototype.getRelease = function getRelease(requestMessage, meta
     onEnd: function (response) {
       if (callback) {
         if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
         } else {
           callback(null, response.message);
         }
       }
     }
   });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.listReleases = function listReleases(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  grpc.unary(Controller.ListReleases, {
+  var client = grpc.unary(Controller.ListReleases, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -199,13 +235,22 @@ ControllerClient.prototype.listReleases = function listReleases(requestMessage, 
     onEnd: function (response) {
       if (callback) {
         if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
         } else {
           callback(null, response.message);
         }
       }
     }
   });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.streamAppLog = function streamAppLog(requestMessage, metadata) {
@@ -251,7 +296,7 @@ ControllerClient.prototype.createRelease = function createRelease(requestMessage
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  grpc.unary(Controller.CreateRelease, {
+  var client = grpc.unary(Controller.CreateRelease, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -260,13 +305,22 @@ ControllerClient.prototype.createRelease = function createRelease(requestMessage
     onEnd: function (response) {
       if (callback) {
         if (response.status !== grpc.Code.OK) {
-          callback(Object.assign(new Error(response.statusMessage), { code: response.status, metadata: response.trailers }), null);
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
         } else {
           callback(null, response.message);
         }
       }
     }
   });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
 };
 
 ControllerClient.prototype.createDeployment = function createDeployment(requestMessage, metadata) {
