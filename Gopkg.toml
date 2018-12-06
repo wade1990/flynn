@@ -84,8 +84,8 @@ required = [
   name = "gopkg.in/inconshreveable/go-update.v0"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/golang/protobuf"
+	revision = "1d3f30b51784bec5aad268e59fd3c2fc1c2fe73f"
 
 [[constraint]]
   branch = "master"

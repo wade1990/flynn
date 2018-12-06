@@ -438,8 +438,7 @@
   revision = "a6b377e3400b08991b80d6805d627f347f983866"
 
 [[projects]]
-  branch = "master"
-  digest = "1:82c3abf9460b7b5bc619dffccf62454210823ffdbf38aba0945f859cd63b3681"
+  digest = "1:fb462de1e796b2d83a7f75c55a7de8f127e4eb12425ec57dbe5df12a9f2496de"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -450,7 +449,7 @@
     "ptypes/timestamp",
   ]
   pruneopts = "NUT"
-  revision = "0f2620f554cf5c8e281a2eb655a035f5a0f6dc90"
+  revision = "1d3f30b51784bec5aad268e59fd3c2fc1c2fe73f"
 
 [[projects]]
   digest = "1:dbd86d229eacaa86a98b10f8fb3e3fc69a1913e0f4e010e7cc1f92bf12edca92"
@@ -975,11 +974,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f969b1b8bcb2a5162a5dc797b261eff0c2f099d7fc63c143ada31b002709f6a5"
+  digest = "1:74801c686369cce7eecc0ce4949137ba62a1121d84e67482c154299cd4490656"
   name = "google.golang.org/genproto"
   packages = [
     "googleapis/api/annotations",
     "googleapis/rpc/status",
+    "protobuf/field_mask",
   ]
   pruneopts = "NUT"
   revision = "5a2fd4cab2d6d4a18e70c34937662526cd0c4bd1"
@@ -1133,7 +1133,6 @@
     "github.com/golang/groupcache/singleflight",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
-    "github.com/golang/protobuf/ptypes/any",
     "github.com/golang/protobuf/ptypes/duration",
     "github.com/golang/protobuf/ptypes/timestamp",
     "github.com/gorilla/context",
@@ -1176,6 +1175,7 @@
     "golang.org/x/sys/unix",
     "google.golang.org/api/option",
     "google.golang.org/genproto/googleapis/api/annotations",
+    "google.golang.org/genproto/protobuf/field_mask",
     "google.golang.org/grpc",
     "google.golang.org/grpc/reflection",
     "gopkg.in/inconshreveable/go-update.v0",
