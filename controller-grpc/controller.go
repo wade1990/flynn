@@ -465,12 +465,13 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 		ds.Send(&Event{
 			Name:   fmt.Sprintf("events/%d", ctEvent.ID),
 			Parent: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),
-			Deployment: &DeploymentEvent{
+			DeploymentEvent: &DeploymentEvent{
 				Deployment: convertDeployment(d),
 				JobType:    de.JobType,
 				JobState:   convertDeploymentEventJobState(de.JobState),
-				Error:      de.Error,
 			},
+			Error:      de.Error,
+			CreateTime: timestampProto(ctEvent.CreatedAt),
 		})
 
 		if d.Status == "failed" {
@@ -488,12 +489,22 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 	return eventStream.Err()
 }
 
+func convertEventTypeSlice(in []string) []ct.EventType {
+	out := make([]ct.EventType, len(in))
+	for i, t := range in {
+		out[i] = ct.EventType(t)
+	}
+	return out
+}
+
 func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEventsServer) error {
-	// TODO(jvatic): Build StreamEventsOptions from StreamEventsRequest
 	events := make(chan *ct.Event)
 	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		ObjectTypes: []ct.EventType{},
-		Past:        true,
+		AppID:       parseResourceName(req.Parent)["apps"],
+		ObjectTypes: convertEventTypeSlice(req.ObjectTypes),
+		ObjectID:    lastResourceName(req.Name),
+		Past:        req.Past,
+		Count:       int(req.Count),
 	}, events)
 	if err != nil {
 		return err
@@ -504,10 +515,64 @@ func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEven
 		if !ok {
 			break
 		}
-		// TODO(jvatic): Build Event
-		es.Send(&Event{
-			Name: fmt.Sprintf("events/%d", ctEvent.ID),
-		})
+
+		event := &Event{
+			Name:       fmt.Sprintf("events/%d", ctEvent.ID),
+			Type:       string(ctEvent.ObjectType),
+			CreateTime: timestampProto(ctEvent.CreatedAt),
+		}
+
+		switch ctEvent.ObjectType {
+		case ct.EventTypeApp, ct.EventTypeAppDeletion:
+			event.Parent = fmt.Sprintf("apps/%s", ctEvent.ObjectID)
+		case ct.EventTypeAppRelease, ct.EventTypeRelease, ct.EventTypeReleaseDeletion:
+			event.Parent = fmt.Sprintf("apps/%s/releases/%s", ctEvent.AppID, ctEvent.ObjectID)
+		case ct.EventTypeDeployment:
+			event.Parent = fmt.Sprintf("apps/%s/deployments/%s", ctEvent.AppID, ctEvent.ObjectID)
+		case ct.EventTypeRoute, ct.EventTypeRouteDeletion:
+			event.Parent = fmt.Sprintf("apps/%s/routes/%s", ctEvent.AppID, ctEvent.ObjectID)
+		}
+
+		switch ctEvent.ObjectType {
+		case ct.EventTypeApp:
+			var ctApp *ct.App
+			if err := json.Unmarshal(ctEvent.Data, &ctApp); err != nil {
+				fmt.Printf("Failed to unmarshal app event(%s): %s\n", ctEvent.ObjectID, err)
+				continue
+			}
+			event.App = convertApp(ctApp)
+		case ct.EventTypeAppDeletion:
+		case ct.EventTypeAppRelease:
+		case ct.EventTypeRelease:
+			var ctRelease *ct.Release
+			if err := json.Unmarshal(ctEvent.Data, &ctRelease); err != nil {
+				fmt.Printf("Failed to unmarshal release event(%s): %s\n", ctEvent.ObjectID, err)
+				continue
+			}
+			event.Release = convertRelease(ctRelease)
+		case ct.EventTypeReleaseDeletion:
+		case ct.EventTypeDeployment:
+			var ctDeploymentEvent *ct.DeploymentEvent
+			if err := json.Unmarshal(ctEvent.Data, &ctDeploymentEvent); err != nil {
+				fmt.Printf("Failed to unmarshal deployment event(%s): %s\n", ctEvent.ObjectID, err)
+				continue
+			}
+			ctDeployment, err := s.Client.GetDeployment(ctEvent.ObjectID)
+			if err != nil {
+				fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
+				continue
+			}
+			event.DeploymentEvent = &DeploymentEvent{
+				JobType:    ctDeploymentEvent.JobType,
+				JobState:   convertDeploymentEventJobState(ctDeploymentEvent.JobState),
+				Deployment: convertDeployment(ctDeployment),
+			}
+			event.Error = ctDeploymentEvent.Error
+		case ct.EventTypeRoute:
+		case ct.EventTypeRouteDeletion:
+		}
+
+		es.Send(event)
 	}
 
 	if err := eventStream.Close(); err != nil {
@@ -528,6 +593,14 @@ func parseResourceName(name string) map[string]string {
 		idMap[resourceName] = resourceID
 	}
 	return idMap
+}
+
+func lastResourceName(name string) string {
+	parts := strings.Split(name, "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }
 
 func parseProtoDuration(dur *durpb.Duration) time.Duration {

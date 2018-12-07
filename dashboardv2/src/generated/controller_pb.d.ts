@@ -275,11 +275,11 @@ export class StreamEventsRequest extends jspb.Message {
   setObjectTypesList(value: Array<string>): void;
   addObjectTypes(value: string, index?: number): string;
 
-  getObjectId(): string;
-  setObjectId(value: string): void;
+  getName(): string;
+  setName(value: string): void;
 
-  getPost(): boolean;
-  setPost(value: boolean): void;
+  getPast(): boolean;
+  setPast(value: boolean): void;
 
   getCount(): number;
   setCount(value: number): void;
@@ -298,8 +298,8 @@ export namespace StreamEventsRequest {
   export type AsObject = {
     parent: string,
     objectTypesList: Array<string>,
-    objectId: string,
-    post: boolean,
+    name: string,
+    past: boolean,
     count: number,
   }
 }
@@ -694,6 +694,12 @@ export class Event extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
 
+  getType(): string;
+  setType(value: string): void;
+
+  getError(): string;
+  setError(value: string): void;
+
   hasCreateTime(): boolean;
   clearCreateTime(): void;
   getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
@@ -706,18 +712,18 @@ export class Event extends jspb.Message {
 
   hasAppDeletion(): boolean;
   clearAppDeletion(): void;
-  getAppDeletion(): AppDeletionEvent | undefined;
-  setAppDeletion(value?: AppDeletionEvent): void;
+  getAppDeletion(): AppDeletion | undefined;
+  setAppDeletion(value?: AppDeletion): void;
 
   hasAppRelease(): boolean;
   clearAppRelease(): void;
-  getAppRelease(): AppReleaseEvent | undefined;
-  setAppRelease(value?: AppReleaseEvent): void;
+  getAppRelease(): AppRelease | undefined;
+  setAppRelease(value?: AppRelease): void;
 
-  hasDeployment(): boolean;
-  clearDeployment(): void;
-  getDeployment(): DeploymentEvent | undefined;
-  setDeployment(value?: DeploymentEvent): void;
+  hasDeploymentEvent(): boolean;
+  clearDeploymentEvent(): void;
+  getDeploymentEvent(): DeploymentEvent | undefined;
+  setDeploymentEvent(value?: DeploymentEvent): void;
 
   hasJob(): boolean;
   clearJob(): void;
@@ -726,8 +732,8 @@ export class Event extends jspb.Message {
 
   hasScaleRequest(): boolean;
   clearScaleRequest(): void;
-  getScaleRequest(): ScaleRequestEvent | undefined;
-  setScaleRequest(value?: ScaleRequestEvent): void;
+  getScaleRequest(): ScaleRequest | undefined;
+  setScaleRequest(value?: ScaleRequest): void;
 
   hasRelease(): boolean;
   clearRelease(): void;
@@ -736,18 +742,18 @@ export class Event extends jspb.Message {
 
   hasReleaseDeletion(): boolean;
   clearReleaseDeletion(): void;
-  getReleaseDeletion(): ReleaseDeletionEvent | undefined;
-  setReleaseDeletion(value?: ReleaseDeletionEvent): void;
+  getReleaseDeletion(): ReleaseDeletion | undefined;
+  setReleaseDeletion(value?: ReleaseDeletion): void;
 
   hasArtifact(): boolean;
   clearArtifact(): void;
-  getArtifact(): ArtifactEvent | undefined;
-  setArtifact(value?: ArtifactEvent): void;
+  getArtifact(): Artifact | undefined;
+  setArtifact(value?: Artifact): void;
 
   hasProvider(): boolean;
   clearProvider(): void;
-  getProvider(): ProviderEvent | undefined;
-  setProvider(value?: ProviderEvent): void;
+  getProvider(): Provider | undefined;
+  setProvider(value?: Provider): void;
 
   hasResource(): boolean;
   clearResource(): void;
@@ -756,13 +762,13 @@ export class Event extends jspb.Message {
 
   hasResourceDeletion(): boolean;
   clearResourceDeletion(): void;
-  getResourceDeletion(): ResourceDeletionEvent | undefined;
-  setResourceDeletion(value?: ResourceDeletionEvent): void;
+  getResourceDeletion(): ResourceDeletion | undefined;
+  setResourceDeletion(value?: ResourceDeletion): void;
 
   hasResourceAppDeletion(): boolean;
   clearResourceAppDeletion(): void;
-  getResourceAppDeletion(): ResourceAppDeletionEvent | undefined;
-  setResourceAppDeletion(value?: ResourceAppDeletionEvent): void;
+  getResourceAppDeletion(): ResourceAppDeletion | undefined;
+  setResourceAppDeletion(value?: ResourceAppDeletion): void;
 
   hasRoute(): boolean;
   clearRoute(): void;
@@ -771,23 +777,23 @@ export class Event extends jspb.Message {
 
   hasRouteDeletion(): boolean;
   clearRouteDeletion(): void;
-  getRouteDeletion(): RouteDeletionEvent | undefined;
-  setRouteDeletion(value?: RouteDeletionEvent): void;
+  getRouteDeletion(): RouteDeletion | undefined;
+  setRouteDeletion(value?: RouteDeletion): void;
 
   hasDomainMigration(): boolean;
   clearDomainMigration(): void;
-  getDomainMigration(): DomainMigrationEvent | undefined;
-  setDomainMigration(value?: DomainMigrationEvent): void;
+  getDomainMigration(): DomainMigration | undefined;
+  setDomainMigration(value?: DomainMigration): void;
 
   hasClusterBackup(): boolean;
   clearClusterBackup(): void;
-  getClusterBackup(): ClusterBackupEvent | undefined;
-  setClusterBackup(value?: ClusterBackupEvent): void;
+  getClusterBackup(): ClusterBackup | undefined;
+  setClusterBackup(value?: ClusterBackup): void;
 
   hasAppGarbageCollection(): boolean;
   clearAppGarbageCollection(): void;
-  getAppGarbageCollection(): AppGarbageCollectionEvent | undefined;
-  setAppGarbageCollection(value?: AppGarbageCollectionEvent): void;
+  getAppGarbageCollection(): AppGarbageCollection | undefined;
+  setAppGarbageCollection(value?: AppGarbageCollection): void;
 
   hasSink(): boolean;
   clearSink(): void;
@@ -796,8 +802,8 @@ export class Event extends jspb.Message {
 
   hasSinkDeletion(): boolean;
   clearSinkDeletion(): void;
-  getSinkDeletion(): SinkDeletionEvent | undefined;
-  setSinkDeletion(value?: SinkDeletionEvent): void;
+  getSinkDeletion(): SinkDeletion | undefined;
+  setSinkDeletion(value?: SinkDeletion): void;
 
   hasVolume(): boolean;
   clearVolume(): void;
@@ -818,32 +824,34 @@ export namespace Event {
   export type AsObject = {
     name: string,
     parent: string,
+    type: string,
+    error: string,
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
     app?: App.AsObject,
-    appDeletion?: AppDeletionEvent.AsObject,
-    appRelease?: AppReleaseEvent.AsObject,
-    deployment?: DeploymentEvent.AsObject,
+    appDeletion?: AppDeletion.AsObject,
+    appRelease?: AppRelease.AsObject,
+    deploymentEvent?: DeploymentEvent.AsObject,
     job?: Job.AsObject,
-    scaleRequest?: ScaleRequestEvent.AsObject,
+    scaleRequest?: ScaleRequest.AsObject,
     release?: Release.AsObject,
-    releaseDeletion?: ReleaseDeletionEvent.AsObject,
-    artifact?: ArtifactEvent.AsObject,
-    provider?: ProviderEvent.AsObject,
+    releaseDeletion?: ReleaseDeletion.AsObject,
+    artifact?: Artifact.AsObject,
+    provider?: Provider.AsObject,
     resource?: Resource.AsObject,
-    resourceDeletion?: ResourceDeletionEvent.AsObject,
-    resourceAppDeletion?: ResourceAppDeletionEvent.AsObject,
+    resourceDeletion?: ResourceDeletion.AsObject,
+    resourceAppDeletion?: ResourceAppDeletion.AsObject,
     route?: Route.AsObject,
-    routeDeletion?: RouteDeletionEvent.AsObject,
-    domainMigration?: DomainMigrationEvent.AsObject,
-    clusterBackup?: ClusterBackupEvent.AsObject,
-    appGarbageCollection?: AppGarbageCollectionEvent.AsObject,
+    routeDeletion?: RouteDeletion.AsObject,
+    domainMigration?: DomainMigration.AsObject,
+    clusterBackup?: ClusterBackup.AsObject,
+    appGarbageCollection?: AppGarbageCollection.AsObject,
     sink?: Sink.AsObject,
-    sinkDeletion?: SinkDeletionEvent.AsObject,
+    sinkDeletion?: SinkDeletion.AsObject,
     volume?: Volume.AsObject,
   }
 }
 
-export class AppDeletionEvent extends jspb.Message {
+export class AppDeletion extends jspb.Message {
   getName(): string;
   setName(value: string): void;
 
@@ -863,49 +871,21 @@ export class AppDeletionEvent extends jspb.Message {
   addDeletedReleases(value?: Release, index?: number): Release;
 
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): AppDeletionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: AppDeletionEvent): AppDeletionEvent.AsObject;
+  toObject(includeInstance?: boolean): AppDeletion.AsObject;
+  static toObject(includeInstance: boolean, msg: AppDeletion): AppDeletion.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: AppDeletionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): AppDeletionEvent;
-  static deserializeBinaryFromReader(message: AppDeletionEvent, reader: jspb.BinaryReader): AppDeletionEvent;
+  static serializeBinaryToWriter(message: AppDeletion, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): AppDeletion;
+  static deserializeBinaryFromReader(message: AppDeletion, reader: jspb.BinaryReader): AppDeletion;
 }
 
-export namespace AppDeletionEvent {
+export namespace AppDeletion {
   export type AsObject = {
     name: string,
     deletedRoutesList: Array<Route.AsObject>,
     deletedResourcesList: Array<Resource.AsObject>,
     deletedReleasesList: Array<Release.AsObject>,
-  }
-}
-
-export class AppReleaseEvent extends jspb.Message {
-  hasPrevRelease(): boolean;
-  clearPrevRelease(): void;
-  getPrevRelease(): Release | undefined;
-  setPrevRelease(value?: Release): void;
-
-  hasRelease(): boolean;
-  clearRelease(): void;
-  getRelease(): Release | undefined;
-  setRelease(value?: Release): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): AppReleaseEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: AppReleaseEvent): AppReleaseEvent.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: AppReleaseEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): AppReleaseEvent;
-  static deserializeBinaryFromReader(message: AppReleaseEvent, reader: jspb.BinaryReader): AppReleaseEvent;
-}
-
-export namespace AppReleaseEvent {
-  export type AsObject = {
-    prevRelease?: Release.AsObject,
-    release?: Release.AsObject,
   }
 }
 
@@ -920,9 +900,6 @@ export class DeploymentEvent extends jspb.Message {
 
   getJobState(): DeploymentEvent.JobState;
   setJobState(value: DeploymentEvent.JobState): void;
-
-  getError(): string;
-  setError(value: string): void;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): DeploymentEvent.AsObject;
@@ -939,7 +916,6 @@ export namespace DeploymentEvent {
     deployment?: Deployment.AsObject,
     jobType: string,
     jobState: DeploymentEvent.JobState,
-    error: string,
   }
 
   export enum JobState {
@@ -954,178 +930,178 @@ export namespace DeploymentEvent {
   }
 }
 
-export class ScaleRequestEvent extends jspb.Message {
+export class ScaleRequest extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ScaleRequestEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ScaleRequestEvent): ScaleRequestEvent.AsObject;
+  toObject(includeInstance?: boolean): ScaleRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: ScaleRequest): ScaleRequest.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ScaleRequestEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ScaleRequestEvent;
-  static deserializeBinaryFromReader(message: ScaleRequestEvent, reader: jspb.BinaryReader): ScaleRequestEvent;
+  static serializeBinaryToWriter(message: ScaleRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ScaleRequest;
+  static deserializeBinaryFromReader(message: ScaleRequest, reader: jspb.BinaryReader): ScaleRequest;
 }
 
-export namespace ScaleRequestEvent {
+export namespace ScaleRequest {
   export type AsObject = {
   }
 }
 
-export class ReleaseDeletionEvent extends jspb.Message {
+export class ReleaseDeletion extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ReleaseDeletionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ReleaseDeletionEvent): ReleaseDeletionEvent.AsObject;
+  toObject(includeInstance?: boolean): ReleaseDeletion.AsObject;
+  static toObject(includeInstance: boolean, msg: ReleaseDeletion): ReleaseDeletion.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ReleaseDeletionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ReleaseDeletionEvent;
-  static deserializeBinaryFromReader(message: ReleaseDeletionEvent, reader: jspb.BinaryReader): ReleaseDeletionEvent;
+  static serializeBinaryToWriter(message: ReleaseDeletion, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ReleaseDeletion;
+  static deserializeBinaryFromReader(message: ReleaseDeletion, reader: jspb.BinaryReader): ReleaseDeletion;
 }
 
-export namespace ReleaseDeletionEvent {
+export namespace ReleaseDeletion {
   export type AsObject = {
   }
 }
 
-export class ArtifactEvent extends jspb.Message {
+export class Artifact extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ArtifactEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ArtifactEvent): ArtifactEvent.AsObject;
+  toObject(includeInstance?: boolean): Artifact.AsObject;
+  static toObject(includeInstance: boolean, msg: Artifact): Artifact.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ArtifactEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ArtifactEvent;
-  static deserializeBinaryFromReader(message: ArtifactEvent, reader: jspb.BinaryReader): ArtifactEvent;
+  static serializeBinaryToWriter(message: Artifact, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): Artifact;
+  static deserializeBinaryFromReader(message: Artifact, reader: jspb.BinaryReader): Artifact;
 }
 
-export namespace ArtifactEvent {
+export namespace Artifact {
   export type AsObject = {
   }
 }
 
-export class ProviderEvent extends jspb.Message {
+export class Provider extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ProviderEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ProviderEvent): ProviderEvent.AsObject;
+  toObject(includeInstance?: boolean): Provider.AsObject;
+  static toObject(includeInstance: boolean, msg: Provider): Provider.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ProviderEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ProviderEvent;
-  static deserializeBinaryFromReader(message: ProviderEvent, reader: jspb.BinaryReader): ProviderEvent;
+  static serializeBinaryToWriter(message: Provider, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): Provider;
+  static deserializeBinaryFromReader(message: Provider, reader: jspb.BinaryReader): Provider;
 }
 
-export namespace ProviderEvent {
+export namespace Provider {
   export type AsObject = {
   }
 }
 
-export class ResourceDeletionEvent extends jspb.Message {
+export class ResourceDeletion extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ResourceDeletionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ResourceDeletionEvent): ResourceDeletionEvent.AsObject;
+  toObject(includeInstance?: boolean): ResourceDeletion.AsObject;
+  static toObject(includeInstance: boolean, msg: ResourceDeletion): ResourceDeletion.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ResourceDeletionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ResourceDeletionEvent;
-  static deserializeBinaryFromReader(message: ResourceDeletionEvent, reader: jspb.BinaryReader): ResourceDeletionEvent;
+  static serializeBinaryToWriter(message: ResourceDeletion, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ResourceDeletion;
+  static deserializeBinaryFromReader(message: ResourceDeletion, reader: jspb.BinaryReader): ResourceDeletion;
 }
 
-export namespace ResourceDeletionEvent {
+export namespace ResourceDeletion {
   export type AsObject = {
   }
 }
 
-export class ResourceAppDeletionEvent extends jspb.Message {
+export class ResourceAppDeletion extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ResourceAppDeletionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ResourceAppDeletionEvent): ResourceAppDeletionEvent.AsObject;
+  toObject(includeInstance?: boolean): ResourceAppDeletion.AsObject;
+  static toObject(includeInstance: boolean, msg: ResourceAppDeletion): ResourceAppDeletion.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ResourceAppDeletionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ResourceAppDeletionEvent;
-  static deserializeBinaryFromReader(message: ResourceAppDeletionEvent, reader: jspb.BinaryReader): ResourceAppDeletionEvent;
+  static serializeBinaryToWriter(message: ResourceAppDeletion, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ResourceAppDeletion;
+  static deserializeBinaryFromReader(message: ResourceAppDeletion, reader: jspb.BinaryReader): ResourceAppDeletion;
 }
 
-export namespace ResourceAppDeletionEvent {
+export namespace ResourceAppDeletion {
   export type AsObject = {
   }
 }
 
-export class RouteDeletionEvent extends jspb.Message {
+export class RouteDeletion extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): RouteDeletionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: RouteDeletionEvent): RouteDeletionEvent.AsObject;
+  toObject(includeInstance?: boolean): RouteDeletion.AsObject;
+  static toObject(includeInstance: boolean, msg: RouteDeletion): RouteDeletion.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: RouteDeletionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): RouteDeletionEvent;
-  static deserializeBinaryFromReader(message: RouteDeletionEvent, reader: jspb.BinaryReader): RouteDeletionEvent;
+  static serializeBinaryToWriter(message: RouteDeletion, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): RouteDeletion;
+  static deserializeBinaryFromReader(message: RouteDeletion, reader: jspb.BinaryReader): RouteDeletion;
 }
 
-export namespace RouteDeletionEvent {
+export namespace RouteDeletion {
   export type AsObject = {
   }
 }
 
-export class DomainMigrationEvent extends jspb.Message {
+export class DomainMigration extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): DomainMigrationEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: DomainMigrationEvent): DomainMigrationEvent.AsObject;
+  toObject(includeInstance?: boolean): DomainMigration.AsObject;
+  static toObject(includeInstance: boolean, msg: DomainMigration): DomainMigration.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: DomainMigrationEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): DomainMigrationEvent;
-  static deserializeBinaryFromReader(message: DomainMigrationEvent, reader: jspb.BinaryReader): DomainMigrationEvent;
+  static serializeBinaryToWriter(message: DomainMigration, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): DomainMigration;
+  static deserializeBinaryFromReader(message: DomainMigration, reader: jspb.BinaryReader): DomainMigration;
 }
 
-export namespace DomainMigrationEvent {
+export namespace DomainMigration {
   export type AsObject = {
   }
 }
 
-export class ClusterBackupEvent extends jspb.Message {
+export class ClusterBackup extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ClusterBackupEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: ClusterBackupEvent): ClusterBackupEvent.AsObject;
+  toObject(includeInstance?: boolean): ClusterBackup.AsObject;
+  static toObject(includeInstance: boolean, msg: ClusterBackup): ClusterBackup.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ClusterBackupEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ClusterBackupEvent;
-  static deserializeBinaryFromReader(message: ClusterBackupEvent, reader: jspb.BinaryReader): ClusterBackupEvent;
+  static serializeBinaryToWriter(message: ClusterBackup, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ClusterBackup;
+  static deserializeBinaryFromReader(message: ClusterBackup, reader: jspb.BinaryReader): ClusterBackup;
 }
 
-export namespace ClusterBackupEvent {
+export namespace ClusterBackup {
   export type AsObject = {
   }
 }
 
-export class AppGarbageCollectionEvent extends jspb.Message {
+export class AppGarbageCollection extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): AppGarbageCollectionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: AppGarbageCollectionEvent): AppGarbageCollectionEvent.AsObject;
+  toObject(includeInstance?: boolean): AppGarbageCollection.AsObject;
+  static toObject(includeInstance: boolean, msg: AppGarbageCollection): AppGarbageCollection.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: AppGarbageCollectionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): AppGarbageCollectionEvent;
-  static deserializeBinaryFromReader(message: AppGarbageCollectionEvent, reader: jspb.BinaryReader): AppGarbageCollectionEvent;
+  static serializeBinaryToWriter(message: AppGarbageCollection, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): AppGarbageCollection;
+  static deserializeBinaryFromReader(message: AppGarbageCollection, reader: jspb.BinaryReader): AppGarbageCollection;
 }
 
-export namespace AppGarbageCollectionEvent {
+export namespace AppGarbageCollection {
   export type AsObject = {
   }
 }
 
-export class SinkDeletionEvent extends jspb.Message {
+export class SinkDeletion extends jspb.Message {
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): SinkDeletionEvent.AsObject;
-  static toObject(includeInstance: boolean, msg: SinkDeletionEvent): SinkDeletionEvent.AsObject;
+  toObject(includeInstance?: boolean): SinkDeletion.AsObject;
+  static toObject(includeInstance: boolean, msg: SinkDeletion): SinkDeletion.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: SinkDeletionEvent, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): SinkDeletionEvent;
-  static deserializeBinaryFromReader(message: SinkDeletionEvent, reader: jspb.BinaryReader): SinkDeletionEvent;
+  static serializeBinaryToWriter(message: SinkDeletion, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): SinkDeletion;
+  static deserializeBinaryFromReader(message: SinkDeletion, reader: jspb.BinaryReader): SinkDeletion;
 }
 
-export namespace SinkDeletionEvent {
+export namespace SinkDeletion {
   export type AsObject = {
   }
 }

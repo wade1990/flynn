@@ -103,8 +103,9 @@ message StreamEventsRequest {
   // parent = "apps/APP_ID"
   string parent = 1;
   repeated string object_types = 2; // []ct.EventType
-  string object_id = 3;
-  bool post = 4;
+  // name = any.name, maps to ObjectID
+  string name = 3;
+  bool past = 4;
   int32 count = 5;
 }
 
@@ -231,43 +232,41 @@ message Job { // TODO
 message Event {
   // name = "events/EVENT_ID"
   string name = 1;
-  // parent = Any.name, corresponds to ObjectType and ObjectID on ct.Event
+  // parent = Any.name, corresponds to ObjectID on ct.Event
   string parent = 2;
-  google.protobuf.Timestamp create_time = 3;
-  App app = 4;
-  AppDeletionEvent app_deletion = 5;
-  AppReleaseEvent app_release = 6;
-  DeploymentEvent deployment = 7;
-  Job job = 8;
-  ScaleRequestEvent scale_request = 9;
-  Release release = 10;
-  ReleaseDeletionEvent release_deletion = 11;
-  ArtifactEvent artifact = 12;
-  ProviderEvent provider = 13;
-  Resource resource = 14;
-  ResourceDeletionEvent resource_deletion = 15;
-  ResourceAppDeletionEvent resource_app_deletion = 16;
-  Route route = 17;
-  RouteDeletionEvent route_deletion = 18;
-  DomainMigrationEvent domain_migration = 19;
-  ClusterBackupEvent cluster_backup = 20;
-  AppGarbageCollectionEvent app_garbage_collection = 21;
-  Sink sink = 22;
-  SinkDeletionEvent sink_deletion = 23;
-  Volume volume = 24;
+  // type corresponds to ObjectType on ct.Event
+  string type = 3;
+  string error = 4;
+  google.protobuf.Timestamp create_time = 5;
+  App app = 6;
+  AppDeletion app_deletion = 7;
+  AppRelease app_release = 8;
+  DeploymentEvent deployment_event = 9;
+  Job job = 10;
+  ScaleRequest scale_request = 11;
+  Release release = 12;
+  ReleaseDeletion release_deletion = 13;
+  Artifact artifact = 14;
+  Provider provider = 15;
+  Resource resource = 16;
+  ResourceDeletion resource_deletion = 17;
+  ResourceAppDeletion resource_app_deletion = 18;
+  Route route = 19;
+  RouteDeletion route_deletion = 20;
+  DomainMigration domain_migration = 21;
+  ClusterBackup cluster_backup = 22;
+  AppGarbageCollection app_garbage_collection = 23;
+  Sink sink = 24;
+  SinkDeletion sink_deletion = 25;
+  Volume volume = 26;
 }
 
-message AppDeletionEvent {
+message AppDeletion {
   // name = "apps/APP_ID"
   string name = 1;
   repeated Route deleted_routes = 2;
   repeated Resource deleted_resources = 3;
   repeated Release deleted_releases = 4;
-}
-
-message AppReleaseEvent {
-  Release prev_release = 1;
-  Release release = 2;
 }
 
 message DeploymentEvent {
@@ -288,40 +287,39 @@ message DeploymentEvent {
     FAILED = 8;
   }
   JobState job_state = 3;
-  string error = 4;
 }
 
-message ScaleRequestEvent { // TODO
+message ScaleRequest { // TODO
 }
 
-message ReleaseDeletionEvent { // TODO
+message ReleaseDeletion { // TODO
 }
 
-message ArtifactEvent { // TODO
+message Artifact { // TODO
 }
 
-message ProviderEvent { // TODO
+message Provider { // TODO
 }
 
-message ResourceDeletionEvent { // TODO
+message ResourceDeletion { // TODO
 }
 
-message ResourceAppDeletionEvent { // TODO
+message ResourceAppDeletion { // TODO
 }
 
-message RouteDeletionEvent { // TODO
+message RouteDeletion { // TODO
 }
 
-message DomainMigrationEvent { // TODO
+message DomainMigration { // TODO
 }
 
-message ClusterBackupEvent { // TODO
+message ClusterBackup { // TODO
 }
 
-message AppGarbageCollectionEvent { // TODO
+message AppGarbageCollection { // TODO
 }
 
-message SinkDeletionEvent { // TODO
+message SinkDeletion { // TODO
 }
 
 message Sink { // TODO

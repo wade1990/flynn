@@ -16,13 +16,12 @@ var google_protobuf_timestamp_pb = require('google-protobuf/google/protobuf/time
 var google_protobuf_duration_pb = require('google-protobuf/google/protobuf/duration_pb.js');
 var google_protobuf_field_mask_pb = require('google-protobuf/google/protobuf/field_mask_pb.js');
 goog.exportSymbol('proto.controller.App', null, global);
-goog.exportSymbol('proto.controller.AppDeletionEvent', null, global);
-goog.exportSymbol('proto.controller.AppGarbageCollectionEvent', null, global);
+goog.exportSymbol('proto.controller.AppDeletion', null, global);
+goog.exportSymbol('proto.controller.AppGarbageCollection', null, global);
 goog.exportSymbol('proto.controller.AppRelease', null, global);
-goog.exportSymbol('proto.controller.AppReleaseEvent', null, global);
-goog.exportSymbol('proto.controller.ArtifactEvent', null, global);
+goog.exportSymbol('proto.controller.Artifact', null, global);
 goog.exportSymbol('proto.controller.Certificate', null, global);
-goog.exportSymbol('proto.controller.ClusterBackupEvent', null, global);
+goog.exportSymbol('proto.controller.ClusterBackup', null, global);
 goog.exportSymbol('proto.controller.CreateDeploymentRequest', null, global);
 goog.exportSymbol('proto.controller.CreateReleaseRequest', null, global);
 goog.exportSymbol('proto.controller.Deployment', null, global);
@@ -30,7 +29,7 @@ goog.exportSymbol('proto.controller.DeploymentEvent', null, global);
 goog.exportSymbol('proto.controller.DeploymentEvent.JobState', null, global);
 goog.exportSymbol('proto.controller.DeploymentProcessTags', null, global);
 goog.exportSymbol('proto.controller.DeploymentStatus', null, global);
-goog.exportSymbol('proto.controller.DomainMigrationEvent', null, global);
+goog.exportSymbol('proto.controller.DomainMigration', null, global);
 goog.exportSymbol('proto.controller.Event', null, global);
 goog.exportSymbol('proto.controller.GetAppRequest', null, global);
 goog.exportSymbol('proto.controller.GetReleaseRequest', null, global);
@@ -50,18 +49,18 @@ goog.exportSymbol('proto.controller.LogAggregatorStreamType', null, global);
 goog.exportSymbol('proto.controller.LogChunk', null, global);
 goog.exportSymbol('proto.controller.Port', null, global);
 goog.exportSymbol('proto.controller.ProcessType', null, global);
-goog.exportSymbol('proto.controller.ProviderEvent', null, global);
+goog.exportSymbol('proto.controller.Provider', null, global);
 goog.exportSymbol('proto.controller.Release', null, global);
-goog.exportSymbol('proto.controller.ReleaseDeletionEvent', null, global);
+goog.exportSymbol('proto.controller.ReleaseDeletion', null, global);
 goog.exportSymbol('proto.controller.Resource', null, global);
-goog.exportSymbol('proto.controller.ResourceAppDeletionEvent', null, global);
-goog.exportSymbol('proto.controller.ResourceDeletionEvent', null, global);
+goog.exportSymbol('proto.controller.ResourceAppDeletion', null, global);
+goog.exportSymbol('proto.controller.ResourceDeletion', null, global);
 goog.exportSymbol('proto.controller.Route', null, global);
 goog.exportSymbol('proto.controller.Route.RouteType', null, global);
-goog.exportSymbol('proto.controller.RouteDeletionEvent', null, global);
-goog.exportSymbol('proto.controller.ScaleRequestEvent', null, global);
+goog.exportSymbol('proto.controller.RouteDeletion', null, global);
+goog.exportSymbol('proto.controller.ScaleRequest', null, global);
 goog.exportSymbol('proto.controller.Sink', null, global);
-goog.exportSymbol('proto.controller.SinkDeletionEvent', null, global);
+goog.exportSymbol('proto.controller.SinkDeletion', null, global);
 goog.exportSymbol('proto.controller.StreamAppLogRequest', null, global);
 goog.exportSymbol('proto.controller.StreamEventsRequest', null, global);
 goog.exportSymbol('proto.controller.UpdateAppRequest', null, global);
@@ -1989,8 +1988,8 @@ proto.controller.StreamEventsRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
     objectTypesList: jspb.Message.getRepeatedField(msg, 2),
-    objectId: jspb.Message.getFieldWithDefault(msg, 3, ""),
-    post: jspb.Message.getFieldWithDefault(msg, 4, false),
+    name: jspb.Message.getFieldWithDefault(msg, 3, ""),
+    past: jspb.Message.getFieldWithDefault(msg, 4, false),
     count: jspb.Message.getFieldWithDefault(msg, 5, 0)
   };
 
@@ -2038,11 +2037,11 @@ proto.controller.StreamEventsRequest.deserializeBinaryFromReader = function(msg,
       break;
     case 3:
       var value = /** @type {string} */ (reader.readString());
-      msg.setObjectId(value);
+      msg.setName(value);
       break;
     case 4:
       var value = /** @type {boolean} */ (reader.readBool());
-      msg.setPost(value);
+      msg.setPast(value);
       break;
     case 5:
       var value = /** @type {number} */ (reader.readInt32());
@@ -2091,14 +2090,14 @@ proto.controller.StreamEventsRequest.serializeBinaryToWriter = function(message,
       f
     );
   }
-  f = message.getObjectId();
+  f = message.getName();
   if (f.length > 0) {
     writer.writeString(
       3,
       f
     );
   }
-  f = message.getPost();
+  f = message.getPast();
   if (f) {
     writer.writeBool(
       4,
@@ -2160,33 +2159,33 @@ proto.controller.StreamEventsRequest.prototype.clearObjectTypesList = function()
 
 
 /**
- * optional string object_id = 3;
+ * optional string name = 3;
  * @return {string}
  */
-proto.controller.StreamEventsRequest.prototype.getObjectId = function() {
+proto.controller.StreamEventsRequest.prototype.getName = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
 };
 
 
 /** @param {string} value */
-proto.controller.StreamEventsRequest.prototype.setObjectId = function(value) {
+proto.controller.StreamEventsRequest.prototype.setName = function(value) {
   jspb.Message.setProto3StringField(this, 3, value);
 };
 
 
 /**
- * optional bool post = 4;
+ * optional bool past = 4;
  * Note that Boolean fields may be set to 0/1 when serialized from a Java server.
  * You should avoid comparisons like {@code val === true/false} in those cases.
  * @return {boolean}
  */
-proto.controller.StreamEventsRequest.prototype.getPost = function() {
+proto.controller.StreamEventsRequest.prototype.getPast = function() {
   return /** @type {boolean} */ (jspb.Message.getFieldWithDefault(this, 4, false));
 };
 
 
 /** @param {boolean} value */
-proto.controller.StreamEventsRequest.prototype.setPost = function(value) {
+proto.controller.StreamEventsRequest.prototype.setPast = function(value) {
   jspb.Message.setProto3BooleanField(this, 4, value);
 };
 
@@ -5026,27 +5025,29 @@ proto.controller.Event.toObject = function(includeInstance, msg) {
   var f, obj = {
     name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     parent: jspb.Message.getFieldWithDefault(msg, 2, ""),
+    type: jspb.Message.getFieldWithDefault(msg, 3, ""),
+    error: jspb.Message.getFieldWithDefault(msg, 4, ""),
     createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
     app: (f = msg.getApp()) && proto.controller.App.toObject(includeInstance, f),
-    appDeletion: (f = msg.getAppDeletion()) && proto.controller.AppDeletionEvent.toObject(includeInstance, f),
-    appRelease: (f = msg.getAppRelease()) && proto.controller.AppReleaseEvent.toObject(includeInstance, f),
-    deployment: (f = msg.getDeployment()) && proto.controller.DeploymentEvent.toObject(includeInstance, f),
+    appDeletion: (f = msg.getAppDeletion()) && proto.controller.AppDeletion.toObject(includeInstance, f),
+    appRelease: (f = msg.getAppRelease()) && proto.controller.AppRelease.toObject(includeInstance, f),
+    deploymentEvent: (f = msg.getDeploymentEvent()) && proto.controller.DeploymentEvent.toObject(includeInstance, f),
     job: (f = msg.getJob()) && proto.controller.Job.toObject(includeInstance, f),
-    scaleRequest: (f = msg.getScaleRequest()) && proto.controller.ScaleRequestEvent.toObject(includeInstance, f),
+    scaleRequest: (f = msg.getScaleRequest()) && proto.controller.ScaleRequest.toObject(includeInstance, f),
     release: (f = msg.getRelease()) && proto.controller.Release.toObject(includeInstance, f),
-    releaseDeletion: (f = msg.getReleaseDeletion()) && proto.controller.ReleaseDeletionEvent.toObject(includeInstance, f),
-    artifact: (f = msg.getArtifact()) && proto.controller.ArtifactEvent.toObject(includeInstance, f),
-    provider: (f = msg.getProvider()) && proto.controller.ProviderEvent.toObject(includeInstance, f),
+    releaseDeletion: (f = msg.getReleaseDeletion()) && proto.controller.ReleaseDeletion.toObject(includeInstance, f),
+    artifact: (f = msg.getArtifact()) && proto.controller.Artifact.toObject(includeInstance, f),
+    provider: (f = msg.getProvider()) && proto.controller.Provider.toObject(includeInstance, f),
     resource: (f = msg.getResource()) && proto.controller.Resource.toObject(includeInstance, f),
-    resourceDeletion: (f = msg.getResourceDeletion()) && proto.controller.ResourceDeletionEvent.toObject(includeInstance, f),
-    resourceAppDeletion: (f = msg.getResourceAppDeletion()) && proto.controller.ResourceAppDeletionEvent.toObject(includeInstance, f),
+    resourceDeletion: (f = msg.getResourceDeletion()) && proto.controller.ResourceDeletion.toObject(includeInstance, f),
+    resourceAppDeletion: (f = msg.getResourceAppDeletion()) && proto.controller.ResourceAppDeletion.toObject(includeInstance, f),
     route: (f = msg.getRoute()) && proto.controller.Route.toObject(includeInstance, f),
-    routeDeletion: (f = msg.getRouteDeletion()) && proto.controller.RouteDeletionEvent.toObject(includeInstance, f),
-    domainMigration: (f = msg.getDomainMigration()) && proto.controller.DomainMigrationEvent.toObject(includeInstance, f),
-    clusterBackup: (f = msg.getClusterBackup()) && proto.controller.ClusterBackupEvent.toObject(includeInstance, f),
-    appGarbageCollection: (f = msg.getAppGarbageCollection()) && proto.controller.AppGarbageCollectionEvent.toObject(includeInstance, f),
+    routeDeletion: (f = msg.getRouteDeletion()) && proto.controller.RouteDeletion.toObject(includeInstance, f),
+    domainMigration: (f = msg.getDomainMigration()) && proto.controller.DomainMigration.toObject(includeInstance, f),
+    clusterBackup: (f = msg.getClusterBackup()) && proto.controller.ClusterBackup.toObject(includeInstance, f),
+    appGarbageCollection: (f = msg.getAppGarbageCollection()) && proto.controller.AppGarbageCollection.toObject(includeInstance, f),
     sink: (f = msg.getSink()) && proto.controller.Sink.toObject(includeInstance, f),
-    sinkDeletion: (f = msg.getSinkDeletion()) && proto.controller.SinkDeletionEvent.toObject(includeInstance, f),
+    sinkDeletion: (f = msg.getSinkDeletion()) && proto.controller.SinkDeletion.toObject(includeInstance, f),
     volume: (f = msg.getVolume()) && proto.controller.Volume.toObject(includeInstance, f)
   };
 
@@ -5093,111 +5094,119 @@ proto.controller.Event.deserializeBinaryFromReader = function(msg, reader) {
       msg.setParent(value);
       break;
     case 3:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setType(value);
+      break;
+    case 4:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setError(value);
+      break;
+    case 5:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
       break;
-    case 4:
+    case 6:
       var value = new proto.controller.App;
       reader.readMessage(value,proto.controller.App.deserializeBinaryFromReader);
       msg.setApp(value);
       break;
-    case 5:
-      var value = new proto.controller.AppDeletionEvent;
-      reader.readMessage(value,proto.controller.AppDeletionEvent.deserializeBinaryFromReader);
+    case 7:
+      var value = new proto.controller.AppDeletion;
+      reader.readMessage(value,proto.controller.AppDeletion.deserializeBinaryFromReader);
       msg.setAppDeletion(value);
       break;
-    case 6:
-      var value = new proto.controller.AppReleaseEvent;
-      reader.readMessage(value,proto.controller.AppReleaseEvent.deserializeBinaryFromReader);
+    case 8:
+      var value = new proto.controller.AppRelease;
+      reader.readMessage(value,proto.controller.AppRelease.deserializeBinaryFromReader);
       msg.setAppRelease(value);
       break;
-    case 7:
+    case 9:
       var value = new proto.controller.DeploymentEvent;
       reader.readMessage(value,proto.controller.DeploymentEvent.deserializeBinaryFromReader);
-      msg.setDeployment(value);
+      msg.setDeploymentEvent(value);
       break;
-    case 8:
+    case 10:
       var value = new proto.controller.Job;
       reader.readMessage(value,proto.controller.Job.deserializeBinaryFromReader);
       msg.setJob(value);
       break;
-    case 9:
-      var value = new proto.controller.ScaleRequestEvent;
-      reader.readMessage(value,proto.controller.ScaleRequestEvent.deserializeBinaryFromReader);
+    case 11:
+      var value = new proto.controller.ScaleRequest;
+      reader.readMessage(value,proto.controller.ScaleRequest.deserializeBinaryFromReader);
       msg.setScaleRequest(value);
       break;
-    case 10:
+    case 12:
       var value = new proto.controller.Release;
       reader.readMessage(value,proto.controller.Release.deserializeBinaryFromReader);
       msg.setRelease(value);
       break;
-    case 11:
-      var value = new proto.controller.ReleaseDeletionEvent;
-      reader.readMessage(value,proto.controller.ReleaseDeletionEvent.deserializeBinaryFromReader);
+    case 13:
+      var value = new proto.controller.ReleaseDeletion;
+      reader.readMessage(value,proto.controller.ReleaseDeletion.deserializeBinaryFromReader);
       msg.setReleaseDeletion(value);
       break;
-    case 12:
-      var value = new proto.controller.ArtifactEvent;
-      reader.readMessage(value,proto.controller.ArtifactEvent.deserializeBinaryFromReader);
+    case 14:
+      var value = new proto.controller.Artifact;
+      reader.readMessage(value,proto.controller.Artifact.deserializeBinaryFromReader);
       msg.setArtifact(value);
       break;
-    case 13:
-      var value = new proto.controller.ProviderEvent;
-      reader.readMessage(value,proto.controller.ProviderEvent.deserializeBinaryFromReader);
+    case 15:
+      var value = new proto.controller.Provider;
+      reader.readMessage(value,proto.controller.Provider.deserializeBinaryFromReader);
       msg.setProvider(value);
       break;
-    case 14:
+    case 16:
       var value = new proto.controller.Resource;
       reader.readMessage(value,proto.controller.Resource.deserializeBinaryFromReader);
       msg.setResource(value);
       break;
-    case 15:
-      var value = new proto.controller.ResourceDeletionEvent;
-      reader.readMessage(value,proto.controller.ResourceDeletionEvent.deserializeBinaryFromReader);
+    case 17:
+      var value = new proto.controller.ResourceDeletion;
+      reader.readMessage(value,proto.controller.ResourceDeletion.deserializeBinaryFromReader);
       msg.setResourceDeletion(value);
       break;
-    case 16:
-      var value = new proto.controller.ResourceAppDeletionEvent;
-      reader.readMessage(value,proto.controller.ResourceAppDeletionEvent.deserializeBinaryFromReader);
+    case 18:
+      var value = new proto.controller.ResourceAppDeletion;
+      reader.readMessage(value,proto.controller.ResourceAppDeletion.deserializeBinaryFromReader);
       msg.setResourceAppDeletion(value);
       break;
-    case 17:
+    case 19:
       var value = new proto.controller.Route;
       reader.readMessage(value,proto.controller.Route.deserializeBinaryFromReader);
       msg.setRoute(value);
       break;
-    case 18:
-      var value = new proto.controller.RouteDeletionEvent;
-      reader.readMessage(value,proto.controller.RouteDeletionEvent.deserializeBinaryFromReader);
+    case 20:
+      var value = new proto.controller.RouteDeletion;
+      reader.readMessage(value,proto.controller.RouteDeletion.deserializeBinaryFromReader);
       msg.setRouteDeletion(value);
       break;
-    case 19:
-      var value = new proto.controller.DomainMigrationEvent;
-      reader.readMessage(value,proto.controller.DomainMigrationEvent.deserializeBinaryFromReader);
+    case 21:
+      var value = new proto.controller.DomainMigration;
+      reader.readMessage(value,proto.controller.DomainMigration.deserializeBinaryFromReader);
       msg.setDomainMigration(value);
       break;
-    case 20:
-      var value = new proto.controller.ClusterBackupEvent;
-      reader.readMessage(value,proto.controller.ClusterBackupEvent.deserializeBinaryFromReader);
+    case 22:
+      var value = new proto.controller.ClusterBackup;
+      reader.readMessage(value,proto.controller.ClusterBackup.deserializeBinaryFromReader);
       msg.setClusterBackup(value);
       break;
-    case 21:
-      var value = new proto.controller.AppGarbageCollectionEvent;
-      reader.readMessage(value,proto.controller.AppGarbageCollectionEvent.deserializeBinaryFromReader);
+    case 23:
+      var value = new proto.controller.AppGarbageCollection;
+      reader.readMessage(value,proto.controller.AppGarbageCollection.deserializeBinaryFromReader);
       msg.setAppGarbageCollection(value);
       break;
-    case 22:
+    case 24:
       var value = new proto.controller.Sink;
       reader.readMessage(value,proto.controller.Sink.deserializeBinaryFromReader);
       msg.setSink(value);
       break;
-    case 23:
-      var value = new proto.controller.SinkDeletionEvent;
-      reader.readMessage(value,proto.controller.SinkDeletionEvent.deserializeBinaryFromReader);
+    case 25:
+      var value = new proto.controller.SinkDeletion;
+      reader.readMessage(value,proto.controller.SinkDeletion.deserializeBinaryFromReader);
       msg.setSinkDeletion(value);
       break;
-    case 24:
+    case 26:
       var value = new proto.controller.Volume;
       reader.readMessage(value,proto.controller.Volume.deserializeBinaryFromReader);
       msg.setVolume(value);
@@ -5245,10 +5254,24 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
+  f = message.getType();
+  if (f.length > 0) {
+    writer.writeString(
+      3,
+      f
+    );
+  }
+  f = message.getError();
+  if (f.length > 0) {
+    writer.writeString(
+      4,
+      f
+    );
+  }
   f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      3,
+      5,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -5256,7 +5279,7 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getApp();
   if (f != null) {
     writer.writeMessage(
-      4,
+      6,
       f,
       proto.controller.App.serializeBinaryToWriter
     );
@@ -5264,23 +5287,23 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getAppDeletion();
   if (f != null) {
     writer.writeMessage(
-      5,
+      7,
       f,
-      proto.controller.AppDeletionEvent.serializeBinaryToWriter
+      proto.controller.AppDeletion.serializeBinaryToWriter
     );
   }
   f = message.getAppRelease();
   if (f != null) {
     writer.writeMessage(
-      6,
+      8,
       f,
-      proto.controller.AppReleaseEvent.serializeBinaryToWriter
+      proto.controller.AppRelease.serializeBinaryToWriter
     );
   }
-  f = message.getDeployment();
+  f = message.getDeploymentEvent();
   if (f != null) {
     writer.writeMessage(
-      7,
+      9,
       f,
       proto.controller.DeploymentEvent.serializeBinaryToWriter
     );
@@ -5288,7 +5311,7 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getJob();
   if (f != null) {
     writer.writeMessage(
-      8,
+      10,
       f,
       proto.controller.Job.serializeBinaryToWriter
     );
@@ -5296,15 +5319,15 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getScaleRequest();
   if (f != null) {
     writer.writeMessage(
-      9,
+      11,
       f,
-      proto.controller.ScaleRequestEvent.serializeBinaryToWriter
+      proto.controller.ScaleRequest.serializeBinaryToWriter
     );
   }
   f = message.getRelease();
   if (f != null) {
     writer.writeMessage(
-      10,
+      12,
       f,
       proto.controller.Release.serializeBinaryToWriter
     );
@@ -5312,31 +5335,31 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getReleaseDeletion();
   if (f != null) {
     writer.writeMessage(
-      11,
+      13,
       f,
-      proto.controller.ReleaseDeletionEvent.serializeBinaryToWriter
+      proto.controller.ReleaseDeletion.serializeBinaryToWriter
     );
   }
   f = message.getArtifact();
   if (f != null) {
     writer.writeMessage(
-      12,
+      14,
       f,
-      proto.controller.ArtifactEvent.serializeBinaryToWriter
+      proto.controller.Artifact.serializeBinaryToWriter
     );
   }
   f = message.getProvider();
   if (f != null) {
     writer.writeMessage(
-      13,
+      15,
       f,
-      proto.controller.ProviderEvent.serializeBinaryToWriter
+      proto.controller.Provider.serializeBinaryToWriter
     );
   }
   f = message.getResource();
   if (f != null) {
     writer.writeMessage(
-      14,
+      16,
       f,
       proto.controller.Resource.serializeBinaryToWriter
     );
@@ -5344,23 +5367,23 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getResourceDeletion();
   if (f != null) {
     writer.writeMessage(
-      15,
+      17,
       f,
-      proto.controller.ResourceDeletionEvent.serializeBinaryToWriter
+      proto.controller.ResourceDeletion.serializeBinaryToWriter
     );
   }
   f = message.getResourceAppDeletion();
   if (f != null) {
     writer.writeMessage(
-      16,
+      18,
       f,
-      proto.controller.ResourceAppDeletionEvent.serializeBinaryToWriter
+      proto.controller.ResourceAppDeletion.serializeBinaryToWriter
     );
   }
   f = message.getRoute();
   if (f != null) {
     writer.writeMessage(
-      17,
+      19,
       f,
       proto.controller.Route.serializeBinaryToWriter
     );
@@ -5368,39 +5391,39 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getRouteDeletion();
   if (f != null) {
     writer.writeMessage(
-      18,
+      20,
       f,
-      proto.controller.RouteDeletionEvent.serializeBinaryToWriter
+      proto.controller.RouteDeletion.serializeBinaryToWriter
     );
   }
   f = message.getDomainMigration();
   if (f != null) {
     writer.writeMessage(
-      19,
+      21,
       f,
-      proto.controller.DomainMigrationEvent.serializeBinaryToWriter
+      proto.controller.DomainMigration.serializeBinaryToWriter
     );
   }
   f = message.getClusterBackup();
   if (f != null) {
     writer.writeMessage(
-      20,
+      22,
       f,
-      proto.controller.ClusterBackupEvent.serializeBinaryToWriter
+      proto.controller.ClusterBackup.serializeBinaryToWriter
     );
   }
   f = message.getAppGarbageCollection();
   if (f != null) {
     writer.writeMessage(
-      21,
+      23,
       f,
-      proto.controller.AppGarbageCollectionEvent.serializeBinaryToWriter
+      proto.controller.AppGarbageCollection.serializeBinaryToWriter
     );
   }
   f = message.getSink();
   if (f != null) {
     writer.writeMessage(
-      22,
+      24,
       f,
       proto.controller.Sink.serializeBinaryToWriter
     );
@@ -5408,15 +5431,15 @@ proto.controller.Event.serializeBinaryToWriter = function(message, writer) {
   f = message.getSinkDeletion();
   if (f != null) {
     writer.writeMessage(
-      23,
+      25,
       f,
-      proto.controller.SinkDeletionEvent.serializeBinaryToWriter
+      proto.controller.SinkDeletion.serializeBinaryToWriter
     );
   }
   f = message.getVolume();
   if (f != null) {
     writer.writeMessage(
-      24,
+      26,
       f,
       proto.controller.Volume.serializeBinaryToWriter
     );
@@ -5455,18 +5478,48 @@ proto.controller.Event.prototype.setParent = function(value) {
 
 
 /**
- * optional google.protobuf.Timestamp create_time = 3;
+ * optional string type = 3;
+ * @return {string}
+ */
+proto.controller.Event.prototype.getType = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.Event.prototype.setType = function(value) {
+  jspb.Message.setProto3StringField(this, 3, value);
+};
+
+
+/**
+ * optional string error = 4;
+ * @return {string}
+ */
+proto.controller.Event.prototype.getError = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.Event.prototype.setError = function(value) {
+  jspb.Message.setProto3StringField(this, 4, value);
+};
+
+
+/**
+ * optional google.protobuf.Timestamp create_time = 5;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.Event.prototype.getCreateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 3));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.Event.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 3, value);
+  jspb.Message.setWrapperField(this, 5, value);
 };
 
 
@@ -5480,23 +5533,23 @@ proto.controller.Event.prototype.clearCreateTime = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 3) != null;
+  return jspb.Message.getField(this, 5) != null;
 };
 
 
 /**
- * optional App app = 4;
+ * optional App app = 6;
  * @return {?proto.controller.App}
  */
 proto.controller.Event.prototype.getApp = function() {
   return /** @type{?proto.controller.App} */ (
-    jspb.Message.getWrapperField(this, proto.controller.App, 4));
+    jspb.Message.getWrapperField(this, proto.controller.App, 6));
 };
 
 
 /** @param {?proto.controller.App|undefined} value */
 proto.controller.Event.prototype.setApp = function(value) {
-  jspb.Message.setWrapperField(this, 4, value);
+  jspb.Message.setWrapperField(this, 6, value);
 };
 
 
@@ -5510,23 +5563,23 @@ proto.controller.Event.prototype.clearApp = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasApp = function() {
-  return jspb.Message.getField(this, 4) != null;
+  return jspb.Message.getField(this, 6) != null;
 };
 
 
 /**
- * optional AppDeletionEvent app_deletion = 5;
- * @return {?proto.controller.AppDeletionEvent}
+ * optional AppDeletion app_deletion = 7;
+ * @return {?proto.controller.AppDeletion}
  */
 proto.controller.Event.prototype.getAppDeletion = function() {
-  return /** @type{?proto.controller.AppDeletionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.AppDeletionEvent, 5));
+  return /** @type{?proto.controller.AppDeletion} */ (
+    jspb.Message.getWrapperField(this, proto.controller.AppDeletion, 7));
 };
 
 
-/** @param {?proto.controller.AppDeletionEvent|undefined} value */
+/** @param {?proto.controller.AppDeletion|undefined} value */
 proto.controller.Event.prototype.setAppDeletion = function(value) {
-  jspb.Message.setWrapperField(this, 5, value);
+  jspb.Message.setWrapperField(this, 7, value);
 };
 
 
@@ -5540,23 +5593,23 @@ proto.controller.Event.prototype.clearAppDeletion = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasAppDeletion = function() {
-  return jspb.Message.getField(this, 5) != null;
+  return jspb.Message.getField(this, 7) != null;
 };
 
 
 /**
- * optional AppReleaseEvent app_release = 6;
- * @return {?proto.controller.AppReleaseEvent}
+ * optional AppRelease app_release = 8;
+ * @return {?proto.controller.AppRelease}
  */
 proto.controller.Event.prototype.getAppRelease = function() {
-  return /** @type{?proto.controller.AppReleaseEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.AppReleaseEvent, 6));
+  return /** @type{?proto.controller.AppRelease} */ (
+    jspb.Message.getWrapperField(this, proto.controller.AppRelease, 8));
 };
 
 
-/** @param {?proto.controller.AppReleaseEvent|undefined} value */
+/** @param {?proto.controller.AppRelease|undefined} value */
 proto.controller.Event.prototype.setAppRelease = function(value) {
-  jspb.Message.setWrapperField(this, 6, value);
+  jspb.Message.setWrapperField(this, 8, value);
 };
 
 
@@ -5570,28 +5623,28 @@ proto.controller.Event.prototype.clearAppRelease = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasAppRelease = function() {
-  return jspb.Message.getField(this, 6) != null;
+  return jspb.Message.getField(this, 8) != null;
 };
 
 
 /**
- * optional DeploymentEvent deployment = 7;
+ * optional DeploymentEvent deployment_event = 9;
  * @return {?proto.controller.DeploymentEvent}
  */
-proto.controller.Event.prototype.getDeployment = function() {
+proto.controller.Event.prototype.getDeploymentEvent = function() {
   return /** @type{?proto.controller.DeploymentEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.DeploymentEvent, 7));
+    jspb.Message.getWrapperField(this, proto.controller.DeploymentEvent, 9));
 };
 
 
 /** @param {?proto.controller.DeploymentEvent|undefined} value */
-proto.controller.Event.prototype.setDeployment = function(value) {
-  jspb.Message.setWrapperField(this, 7, value);
+proto.controller.Event.prototype.setDeploymentEvent = function(value) {
+  jspb.Message.setWrapperField(this, 9, value);
 };
 
 
-proto.controller.Event.prototype.clearDeployment = function() {
-  this.setDeployment(undefined);
+proto.controller.Event.prototype.clearDeploymentEvent = function() {
+  this.setDeploymentEvent(undefined);
 };
 
 
@@ -5599,24 +5652,24 @@ proto.controller.Event.prototype.clearDeployment = function() {
  * Returns whether this field is set.
  * @return {!boolean}
  */
-proto.controller.Event.prototype.hasDeployment = function() {
-  return jspb.Message.getField(this, 7) != null;
+proto.controller.Event.prototype.hasDeploymentEvent = function() {
+  return jspb.Message.getField(this, 9) != null;
 };
 
 
 /**
- * optional Job job = 8;
+ * optional Job job = 10;
  * @return {?proto.controller.Job}
  */
 proto.controller.Event.prototype.getJob = function() {
   return /** @type{?proto.controller.Job} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Job, 8));
+    jspb.Message.getWrapperField(this, proto.controller.Job, 10));
 };
 
 
 /** @param {?proto.controller.Job|undefined} value */
 proto.controller.Event.prototype.setJob = function(value) {
-  jspb.Message.setWrapperField(this, 8, value);
+  jspb.Message.setWrapperField(this, 10, value);
 };
 
 
@@ -5630,23 +5683,23 @@ proto.controller.Event.prototype.clearJob = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasJob = function() {
-  return jspb.Message.getField(this, 8) != null;
+  return jspb.Message.getField(this, 10) != null;
 };
 
 
 /**
- * optional ScaleRequestEvent scale_request = 9;
- * @return {?proto.controller.ScaleRequestEvent}
+ * optional ScaleRequest scale_request = 11;
+ * @return {?proto.controller.ScaleRequest}
  */
 proto.controller.Event.prototype.getScaleRequest = function() {
-  return /** @type{?proto.controller.ScaleRequestEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ScaleRequestEvent, 9));
+  return /** @type{?proto.controller.ScaleRequest} */ (
+    jspb.Message.getWrapperField(this, proto.controller.ScaleRequest, 11));
 };
 
 
-/** @param {?proto.controller.ScaleRequestEvent|undefined} value */
+/** @param {?proto.controller.ScaleRequest|undefined} value */
 proto.controller.Event.prototype.setScaleRequest = function(value) {
-  jspb.Message.setWrapperField(this, 9, value);
+  jspb.Message.setWrapperField(this, 11, value);
 };
 
 
@@ -5660,23 +5713,23 @@ proto.controller.Event.prototype.clearScaleRequest = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasScaleRequest = function() {
-  return jspb.Message.getField(this, 9) != null;
+  return jspb.Message.getField(this, 11) != null;
 };
 
 
 /**
- * optional Release release = 10;
+ * optional Release release = 12;
  * @return {?proto.controller.Release}
  */
 proto.controller.Event.prototype.getRelease = function() {
   return /** @type{?proto.controller.Release} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Release, 10));
+    jspb.Message.getWrapperField(this, proto.controller.Release, 12));
 };
 
 
 /** @param {?proto.controller.Release|undefined} value */
 proto.controller.Event.prototype.setRelease = function(value) {
-  jspb.Message.setWrapperField(this, 10, value);
+  jspb.Message.setWrapperField(this, 12, value);
 };
 
 
@@ -5690,23 +5743,23 @@ proto.controller.Event.prototype.clearRelease = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasRelease = function() {
-  return jspb.Message.getField(this, 10) != null;
+  return jspb.Message.getField(this, 12) != null;
 };
 
 
 /**
- * optional ReleaseDeletionEvent release_deletion = 11;
- * @return {?proto.controller.ReleaseDeletionEvent}
+ * optional ReleaseDeletion release_deletion = 13;
+ * @return {?proto.controller.ReleaseDeletion}
  */
 proto.controller.Event.prototype.getReleaseDeletion = function() {
-  return /** @type{?proto.controller.ReleaseDeletionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ReleaseDeletionEvent, 11));
+  return /** @type{?proto.controller.ReleaseDeletion} */ (
+    jspb.Message.getWrapperField(this, proto.controller.ReleaseDeletion, 13));
 };
 
 
-/** @param {?proto.controller.ReleaseDeletionEvent|undefined} value */
+/** @param {?proto.controller.ReleaseDeletion|undefined} value */
 proto.controller.Event.prototype.setReleaseDeletion = function(value) {
-  jspb.Message.setWrapperField(this, 11, value);
+  jspb.Message.setWrapperField(this, 13, value);
 };
 
 
@@ -5720,23 +5773,23 @@ proto.controller.Event.prototype.clearReleaseDeletion = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasReleaseDeletion = function() {
-  return jspb.Message.getField(this, 11) != null;
+  return jspb.Message.getField(this, 13) != null;
 };
 
 
 /**
- * optional ArtifactEvent artifact = 12;
- * @return {?proto.controller.ArtifactEvent}
+ * optional Artifact artifact = 14;
+ * @return {?proto.controller.Artifact}
  */
 proto.controller.Event.prototype.getArtifact = function() {
-  return /** @type{?proto.controller.ArtifactEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ArtifactEvent, 12));
+  return /** @type{?proto.controller.Artifact} */ (
+    jspb.Message.getWrapperField(this, proto.controller.Artifact, 14));
 };
 
 
-/** @param {?proto.controller.ArtifactEvent|undefined} value */
+/** @param {?proto.controller.Artifact|undefined} value */
 proto.controller.Event.prototype.setArtifact = function(value) {
-  jspb.Message.setWrapperField(this, 12, value);
+  jspb.Message.setWrapperField(this, 14, value);
 };
 
 
@@ -5750,23 +5803,23 @@ proto.controller.Event.prototype.clearArtifact = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasArtifact = function() {
-  return jspb.Message.getField(this, 12) != null;
+  return jspb.Message.getField(this, 14) != null;
 };
 
 
 /**
- * optional ProviderEvent provider = 13;
- * @return {?proto.controller.ProviderEvent}
+ * optional Provider provider = 15;
+ * @return {?proto.controller.Provider}
  */
 proto.controller.Event.prototype.getProvider = function() {
-  return /** @type{?proto.controller.ProviderEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ProviderEvent, 13));
+  return /** @type{?proto.controller.Provider} */ (
+    jspb.Message.getWrapperField(this, proto.controller.Provider, 15));
 };
 
 
-/** @param {?proto.controller.ProviderEvent|undefined} value */
+/** @param {?proto.controller.Provider|undefined} value */
 proto.controller.Event.prototype.setProvider = function(value) {
-  jspb.Message.setWrapperField(this, 13, value);
+  jspb.Message.setWrapperField(this, 15, value);
 };
 
 
@@ -5780,23 +5833,23 @@ proto.controller.Event.prototype.clearProvider = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasProvider = function() {
-  return jspb.Message.getField(this, 13) != null;
+  return jspb.Message.getField(this, 15) != null;
 };
 
 
 /**
- * optional Resource resource = 14;
+ * optional Resource resource = 16;
  * @return {?proto.controller.Resource}
  */
 proto.controller.Event.prototype.getResource = function() {
   return /** @type{?proto.controller.Resource} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Resource, 14));
+    jspb.Message.getWrapperField(this, proto.controller.Resource, 16));
 };
 
 
 /** @param {?proto.controller.Resource|undefined} value */
 proto.controller.Event.prototype.setResource = function(value) {
-  jspb.Message.setWrapperField(this, 14, value);
+  jspb.Message.setWrapperField(this, 16, value);
 };
 
 
@@ -5810,23 +5863,23 @@ proto.controller.Event.prototype.clearResource = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasResource = function() {
-  return jspb.Message.getField(this, 14) != null;
+  return jspb.Message.getField(this, 16) != null;
 };
 
 
 /**
- * optional ResourceDeletionEvent resource_deletion = 15;
- * @return {?proto.controller.ResourceDeletionEvent}
+ * optional ResourceDeletion resource_deletion = 17;
+ * @return {?proto.controller.ResourceDeletion}
  */
 proto.controller.Event.prototype.getResourceDeletion = function() {
-  return /** @type{?proto.controller.ResourceDeletionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ResourceDeletionEvent, 15));
+  return /** @type{?proto.controller.ResourceDeletion} */ (
+    jspb.Message.getWrapperField(this, proto.controller.ResourceDeletion, 17));
 };
 
 
-/** @param {?proto.controller.ResourceDeletionEvent|undefined} value */
+/** @param {?proto.controller.ResourceDeletion|undefined} value */
 proto.controller.Event.prototype.setResourceDeletion = function(value) {
-  jspb.Message.setWrapperField(this, 15, value);
+  jspb.Message.setWrapperField(this, 17, value);
 };
 
 
@@ -5840,23 +5893,23 @@ proto.controller.Event.prototype.clearResourceDeletion = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasResourceDeletion = function() {
-  return jspb.Message.getField(this, 15) != null;
+  return jspb.Message.getField(this, 17) != null;
 };
 
 
 /**
- * optional ResourceAppDeletionEvent resource_app_deletion = 16;
- * @return {?proto.controller.ResourceAppDeletionEvent}
+ * optional ResourceAppDeletion resource_app_deletion = 18;
+ * @return {?proto.controller.ResourceAppDeletion}
  */
 proto.controller.Event.prototype.getResourceAppDeletion = function() {
-  return /** @type{?proto.controller.ResourceAppDeletionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ResourceAppDeletionEvent, 16));
+  return /** @type{?proto.controller.ResourceAppDeletion} */ (
+    jspb.Message.getWrapperField(this, proto.controller.ResourceAppDeletion, 18));
 };
 
 
-/** @param {?proto.controller.ResourceAppDeletionEvent|undefined} value */
+/** @param {?proto.controller.ResourceAppDeletion|undefined} value */
 proto.controller.Event.prototype.setResourceAppDeletion = function(value) {
-  jspb.Message.setWrapperField(this, 16, value);
+  jspb.Message.setWrapperField(this, 18, value);
 };
 
 
@@ -5870,23 +5923,23 @@ proto.controller.Event.prototype.clearResourceAppDeletion = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasResourceAppDeletion = function() {
-  return jspb.Message.getField(this, 16) != null;
+  return jspb.Message.getField(this, 18) != null;
 };
 
 
 /**
- * optional Route route = 17;
+ * optional Route route = 19;
  * @return {?proto.controller.Route}
  */
 proto.controller.Event.prototype.getRoute = function() {
   return /** @type{?proto.controller.Route} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Route, 17));
+    jspb.Message.getWrapperField(this, proto.controller.Route, 19));
 };
 
 
 /** @param {?proto.controller.Route|undefined} value */
 proto.controller.Event.prototype.setRoute = function(value) {
-  jspb.Message.setWrapperField(this, 17, value);
+  jspb.Message.setWrapperField(this, 19, value);
 };
 
 
@@ -5900,23 +5953,23 @@ proto.controller.Event.prototype.clearRoute = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasRoute = function() {
-  return jspb.Message.getField(this, 17) != null;
+  return jspb.Message.getField(this, 19) != null;
 };
 
 
 /**
- * optional RouteDeletionEvent route_deletion = 18;
- * @return {?proto.controller.RouteDeletionEvent}
+ * optional RouteDeletion route_deletion = 20;
+ * @return {?proto.controller.RouteDeletion}
  */
 proto.controller.Event.prototype.getRouteDeletion = function() {
-  return /** @type{?proto.controller.RouteDeletionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.RouteDeletionEvent, 18));
+  return /** @type{?proto.controller.RouteDeletion} */ (
+    jspb.Message.getWrapperField(this, proto.controller.RouteDeletion, 20));
 };
 
 
-/** @param {?proto.controller.RouteDeletionEvent|undefined} value */
+/** @param {?proto.controller.RouteDeletion|undefined} value */
 proto.controller.Event.prototype.setRouteDeletion = function(value) {
-  jspb.Message.setWrapperField(this, 18, value);
+  jspb.Message.setWrapperField(this, 20, value);
 };
 
 
@@ -5930,23 +5983,23 @@ proto.controller.Event.prototype.clearRouteDeletion = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasRouteDeletion = function() {
-  return jspb.Message.getField(this, 18) != null;
+  return jspb.Message.getField(this, 20) != null;
 };
 
 
 /**
- * optional DomainMigrationEvent domain_migration = 19;
- * @return {?proto.controller.DomainMigrationEvent}
+ * optional DomainMigration domain_migration = 21;
+ * @return {?proto.controller.DomainMigration}
  */
 proto.controller.Event.prototype.getDomainMigration = function() {
-  return /** @type{?proto.controller.DomainMigrationEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.DomainMigrationEvent, 19));
+  return /** @type{?proto.controller.DomainMigration} */ (
+    jspb.Message.getWrapperField(this, proto.controller.DomainMigration, 21));
 };
 
 
-/** @param {?proto.controller.DomainMigrationEvent|undefined} value */
+/** @param {?proto.controller.DomainMigration|undefined} value */
 proto.controller.Event.prototype.setDomainMigration = function(value) {
-  jspb.Message.setWrapperField(this, 19, value);
+  jspb.Message.setWrapperField(this, 21, value);
 };
 
 
@@ -5960,23 +6013,23 @@ proto.controller.Event.prototype.clearDomainMigration = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasDomainMigration = function() {
-  return jspb.Message.getField(this, 19) != null;
+  return jspb.Message.getField(this, 21) != null;
 };
 
 
 /**
- * optional ClusterBackupEvent cluster_backup = 20;
- * @return {?proto.controller.ClusterBackupEvent}
+ * optional ClusterBackup cluster_backup = 22;
+ * @return {?proto.controller.ClusterBackup}
  */
 proto.controller.Event.prototype.getClusterBackup = function() {
-  return /** @type{?proto.controller.ClusterBackupEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.ClusterBackupEvent, 20));
+  return /** @type{?proto.controller.ClusterBackup} */ (
+    jspb.Message.getWrapperField(this, proto.controller.ClusterBackup, 22));
 };
 
 
-/** @param {?proto.controller.ClusterBackupEvent|undefined} value */
+/** @param {?proto.controller.ClusterBackup|undefined} value */
 proto.controller.Event.prototype.setClusterBackup = function(value) {
-  jspb.Message.setWrapperField(this, 20, value);
+  jspb.Message.setWrapperField(this, 22, value);
 };
 
 
@@ -5990,23 +6043,23 @@ proto.controller.Event.prototype.clearClusterBackup = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasClusterBackup = function() {
-  return jspb.Message.getField(this, 20) != null;
+  return jspb.Message.getField(this, 22) != null;
 };
 
 
 /**
- * optional AppGarbageCollectionEvent app_garbage_collection = 21;
- * @return {?proto.controller.AppGarbageCollectionEvent}
+ * optional AppGarbageCollection app_garbage_collection = 23;
+ * @return {?proto.controller.AppGarbageCollection}
  */
 proto.controller.Event.prototype.getAppGarbageCollection = function() {
-  return /** @type{?proto.controller.AppGarbageCollectionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.AppGarbageCollectionEvent, 21));
+  return /** @type{?proto.controller.AppGarbageCollection} */ (
+    jspb.Message.getWrapperField(this, proto.controller.AppGarbageCollection, 23));
 };
 
 
-/** @param {?proto.controller.AppGarbageCollectionEvent|undefined} value */
+/** @param {?proto.controller.AppGarbageCollection|undefined} value */
 proto.controller.Event.prototype.setAppGarbageCollection = function(value) {
-  jspb.Message.setWrapperField(this, 21, value);
+  jspb.Message.setWrapperField(this, 23, value);
 };
 
 
@@ -6020,23 +6073,23 @@ proto.controller.Event.prototype.clearAppGarbageCollection = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasAppGarbageCollection = function() {
-  return jspb.Message.getField(this, 21) != null;
+  return jspb.Message.getField(this, 23) != null;
 };
 
 
 /**
- * optional Sink sink = 22;
+ * optional Sink sink = 24;
  * @return {?proto.controller.Sink}
  */
 proto.controller.Event.prototype.getSink = function() {
   return /** @type{?proto.controller.Sink} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Sink, 22));
+    jspb.Message.getWrapperField(this, proto.controller.Sink, 24));
 };
 
 
 /** @param {?proto.controller.Sink|undefined} value */
 proto.controller.Event.prototype.setSink = function(value) {
-  jspb.Message.setWrapperField(this, 22, value);
+  jspb.Message.setWrapperField(this, 24, value);
 };
 
 
@@ -6050,23 +6103,23 @@ proto.controller.Event.prototype.clearSink = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasSink = function() {
-  return jspb.Message.getField(this, 22) != null;
+  return jspb.Message.getField(this, 24) != null;
 };
 
 
 /**
- * optional SinkDeletionEvent sink_deletion = 23;
- * @return {?proto.controller.SinkDeletionEvent}
+ * optional SinkDeletion sink_deletion = 25;
+ * @return {?proto.controller.SinkDeletion}
  */
 proto.controller.Event.prototype.getSinkDeletion = function() {
-  return /** @type{?proto.controller.SinkDeletionEvent} */ (
-    jspb.Message.getWrapperField(this, proto.controller.SinkDeletionEvent, 23));
+  return /** @type{?proto.controller.SinkDeletion} */ (
+    jspb.Message.getWrapperField(this, proto.controller.SinkDeletion, 25));
 };
 
 
-/** @param {?proto.controller.SinkDeletionEvent|undefined} value */
+/** @param {?proto.controller.SinkDeletion|undefined} value */
 proto.controller.Event.prototype.setSinkDeletion = function(value) {
-  jspb.Message.setWrapperField(this, 23, value);
+  jspb.Message.setWrapperField(this, 25, value);
 };
 
 
@@ -6080,23 +6133,23 @@ proto.controller.Event.prototype.clearSinkDeletion = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasSinkDeletion = function() {
-  return jspb.Message.getField(this, 23) != null;
+  return jspb.Message.getField(this, 25) != null;
 };
 
 
 /**
- * optional Volume volume = 24;
+ * optional Volume volume = 26;
  * @return {?proto.controller.Volume}
  */
 proto.controller.Event.prototype.getVolume = function() {
   return /** @type{?proto.controller.Volume} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Volume, 24));
+    jspb.Message.getWrapperField(this, proto.controller.Volume, 26));
 };
 
 
 /** @param {?proto.controller.Volume|undefined} value */
 proto.controller.Event.prototype.setVolume = function(value) {
-  jspb.Message.setWrapperField(this, 24, value);
+  jspb.Message.setWrapperField(this, 26, value);
 };
 
 
@@ -6110,7 +6163,7 @@ proto.controller.Event.prototype.clearVolume = function() {
  * @return {!boolean}
  */
 proto.controller.Event.prototype.hasVolume = function() {
-  return jspb.Message.getField(this, 24) != null;
+  return jspb.Message.getField(this, 26) != null;
 };
 
 
@@ -6125,19 +6178,19 @@ proto.controller.Event.prototype.hasVolume = function() {
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.AppDeletionEvent = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.controller.AppDeletionEvent.repeatedFields_, null);
+proto.controller.AppDeletion = function(opt_data) {
+  jspb.Message.initialize(this, opt_data, 0, -1, proto.controller.AppDeletion.repeatedFields_, null);
 };
-goog.inherits(proto.controller.AppDeletionEvent, jspb.Message);
+goog.inherits(proto.controller.AppDeletion, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.AppDeletionEvent.displayName = 'proto.controller.AppDeletionEvent';
+  proto.controller.AppDeletion.displayName = 'proto.controller.AppDeletion';
 }
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
-proto.controller.AppDeletionEvent.repeatedFields_ = [2,3,4];
+proto.controller.AppDeletion.repeatedFields_ = [2,3,4];
 
 
 
@@ -6152,8 +6205,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.AppDeletionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.AppDeletionEvent.toObject(opt_includeInstance, this);
+proto.controller.AppDeletion.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.AppDeletion.toObject(opt_includeInstance, this);
 };
 
 
@@ -6162,11 +6215,11 @@ proto.controller.AppDeletionEvent.prototype.toObject = function(opt_includeInsta
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.AppDeletionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.AppDeletion} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.AppDeletionEvent.toObject = function(includeInstance, msg) {
+proto.controller.AppDeletion.toObject = function(includeInstance, msg) {
   var f, obj = {
     name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     deletedRoutesList: jspb.Message.toObjectList(msg.getDeletedRoutesList(),
@@ -6188,23 +6241,23 @@ proto.controller.AppDeletionEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.AppDeletionEvent}
+ * @return {!proto.controller.AppDeletion}
  */
-proto.controller.AppDeletionEvent.deserializeBinary = function(bytes) {
+proto.controller.AppDeletion.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.AppDeletionEvent;
-  return proto.controller.AppDeletionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.AppDeletion;
+  return proto.controller.AppDeletion.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.AppDeletionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.AppDeletion} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.AppDeletionEvent}
+ * @return {!proto.controller.AppDeletion}
  */
-proto.controller.AppDeletionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.AppDeletion.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -6243,9 +6296,9 @@ proto.controller.AppDeletionEvent.deserializeBinaryFromReader = function(msg, re
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.AppDeletionEvent.prototype.serializeBinary = function() {
+proto.controller.AppDeletion.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.AppDeletionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.AppDeletion.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -6253,11 +6306,11 @@ proto.controller.AppDeletionEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.AppDeletionEvent} message
+ * @param {!proto.controller.AppDeletion} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.AppDeletionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.AppDeletion.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getName();
   if (f.length > 0) {
@@ -6297,13 +6350,13 @@ proto.controller.AppDeletionEvent.serializeBinaryToWriter = function(message, wr
  * optional string name = 1;
  * @return {string}
  */
-proto.controller.AppDeletionEvent.prototype.getName = function() {
+proto.controller.AppDeletion.prototype.getName = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
 };
 
 
 /** @param {string} value */
-proto.controller.AppDeletionEvent.prototype.setName = function(value) {
+proto.controller.AppDeletion.prototype.setName = function(value) {
   jspb.Message.setProto3StringField(this, 1, value);
 };
 
@@ -6312,14 +6365,14 @@ proto.controller.AppDeletionEvent.prototype.setName = function(value) {
  * repeated Route deleted_routes = 2;
  * @return {!Array<!proto.controller.Route>}
  */
-proto.controller.AppDeletionEvent.prototype.getDeletedRoutesList = function() {
+proto.controller.AppDeletion.prototype.getDeletedRoutesList = function() {
   return /** @type{!Array<!proto.controller.Route>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.controller.Route, 2));
 };
 
 
 /** @param {!Array<!proto.controller.Route>} value */
-proto.controller.AppDeletionEvent.prototype.setDeletedRoutesList = function(value) {
+proto.controller.AppDeletion.prototype.setDeletedRoutesList = function(value) {
   jspb.Message.setRepeatedWrapperField(this, 2, value);
 };
 
@@ -6329,12 +6382,12 @@ proto.controller.AppDeletionEvent.prototype.setDeletedRoutesList = function(valu
  * @param {number=} opt_index
  * @return {!proto.controller.Route}
  */
-proto.controller.AppDeletionEvent.prototype.addDeletedRoutes = function(opt_value, opt_index) {
+proto.controller.AppDeletion.prototype.addDeletedRoutes = function(opt_value, opt_index) {
   return jspb.Message.addToRepeatedWrapperField(this, 2, opt_value, proto.controller.Route, opt_index);
 };
 
 
-proto.controller.AppDeletionEvent.prototype.clearDeletedRoutesList = function() {
+proto.controller.AppDeletion.prototype.clearDeletedRoutesList = function() {
   this.setDeletedRoutesList([]);
 };
 
@@ -6343,14 +6396,14 @@ proto.controller.AppDeletionEvent.prototype.clearDeletedRoutesList = function() 
  * repeated Resource deleted_resources = 3;
  * @return {!Array<!proto.controller.Resource>}
  */
-proto.controller.AppDeletionEvent.prototype.getDeletedResourcesList = function() {
+proto.controller.AppDeletion.prototype.getDeletedResourcesList = function() {
   return /** @type{!Array<!proto.controller.Resource>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.controller.Resource, 3));
 };
 
 
 /** @param {!Array<!proto.controller.Resource>} value */
-proto.controller.AppDeletionEvent.prototype.setDeletedResourcesList = function(value) {
+proto.controller.AppDeletion.prototype.setDeletedResourcesList = function(value) {
   jspb.Message.setRepeatedWrapperField(this, 3, value);
 };
 
@@ -6360,12 +6413,12 @@ proto.controller.AppDeletionEvent.prototype.setDeletedResourcesList = function(v
  * @param {number=} opt_index
  * @return {!proto.controller.Resource}
  */
-proto.controller.AppDeletionEvent.prototype.addDeletedResources = function(opt_value, opt_index) {
+proto.controller.AppDeletion.prototype.addDeletedResources = function(opt_value, opt_index) {
   return jspb.Message.addToRepeatedWrapperField(this, 3, opt_value, proto.controller.Resource, opt_index);
 };
 
 
-proto.controller.AppDeletionEvent.prototype.clearDeletedResourcesList = function() {
+proto.controller.AppDeletion.prototype.clearDeletedResourcesList = function() {
   this.setDeletedResourcesList([]);
 };
 
@@ -6374,14 +6427,14 @@ proto.controller.AppDeletionEvent.prototype.clearDeletedResourcesList = function
  * repeated Release deleted_releases = 4;
  * @return {!Array<!proto.controller.Release>}
  */
-proto.controller.AppDeletionEvent.prototype.getDeletedReleasesList = function() {
+proto.controller.AppDeletion.prototype.getDeletedReleasesList = function() {
   return /** @type{!Array<!proto.controller.Release>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.controller.Release, 4));
 };
 
 
 /** @param {!Array<!proto.controller.Release>} value */
-proto.controller.AppDeletionEvent.prototype.setDeletedReleasesList = function(value) {
+proto.controller.AppDeletion.prototype.setDeletedReleasesList = function(value) {
   jspb.Message.setRepeatedWrapperField(this, 4, value);
 };
 
@@ -6391,216 +6444,13 @@ proto.controller.AppDeletionEvent.prototype.setDeletedReleasesList = function(va
  * @param {number=} opt_index
  * @return {!proto.controller.Release}
  */
-proto.controller.AppDeletionEvent.prototype.addDeletedReleases = function(opt_value, opt_index) {
+proto.controller.AppDeletion.prototype.addDeletedReleases = function(opt_value, opt_index) {
   return jspb.Message.addToRepeatedWrapperField(this, 4, opt_value, proto.controller.Release, opt_index);
 };
 
 
-proto.controller.AppDeletionEvent.prototype.clearDeletedReleasesList = function() {
+proto.controller.AppDeletion.prototype.clearDeletedReleasesList = function() {
   this.setDeletedReleasesList([]);
-};
-
-
-
-/**
- * Generated by JsPbCodeGenerator.
- * @param {Array=} opt_data Optional initial data array, typically from a
- * server response, or constructed directly in Javascript. The array is used
- * in place and becomes part of the constructed object. It is not cloned.
- * If no data is provided, the constructed object will be empty, but still
- * valid.
- * @extends {jspb.Message}
- * @constructor
- */
-proto.controller.AppReleaseEvent = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
-};
-goog.inherits(proto.controller.AppReleaseEvent, jspb.Message);
-if (goog.DEBUG && !COMPILED) {
-  proto.controller.AppReleaseEvent.displayName = 'proto.controller.AppReleaseEvent';
-}
-
-
-if (jspb.Message.GENERATE_TO_OBJECT) {
-/**
- * Creates an object representation of this proto suitable for use in Soy templates.
- * Field names that are reserved in JavaScript and will be renamed to pb_name.
- * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
- * For the list of reserved names please see:
- *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
- * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
- *     for transitional soy proto support: http://goto/soy-param-migration
- * @return {!Object}
- */
-proto.controller.AppReleaseEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.AppReleaseEvent.toObject(opt_includeInstance, this);
-};
-
-
-/**
- * Static version of the {@see toObject} method.
- * @param {boolean|undefined} includeInstance Whether to include the JSPB
- *     instance for transitional soy proto support:
- *     http://goto/soy-param-migration
- * @param {!proto.controller.AppReleaseEvent} msg The msg instance to transform.
- * @return {!Object}
- * @suppress {unusedLocalVariables} f is only used for nested messages
- */
-proto.controller.AppReleaseEvent.toObject = function(includeInstance, msg) {
-  var f, obj = {
-    prevRelease: (f = msg.getPrevRelease()) && proto.controller.Release.toObject(includeInstance, f),
-    release: (f = msg.getRelease()) && proto.controller.Release.toObject(includeInstance, f)
-  };
-
-  if (includeInstance) {
-    obj.$jspbMessageInstance = msg;
-  }
-  return obj;
-};
-}
-
-
-/**
- * Deserializes binary data (in protobuf wire format).
- * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.AppReleaseEvent}
- */
-proto.controller.AppReleaseEvent.deserializeBinary = function(bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.AppReleaseEvent;
-  return proto.controller.AppReleaseEvent.deserializeBinaryFromReader(msg, reader);
-};
-
-
-/**
- * Deserializes binary data (in protobuf wire format) from the
- * given reader into the given message object.
- * @param {!proto.controller.AppReleaseEvent} msg The message object to deserialize into.
- * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.AppReleaseEvent}
- */
-proto.controller.AppReleaseEvent.deserializeBinaryFromReader = function(msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-    case 1:
-      var value = new proto.controller.Release;
-      reader.readMessage(value,proto.controller.Release.deserializeBinaryFromReader);
-      msg.setPrevRelease(value);
-      break;
-    case 2:
-      var value = new proto.controller.Release;
-      reader.readMessage(value,proto.controller.Release.deserializeBinaryFromReader);
-      msg.setRelease(value);
-      break;
-    default:
-      reader.skipField();
-      break;
-    }
-  }
-  return msg;
-};
-
-
-/**
- * Serializes the message to binary data (in protobuf wire format).
- * @return {!Uint8Array}
- */
-proto.controller.AppReleaseEvent.prototype.serializeBinary = function() {
-  var writer = new jspb.BinaryWriter();
-  proto.controller.AppReleaseEvent.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
-};
-
-
-/**
- * Serializes the given message to binary data (in protobuf wire
- * format), writing to the given BinaryWriter.
- * @param {!proto.controller.AppReleaseEvent} message
- * @param {!jspb.BinaryWriter} writer
- * @suppress {unusedLocalVariables} f is only used for nested messages
- */
-proto.controller.AppReleaseEvent.serializeBinaryToWriter = function(message, writer) {
-  var f = undefined;
-  f = message.getPrevRelease();
-  if (f != null) {
-    writer.writeMessage(
-      1,
-      f,
-      proto.controller.Release.serializeBinaryToWriter
-    );
-  }
-  f = message.getRelease();
-  if (f != null) {
-    writer.writeMessage(
-      2,
-      f,
-      proto.controller.Release.serializeBinaryToWriter
-    );
-  }
-};
-
-
-/**
- * optional Release prev_release = 1;
- * @return {?proto.controller.Release}
- */
-proto.controller.AppReleaseEvent.prototype.getPrevRelease = function() {
-  return /** @type{?proto.controller.Release} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Release, 1));
-};
-
-
-/** @param {?proto.controller.Release|undefined} value */
-proto.controller.AppReleaseEvent.prototype.setPrevRelease = function(value) {
-  jspb.Message.setWrapperField(this, 1, value);
-};
-
-
-proto.controller.AppReleaseEvent.prototype.clearPrevRelease = function() {
-  this.setPrevRelease(undefined);
-};
-
-
-/**
- * Returns whether this field is set.
- * @return {!boolean}
- */
-proto.controller.AppReleaseEvent.prototype.hasPrevRelease = function() {
-  return jspb.Message.getField(this, 1) != null;
-};
-
-
-/**
- * optional Release release = 2;
- * @return {?proto.controller.Release}
- */
-proto.controller.AppReleaseEvent.prototype.getRelease = function() {
-  return /** @type{?proto.controller.Release} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Release, 2));
-};
-
-
-/** @param {?proto.controller.Release|undefined} value */
-proto.controller.AppReleaseEvent.prototype.setRelease = function(value) {
-  jspb.Message.setWrapperField(this, 2, value);
-};
-
-
-proto.controller.AppReleaseEvent.prototype.clearRelease = function() {
-  this.setRelease(undefined);
-};
-
-
-/**
- * Returns whether this field is set.
- * @return {!boolean}
- */
-proto.controller.AppReleaseEvent.prototype.hasRelease = function() {
-  return jspb.Message.getField(this, 2) != null;
 };
 
 
@@ -6653,8 +6503,7 @@ proto.controller.DeploymentEvent.toObject = function(includeInstance, msg) {
   var f, obj = {
     deployment: (f = msg.getDeployment()) && proto.controller.Deployment.toObject(includeInstance, f),
     jobType: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    jobState: jspb.Message.getFieldWithDefault(msg, 3, 0),
-    error: jspb.Message.getFieldWithDefault(msg, 4, "")
+    jobState: jspb.Message.getFieldWithDefault(msg, 3, 0)
   };
 
   if (includeInstance) {
@@ -6704,10 +6553,6 @@ proto.controller.DeploymentEvent.deserializeBinaryFromReader = function(msg, rea
       var value = /** @type {!proto.controller.DeploymentEvent.JobState} */ (reader.readEnum());
       msg.setJobState(value);
       break;
-    case 4:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setError(value);
-      break;
     default:
       reader.skipField();
       break;
@@ -6756,13 +6601,6 @@ proto.controller.DeploymentEvent.serializeBinaryToWriter = function(message, wri
   if (f !== 0.0) {
     writer.writeEnum(
       3,
-      f
-    );
-  }
-  f = message.getError();
-  if (f.length > 0) {
-    writer.writeString(
-      4,
       f
     );
   }
@@ -6843,21 +6681,6 @@ proto.controller.DeploymentEvent.prototype.setJobState = function(value) {
 };
 
 
-/**
- * optional string error = 4;
- * @return {string}
- */
-proto.controller.DeploymentEvent.prototype.getError = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
-};
-
-
-/** @param {string} value */
-proto.controller.DeploymentEvent.prototype.setError = function(value) {
-  jspb.Message.setProto3StringField(this, 4, value);
-};
-
-
 
 /**
  * Generated by JsPbCodeGenerator.
@@ -6869,12 +6692,12 @@ proto.controller.DeploymentEvent.prototype.setError = function(value) {
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ScaleRequestEvent = function(opt_data) {
+proto.controller.ScaleRequest = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ScaleRequestEvent, jspb.Message);
+goog.inherits(proto.controller.ScaleRequest, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ScaleRequestEvent.displayName = 'proto.controller.ScaleRequestEvent';
+  proto.controller.ScaleRequest.displayName = 'proto.controller.ScaleRequest';
 }
 
 
@@ -6889,8 +6712,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ScaleRequestEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ScaleRequestEvent.toObject(opt_includeInstance, this);
+proto.controller.ScaleRequest.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ScaleRequest.toObject(opt_includeInstance, this);
 };
 
 
@@ -6899,11 +6722,11 @@ proto.controller.ScaleRequestEvent.prototype.toObject = function(opt_includeInst
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ScaleRequestEvent} msg The msg instance to transform.
+ * @param {!proto.controller.ScaleRequest} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ScaleRequestEvent.toObject = function(includeInstance, msg) {
+proto.controller.ScaleRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -6919,23 +6742,23 @@ proto.controller.ScaleRequestEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ScaleRequestEvent}
+ * @return {!proto.controller.ScaleRequest}
  */
-proto.controller.ScaleRequestEvent.deserializeBinary = function(bytes) {
+proto.controller.ScaleRequest.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ScaleRequestEvent;
-  return proto.controller.ScaleRequestEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.ScaleRequest;
+  return proto.controller.ScaleRequest.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ScaleRequestEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.ScaleRequest} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ScaleRequestEvent}
+ * @return {!proto.controller.ScaleRequest}
  */
-proto.controller.ScaleRequestEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.ScaleRequest.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -6955,9 +6778,9 @@ proto.controller.ScaleRequestEvent.deserializeBinaryFromReader = function(msg, r
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ScaleRequestEvent.prototype.serializeBinary = function() {
+proto.controller.ScaleRequest.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ScaleRequestEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.ScaleRequest.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -6965,11 +6788,11 @@ proto.controller.ScaleRequestEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ScaleRequestEvent} message
+ * @param {!proto.controller.ScaleRequest} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ScaleRequestEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.ScaleRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -6985,12 +6808,12 @@ proto.controller.ScaleRequestEvent.serializeBinaryToWriter = function(message, w
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ReleaseDeletionEvent = function(opt_data) {
+proto.controller.ReleaseDeletion = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ReleaseDeletionEvent, jspb.Message);
+goog.inherits(proto.controller.ReleaseDeletion, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ReleaseDeletionEvent.displayName = 'proto.controller.ReleaseDeletionEvent';
+  proto.controller.ReleaseDeletion.displayName = 'proto.controller.ReleaseDeletion';
 }
 
 
@@ -7005,8 +6828,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ReleaseDeletionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ReleaseDeletionEvent.toObject(opt_includeInstance, this);
+proto.controller.ReleaseDeletion.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ReleaseDeletion.toObject(opt_includeInstance, this);
 };
 
 
@@ -7015,11 +6838,11 @@ proto.controller.ReleaseDeletionEvent.prototype.toObject = function(opt_includeI
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ReleaseDeletionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.ReleaseDeletion} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ReleaseDeletionEvent.toObject = function(includeInstance, msg) {
+proto.controller.ReleaseDeletion.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7035,23 +6858,23 @@ proto.controller.ReleaseDeletionEvent.toObject = function(includeInstance, msg) 
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ReleaseDeletionEvent}
+ * @return {!proto.controller.ReleaseDeletion}
  */
-proto.controller.ReleaseDeletionEvent.deserializeBinary = function(bytes) {
+proto.controller.ReleaseDeletion.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ReleaseDeletionEvent;
-  return proto.controller.ReleaseDeletionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.ReleaseDeletion;
+  return proto.controller.ReleaseDeletion.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ReleaseDeletionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.ReleaseDeletion} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ReleaseDeletionEvent}
+ * @return {!proto.controller.ReleaseDeletion}
  */
-proto.controller.ReleaseDeletionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.ReleaseDeletion.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7071,9 +6894,9 @@ proto.controller.ReleaseDeletionEvent.deserializeBinaryFromReader = function(msg
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ReleaseDeletionEvent.prototype.serializeBinary = function() {
+proto.controller.ReleaseDeletion.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ReleaseDeletionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.ReleaseDeletion.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7081,11 +6904,11 @@ proto.controller.ReleaseDeletionEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ReleaseDeletionEvent} message
+ * @param {!proto.controller.ReleaseDeletion} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ReleaseDeletionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.ReleaseDeletion.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7101,12 +6924,12 @@ proto.controller.ReleaseDeletionEvent.serializeBinaryToWriter = function(message
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ArtifactEvent = function(opt_data) {
+proto.controller.Artifact = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ArtifactEvent, jspb.Message);
+goog.inherits(proto.controller.Artifact, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ArtifactEvent.displayName = 'proto.controller.ArtifactEvent';
+  proto.controller.Artifact.displayName = 'proto.controller.Artifact';
 }
 
 
@@ -7121,8 +6944,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ArtifactEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ArtifactEvent.toObject(opt_includeInstance, this);
+proto.controller.Artifact.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.Artifact.toObject(opt_includeInstance, this);
 };
 
 
@@ -7131,11 +6954,11 @@ proto.controller.ArtifactEvent.prototype.toObject = function(opt_includeInstance
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ArtifactEvent} msg The msg instance to transform.
+ * @param {!proto.controller.Artifact} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ArtifactEvent.toObject = function(includeInstance, msg) {
+proto.controller.Artifact.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7151,23 +6974,23 @@ proto.controller.ArtifactEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ArtifactEvent}
+ * @return {!proto.controller.Artifact}
  */
-proto.controller.ArtifactEvent.deserializeBinary = function(bytes) {
+proto.controller.Artifact.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ArtifactEvent;
-  return proto.controller.ArtifactEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.Artifact;
+  return proto.controller.Artifact.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ArtifactEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.Artifact} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ArtifactEvent}
+ * @return {!proto.controller.Artifact}
  */
-proto.controller.ArtifactEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.Artifact.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7187,9 +7010,9 @@ proto.controller.ArtifactEvent.deserializeBinaryFromReader = function(msg, reade
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ArtifactEvent.prototype.serializeBinary = function() {
+proto.controller.Artifact.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ArtifactEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.Artifact.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7197,11 +7020,11 @@ proto.controller.ArtifactEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ArtifactEvent} message
+ * @param {!proto.controller.Artifact} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ArtifactEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.Artifact.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7217,12 +7040,12 @@ proto.controller.ArtifactEvent.serializeBinaryToWriter = function(message, write
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ProviderEvent = function(opt_data) {
+proto.controller.Provider = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ProviderEvent, jspb.Message);
+goog.inherits(proto.controller.Provider, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ProviderEvent.displayName = 'proto.controller.ProviderEvent';
+  proto.controller.Provider.displayName = 'proto.controller.Provider';
 }
 
 
@@ -7237,8 +7060,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ProviderEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ProviderEvent.toObject(opt_includeInstance, this);
+proto.controller.Provider.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.Provider.toObject(opt_includeInstance, this);
 };
 
 
@@ -7247,11 +7070,11 @@ proto.controller.ProviderEvent.prototype.toObject = function(opt_includeInstance
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ProviderEvent} msg The msg instance to transform.
+ * @param {!proto.controller.Provider} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ProviderEvent.toObject = function(includeInstance, msg) {
+proto.controller.Provider.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7267,23 +7090,23 @@ proto.controller.ProviderEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ProviderEvent}
+ * @return {!proto.controller.Provider}
  */
-proto.controller.ProviderEvent.deserializeBinary = function(bytes) {
+proto.controller.Provider.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ProviderEvent;
-  return proto.controller.ProviderEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.Provider;
+  return proto.controller.Provider.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ProviderEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.Provider} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ProviderEvent}
+ * @return {!proto.controller.Provider}
  */
-proto.controller.ProviderEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.Provider.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7303,9 +7126,9 @@ proto.controller.ProviderEvent.deserializeBinaryFromReader = function(msg, reade
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ProviderEvent.prototype.serializeBinary = function() {
+proto.controller.Provider.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ProviderEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.Provider.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7313,11 +7136,11 @@ proto.controller.ProviderEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ProviderEvent} message
+ * @param {!proto.controller.Provider} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ProviderEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.Provider.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7333,12 +7156,12 @@ proto.controller.ProviderEvent.serializeBinaryToWriter = function(message, write
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ResourceDeletionEvent = function(opt_data) {
+proto.controller.ResourceDeletion = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ResourceDeletionEvent, jspb.Message);
+goog.inherits(proto.controller.ResourceDeletion, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ResourceDeletionEvent.displayName = 'proto.controller.ResourceDeletionEvent';
+  proto.controller.ResourceDeletion.displayName = 'proto.controller.ResourceDeletion';
 }
 
 
@@ -7353,8 +7176,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ResourceDeletionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ResourceDeletionEvent.toObject(opt_includeInstance, this);
+proto.controller.ResourceDeletion.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ResourceDeletion.toObject(opt_includeInstance, this);
 };
 
 
@@ -7363,11 +7186,11 @@ proto.controller.ResourceDeletionEvent.prototype.toObject = function(opt_include
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ResourceDeletionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.ResourceDeletion} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ResourceDeletionEvent.toObject = function(includeInstance, msg) {
+proto.controller.ResourceDeletion.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7383,23 +7206,23 @@ proto.controller.ResourceDeletionEvent.toObject = function(includeInstance, msg)
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ResourceDeletionEvent}
+ * @return {!proto.controller.ResourceDeletion}
  */
-proto.controller.ResourceDeletionEvent.deserializeBinary = function(bytes) {
+proto.controller.ResourceDeletion.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ResourceDeletionEvent;
-  return proto.controller.ResourceDeletionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.ResourceDeletion;
+  return proto.controller.ResourceDeletion.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ResourceDeletionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.ResourceDeletion} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ResourceDeletionEvent}
+ * @return {!proto.controller.ResourceDeletion}
  */
-proto.controller.ResourceDeletionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.ResourceDeletion.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7419,9 +7242,9 @@ proto.controller.ResourceDeletionEvent.deserializeBinaryFromReader = function(ms
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ResourceDeletionEvent.prototype.serializeBinary = function() {
+proto.controller.ResourceDeletion.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ResourceDeletionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.ResourceDeletion.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7429,11 +7252,11 @@ proto.controller.ResourceDeletionEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ResourceDeletionEvent} message
+ * @param {!proto.controller.ResourceDeletion} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ResourceDeletionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.ResourceDeletion.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7449,12 +7272,12 @@ proto.controller.ResourceDeletionEvent.serializeBinaryToWriter = function(messag
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ResourceAppDeletionEvent = function(opt_data) {
+proto.controller.ResourceAppDeletion = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ResourceAppDeletionEvent, jspb.Message);
+goog.inherits(proto.controller.ResourceAppDeletion, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ResourceAppDeletionEvent.displayName = 'proto.controller.ResourceAppDeletionEvent';
+  proto.controller.ResourceAppDeletion.displayName = 'proto.controller.ResourceAppDeletion';
 }
 
 
@@ -7469,8 +7292,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ResourceAppDeletionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ResourceAppDeletionEvent.toObject(opt_includeInstance, this);
+proto.controller.ResourceAppDeletion.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ResourceAppDeletion.toObject(opt_includeInstance, this);
 };
 
 
@@ -7479,11 +7302,11 @@ proto.controller.ResourceAppDeletionEvent.prototype.toObject = function(opt_incl
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ResourceAppDeletionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.ResourceAppDeletion} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ResourceAppDeletionEvent.toObject = function(includeInstance, msg) {
+proto.controller.ResourceAppDeletion.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7499,23 +7322,23 @@ proto.controller.ResourceAppDeletionEvent.toObject = function(includeInstance, m
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ResourceAppDeletionEvent}
+ * @return {!proto.controller.ResourceAppDeletion}
  */
-proto.controller.ResourceAppDeletionEvent.deserializeBinary = function(bytes) {
+proto.controller.ResourceAppDeletion.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ResourceAppDeletionEvent;
-  return proto.controller.ResourceAppDeletionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.ResourceAppDeletion;
+  return proto.controller.ResourceAppDeletion.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ResourceAppDeletionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.ResourceAppDeletion} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ResourceAppDeletionEvent}
+ * @return {!proto.controller.ResourceAppDeletion}
  */
-proto.controller.ResourceAppDeletionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.ResourceAppDeletion.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7535,9 +7358,9 @@ proto.controller.ResourceAppDeletionEvent.deserializeBinaryFromReader = function
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ResourceAppDeletionEvent.prototype.serializeBinary = function() {
+proto.controller.ResourceAppDeletion.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ResourceAppDeletionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.ResourceAppDeletion.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7545,11 +7368,11 @@ proto.controller.ResourceAppDeletionEvent.prototype.serializeBinary = function()
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ResourceAppDeletionEvent} message
+ * @param {!proto.controller.ResourceAppDeletion} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ResourceAppDeletionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.ResourceAppDeletion.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7565,12 +7388,12 @@ proto.controller.ResourceAppDeletionEvent.serializeBinaryToWriter = function(mes
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.RouteDeletionEvent = function(opt_data) {
+proto.controller.RouteDeletion = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.RouteDeletionEvent, jspb.Message);
+goog.inherits(proto.controller.RouteDeletion, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.RouteDeletionEvent.displayName = 'proto.controller.RouteDeletionEvent';
+  proto.controller.RouteDeletion.displayName = 'proto.controller.RouteDeletion';
 }
 
 
@@ -7585,8 +7408,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.RouteDeletionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.RouteDeletionEvent.toObject(opt_includeInstance, this);
+proto.controller.RouteDeletion.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.RouteDeletion.toObject(opt_includeInstance, this);
 };
 
 
@@ -7595,11 +7418,11 @@ proto.controller.RouteDeletionEvent.prototype.toObject = function(opt_includeIns
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.RouteDeletionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.RouteDeletion} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.RouteDeletionEvent.toObject = function(includeInstance, msg) {
+proto.controller.RouteDeletion.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7615,23 +7438,23 @@ proto.controller.RouteDeletionEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.RouteDeletionEvent}
+ * @return {!proto.controller.RouteDeletion}
  */
-proto.controller.RouteDeletionEvent.deserializeBinary = function(bytes) {
+proto.controller.RouteDeletion.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.RouteDeletionEvent;
-  return proto.controller.RouteDeletionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.RouteDeletion;
+  return proto.controller.RouteDeletion.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.RouteDeletionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.RouteDeletion} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.RouteDeletionEvent}
+ * @return {!proto.controller.RouteDeletion}
  */
-proto.controller.RouteDeletionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.RouteDeletion.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7651,9 +7474,9 @@ proto.controller.RouteDeletionEvent.deserializeBinaryFromReader = function(msg, 
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.RouteDeletionEvent.prototype.serializeBinary = function() {
+proto.controller.RouteDeletion.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.RouteDeletionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.RouteDeletion.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7661,11 +7484,11 @@ proto.controller.RouteDeletionEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.RouteDeletionEvent} message
+ * @param {!proto.controller.RouteDeletion} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.RouteDeletionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.RouteDeletion.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7681,12 +7504,12 @@ proto.controller.RouteDeletionEvent.serializeBinaryToWriter = function(message, 
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.DomainMigrationEvent = function(opt_data) {
+proto.controller.DomainMigration = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.DomainMigrationEvent, jspb.Message);
+goog.inherits(proto.controller.DomainMigration, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.DomainMigrationEvent.displayName = 'proto.controller.DomainMigrationEvent';
+  proto.controller.DomainMigration.displayName = 'proto.controller.DomainMigration';
 }
 
 
@@ -7701,8 +7524,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.DomainMigrationEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.DomainMigrationEvent.toObject(opt_includeInstance, this);
+proto.controller.DomainMigration.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.DomainMigration.toObject(opt_includeInstance, this);
 };
 
 
@@ -7711,11 +7534,11 @@ proto.controller.DomainMigrationEvent.prototype.toObject = function(opt_includeI
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.DomainMigrationEvent} msg The msg instance to transform.
+ * @param {!proto.controller.DomainMigration} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.DomainMigrationEvent.toObject = function(includeInstance, msg) {
+proto.controller.DomainMigration.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7731,23 +7554,23 @@ proto.controller.DomainMigrationEvent.toObject = function(includeInstance, msg) 
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.DomainMigrationEvent}
+ * @return {!proto.controller.DomainMigration}
  */
-proto.controller.DomainMigrationEvent.deserializeBinary = function(bytes) {
+proto.controller.DomainMigration.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.DomainMigrationEvent;
-  return proto.controller.DomainMigrationEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.DomainMigration;
+  return proto.controller.DomainMigration.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.DomainMigrationEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.DomainMigration} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.DomainMigrationEvent}
+ * @return {!proto.controller.DomainMigration}
  */
-proto.controller.DomainMigrationEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.DomainMigration.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7767,9 +7590,9 @@ proto.controller.DomainMigrationEvent.deserializeBinaryFromReader = function(msg
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.DomainMigrationEvent.prototype.serializeBinary = function() {
+proto.controller.DomainMigration.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.DomainMigrationEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.DomainMigration.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7777,11 +7600,11 @@ proto.controller.DomainMigrationEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.DomainMigrationEvent} message
+ * @param {!proto.controller.DomainMigration} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.DomainMigrationEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.DomainMigration.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7797,12 +7620,12 @@ proto.controller.DomainMigrationEvent.serializeBinaryToWriter = function(message
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.ClusterBackupEvent = function(opt_data) {
+proto.controller.ClusterBackup = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.ClusterBackupEvent, jspb.Message);
+goog.inherits(proto.controller.ClusterBackup, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.ClusterBackupEvent.displayName = 'proto.controller.ClusterBackupEvent';
+  proto.controller.ClusterBackup.displayName = 'proto.controller.ClusterBackup';
 }
 
 
@@ -7817,8 +7640,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.ClusterBackupEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ClusterBackupEvent.toObject(opt_includeInstance, this);
+proto.controller.ClusterBackup.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ClusterBackup.toObject(opt_includeInstance, this);
 };
 
 
@@ -7827,11 +7650,11 @@ proto.controller.ClusterBackupEvent.prototype.toObject = function(opt_includeIns
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.ClusterBackupEvent} msg The msg instance to transform.
+ * @param {!proto.controller.ClusterBackup} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ClusterBackupEvent.toObject = function(includeInstance, msg) {
+proto.controller.ClusterBackup.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7847,23 +7670,23 @@ proto.controller.ClusterBackupEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ClusterBackupEvent}
+ * @return {!proto.controller.ClusterBackup}
  */
-proto.controller.ClusterBackupEvent.deserializeBinary = function(bytes) {
+proto.controller.ClusterBackup.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ClusterBackupEvent;
-  return proto.controller.ClusterBackupEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.ClusterBackup;
+  return proto.controller.ClusterBackup.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.ClusterBackupEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.ClusterBackup} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ClusterBackupEvent}
+ * @return {!proto.controller.ClusterBackup}
  */
-proto.controller.ClusterBackupEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.ClusterBackup.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7883,9 +7706,9 @@ proto.controller.ClusterBackupEvent.deserializeBinaryFromReader = function(msg, 
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.ClusterBackupEvent.prototype.serializeBinary = function() {
+proto.controller.ClusterBackup.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.ClusterBackupEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.ClusterBackup.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -7893,11 +7716,11 @@ proto.controller.ClusterBackupEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ClusterBackupEvent} message
+ * @param {!proto.controller.ClusterBackup} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.ClusterBackupEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.ClusterBackup.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -7913,12 +7736,12 @@ proto.controller.ClusterBackupEvent.serializeBinaryToWriter = function(message, 
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.AppGarbageCollectionEvent = function(opt_data) {
+proto.controller.AppGarbageCollection = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.AppGarbageCollectionEvent, jspb.Message);
+goog.inherits(proto.controller.AppGarbageCollection, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.AppGarbageCollectionEvent.displayName = 'proto.controller.AppGarbageCollectionEvent';
+  proto.controller.AppGarbageCollection.displayName = 'proto.controller.AppGarbageCollection';
 }
 
 
@@ -7933,8 +7756,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.AppGarbageCollectionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.AppGarbageCollectionEvent.toObject(opt_includeInstance, this);
+proto.controller.AppGarbageCollection.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.AppGarbageCollection.toObject(opt_includeInstance, this);
 };
 
 
@@ -7943,11 +7766,11 @@ proto.controller.AppGarbageCollectionEvent.prototype.toObject = function(opt_inc
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.AppGarbageCollectionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.AppGarbageCollection} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.AppGarbageCollectionEvent.toObject = function(includeInstance, msg) {
+proto.controller.AppGarbageCollection.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -7963,23 +7786,23 @@ proto.controller.AppGarbageCollectionEvent.toObject = function(includeInstance, 
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.AppGarbageCollectionEvent}
+ * @return {!proto.controller.AppGarbageCollection}
  */
-proto.controller.AppGarbageCollectionEvent.deserializeBinary = function(bytes) {
+proto.controller.AppGarbageCollection.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.AppGarbageCollectionEvent;
-  return proto.controller.AppGarbageCollectionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.AppGarbageCollection;
+  return proto.controller.AppGarbageCollection.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.AppGarbageCollectionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.AppGarbageCollection} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.AppGarbageCollectionEvent}
+ * @return {!proto.controller.AppGarbageCollection}
  */
-proto.controller.AppGarbageCollectionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.AppGarbageCollection.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -7999,9 +7822,9 @@ proto.controller.AppGarbageCollectionEvent.deserializeBinaryFromReader = functio
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.AppGarbageCollectionEvent.prototype.serializeBinary = function() {
+proto.controller.AppGarbageCollection.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.AppGarbageCollectionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.AppGarbageCollection.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -8009,11 +7832,11 @@ proto.controller.AppGarbageCollectionEvent.prototype.serializeBinary = function(
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.AppGarbageCollectionEvent} message
+ * @param {!proto.controller.AppGarbageCollection} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.AppGarbageCollectionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.AppGarbageCollection.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 
@@ -8029,12 +7852,12 @@ proto.controller.AppGarbageCollectionEvent.serializeBinaryToWriter = function(me
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.SinkDeletionEvent = function(opt_data) {
+proto.controller.SinkDeletion = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.SinkDeletionEvent, jspb.Message);
+goog.inherits(proto.controller.SinkDeletion, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.SinkDeletionEvent.displayName = 'proto.controller.SinkDeletionEvent';
+  proto.controller.SinkDeletion.displayName = 'proto.controller.SinkDeletion';
 }
 
 
@@ -8049,8 +7872,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.SinkDeletionEvent.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.SinkDeletionEvent.toObject(opt_includeInstance, this);
+proto.controller.SinkDeletion.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.SinkDeletion.toObject(opt_includeInstance, this);
 };
 
 
@@ -8059,11 +7882,11 @@ proto.controller.SinkDeletionEvent.prototype.toObject = function(opt_includeInst
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.SinkDeletionEvent} msg The msg instance to transform.
+ * @param {!proto.controller.SinkDeletion} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.SinkDeletionEvent.toObject = function(includeInstance, msg) {
+proto.controller.SinkDeletion.toObject = function(includeInstance, msg) {
   var f, obj = {
 
   };
@@ -8079,23 +7902,23 @@ proto.controller.SinkDeletionEvent.toObject = function(includeInstance, msg) {
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.SinkDeletionEvent}
+ * @return {!proto.controller.SinkDeletion}
  */
-proto.controller.SinkDeletionEvent.deserializeBinary = function(bytes) {
+proto.controller.SinkDeletion.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.SinkDeletionEvent;
-  return proto.controller.SinkDeletionEvent.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.SinkDeletion;
+  return proto.controller.SinkDeletion.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.SinkDeletionEvent} msg The message object to deserialize into.
+ * @param {!proto.controller.SinkDeletion} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.SinkDeletionEvent}
+ * @return {!proto.controller.SinkDeletion}
  */
-proto.controller.SinkDeletionEvent.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.SinkDeletion.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -8115,9 +7938,9 @@ proto.controller.SinkDeletionEvent.deserializeBinaryFromReader = function(msg, r
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.SinkDeletionEvent.prototype.serializeBinary = function() {
+proto.controller.SinkDeletion.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.SinkDeletionEvent.serializeBinaryToWriter(this, writer);
+  proto.controller.SinkDeletion.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -8125,11 +7948,11 @@ proto.controller.SinkDeletionEvent.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.SinkDeletionEvent} message
+ * @param {!proto.controller.SinkDeletion} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.SinkDeletionEvent.serializeBinaryToWriter = function(message, writer) {
+proto.controller.SinkDeletion.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
 };
 

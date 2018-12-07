@@ -1,7 +1,7 @@
 import { grpc } from 'grpc-web-client';
 
 import Config from './config';
-import { ControllerClient, ServiceError, Status } from './generated/controller_pb_service';
+import { ControllerClient, ServiceError, Status, ResponseStream } from './generated/controller_pb_service';
 import {
 	ListAppsRequest,
 	ListAppsResponse,
@@ -15,7 +15,8 @@ import {
 	Release,
 	CreateDeploymentRequest,
 	Deployment,
-	Event
+	Event,
+	StreamEventsRequest
 } from './generated/controller_pb';
 import dataStore from './dataStore';
 
@@ -27,7 +28,12 @@ export interface Client {
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
+	streamEvents: (options: StreamEventsOptions, callback: StreamEventsCallback) => ResponseStream<Event>;
 }
+
+export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
+
+export interface StreamEventsOptions {}
 
 class _Client implements Client {
 	private _cc: ControllerClient;
@@ -140,8 +146,8 @@ class _Client implements Client {
 		return new Promise<Deployment>((resolve, reject) => {
 			const stream = this._cc.createDeployment(req);
 			stream.on('data', (event: Event) => {
-				if (event.hasDeployment()) {
-					const de = event.getDeployment();
+				if (event.hasDeploymentEvent()) {
+					const de = event.getDeploymentEvent();
 					const d = de && de.getDeployment();
 					if (d) {
 						deployment = d;
@@ -159,6 +165,16 @@ class _Client implements Client {
 			});
 			stream.on('end', () => {});
 		});
+	}
+
+	public streamEvents(options: StreamEventsOptions, callback: StreamEventsCallback): ResponseStream<Event> {
+		const req = new StreamEventsRequest();
+		const stream = this._cc.streamEvents(req);
+		stream.on('data', (event: Event) => {
+			console.log('streamEvents data: ', event);
+		});
+		// TODO(jvatic): Handle stream error
+		return stream;
 	}
 }
 
