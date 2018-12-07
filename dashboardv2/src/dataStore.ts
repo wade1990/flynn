@@ -1,6 +1,6 @@
 import { isEqual } from 'lodash';
 
-interface Resource {
+export interface Resource {
 	getName: () => string;
 	toObject: () => Object;
 }
@@ -9,15 +9,27 @@ function isResourceEqual(a: Resource, b: Resource): boolean {
 	return isEqual(a.toObject(), b.toObject());
 }
 
-interface WatchFuncCallback {
+function watchNames(resourceName: string): string[] {
+	let prev = '';
+	return resourceName.split('/').map((part) => {
+		let name = part;
+		if (prev !== '') {
+			name = `${prev}/${part}`;
+		}
+		prev = name;
+		return name;
+	});
+}
+
+export interface WatchFuncCallback {
 	(name: string, data: Resource | undefined): void;
 }
 
-interface WatchFuncArrayCallback {
+export interface WatchFuncArrayCallback {
 	(arr: Resource[], name: string, data: Resource | undefined): void;
 }
 
-interface WatchFunc {
+export interface WatchFunc {
 	(cb: WatchFuncCallback): WatchFunc;
 	arrayWatcher: (cb: WatchFuncArrayCallback) => WatchFunc;
 	unsubscribe: () => void;
@@ -71,7 +83,8 @@ export class DataStore implements DataStoreInterface {
 		const watchFunc = Object.assign(
 			(cb: WatchFuncCallback) => {
 				const filteredCb = (name: string, data: Resource) => {
-					if (names.has(name)) {
+					const matchNames = watchNames(name);
+					if (matchNames.find((n) => names.has(n))) {
 						cb(name, data);
 					}
 				};

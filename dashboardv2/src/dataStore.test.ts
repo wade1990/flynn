@@ -154,6 +154,38 @@ it('watches for changes', () => {
 	expect(watchFnCalled).toBe(2);
 });
 
+it('watches for changes on sub resources', () => {
+	const ds = new DataStore();
+
+	const appName1 = 'apps/APP_ID_1';
+	const app1 = new FakeResource(appName1);
+
+	const releaseName1 = `${appName1}/releases/RELEASE_ID_1`;
+	const release1 = new FakeResource(releaseName1);
+
+	const watchFn = ds.add(app1);
+
+	expect(ds.get(appName1)).toEqual(app1);
+
+	let app1_dup = new FakeResource(appName1, { _dup: true });
+
+	let watchFnCalled = 0;
+	watchFn((name, r) => {
+		watchFnCalled++;
+		if (name === appName1) {
+			expect(name).toEqual(appName1);
+			expect(r).toEqual(app1_dup);
+			expect(r).not.toEqual(app1);
+		}
+	});
+
+	ds.add(app1_dup);
+	expect(watchFnCalled).toBe(1);
+
+	ds.add(release1);
+	expect(watchFnCalled).toBe(2);
+});
+
 it('watches for changes on all added items', () => {
 	const ds = new DataStore();
 
