@@ -5,21 +5,25 @@ import Accordion from 'grommet/components/Accordion';
 import AccordionPanel from 'grommet/components/AccordionPanel';
 import Notification from 'grommet/components/Notification';
 
+import dataStore, { Resource, WatchFunc } from './dataStore';
 import protoMapDiff, { applyProtoMapDiff } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import withClient, { ClientProps } from './withClient';
 import { ServiceError } from './generated/controller_pb_service';
 import { App, Release } from './generated/controller_pb';
+import Loading from './Loading';
 import ReleaseHistory from './ReleaseHistory';
 import EnvEditor from './EnvEditor';
-import dataStore from './dataStore';
 
 export interface Props extends ClientProps {
-	app: App;
-	release: Release;
+	name: string;
 }
 
 interface State {
+	app: App | null;
+	release: Release | null;
+	errors: Error[];
+
 	envPersisting: boolean;
 	releaseError: ServiceError | null;
 	releaseDeploying: boolean;
@@ -27,9 +31,14 @@ interface State {
 }
 
 class AppComponent extends React.Component<Props, State> {
+	private __dataWatcher: WatchFunc;
 	constructor(props: Props) {
 		super(props);
 		this.state = {
+			app: null,
+			release: null,
+			errors: [],
+
 			envPersisting: false,
 			releaseError: null,
 			releaseDeploying: false,
@@ -37,10 +46,34 @@ class AppComponent extends React.Component<Props, State> {
 		};
 		this._envPersistHandler = this._envPersistHandler.bind(this);
 		this._deployReleaseHandler = this._deployReleaseHandler.bind(this);
+		this._handleDataChange = this._handleDataChange.bind(this);
+	}
+
+	public componentDidMount() {
+		const appName = this.props.name;
+
+		// watch for changes on app and all sub resources (e.g. release)
+		this.__dataWatcher = dataStore.watch(appName)(this._handleDataChange);
+
+		// fetch app and release
+		this._getData(true);
+	}
+
+	public componentWillUnmount() {
+		this.__dataWatcher.unsubscribe();
 	}
 
 	public render() {
-		const { app, release } = this.props;
+		const { app, release, errors } = this.state;
+
+		if ((!app || !release) && errors.length) {
+			return this._renderErrors(errors);
+		}
+
+		if (!app || !release) {
+			return <Loading />;
+		}
+
 		const { envPersisting, releaseError, releaseDeploying, releaseDeployError } = this.state;
 		return (
 			<React.Fragment>
@@ -70,8 +103,55 @@ class AppComponent extends React.Component<Props, State> {
 		);
 	}
 
+	private _renderErrors(errors: Error[]) {
+		return (
+			<React.Fragment>
+				{errors.map((error) => {
+					<Notification status="warning" message={error.message} />;
+				})}
+			</React.Fragment>
+		);
+	}
+
+	private _handleDataChange(name: string, resource: Resource | undefined) {
+		this._getData();
+	}
+
+	private _getData(shouldFetch: boolean = false) {
+		// populate app and release from dataStore if available
+		const appName = this.props.name;
+		const app = dataStore.get(appName) as App | null;
+		const release = (app && (dataStore.get(app.getRelease()) as Release | null)) || null;
+		this.setState({
+			app: app,
+			release: release
+		});
+
+		// conditionally fetch app and/or release
+		const { client } = this.props;
+		let errors = [] as Error[];
+		if (shouldFetch || !app) {
+			client.getApp(appName).catch((error: Error) => {
+				errors.push(error);
+				this.setState({
+					errors
+				});
+			});
+		}
+		if (shouldFetch || !release) {
+			client.getAppRelease(appName).catch((error: Error) => {
+				errors.push(error);
+				this.setState({
+					errors
+				});
+			});
+		}
+	}
+
 	private _deployReleaseHandler(releaseName: string) {
-		const { client, app } = this.props;
+		const { client } = this.props;
+		const { app } = this.state;
+		if (!app) return;
 		this.setState({
 			releaseDeploying: true
 		});
@@ -94,7 +174,9 @@ class AppComponent extends React.Component<Props, State> {
 	}
 
 	private _envPersistHandler(next: jspb.Map<string, string>) {
-		const { client, app, release } = this.props;
+		const { client } = this.props;
+		const { app, release } = this.state;
+		if (!app || !release) return;
 		const envDiff = protoMapDiff(release.getEnvMap(), next);
 		this.setState({
 			envPersisting: true

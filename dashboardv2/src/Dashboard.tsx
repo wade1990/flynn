@@ -11,13 +11,12 @@ import Sidebar from 'grommet/components/Sidebar';
 import Split from 'grommet/components/Split';
 import Title from 'grommet/components/Title';
 
-import Loading from './Loading';
 import AppsListNav from './AppsListNav';
 import AppComponent from './AppComponent';
 import withClient, { ClientProps } from './withClient';
 import { AppNameContext } from './withAppName';
 import ExternalAnchor from './ExternalAnchor';
-import { App, Release } from './generated/controller_pb';
+import { App } from './generated/controller_pb';
 import { ServiceError } from './generated/controller_pb_service';
 import dataStore, { DataStore } from './dataStore';
 
@@ -35,42 +34,23 @@ interface State {
 	appsList: Array<App>;
 	appsListLoading: boolean;
 	appsListError: ServiceError | null;
-
-	app: App | null;
-	release: Release | null;
-	appLoading: boolean;
-	appError: ServiceError | null;
 }
 
 class Dashboard extends React.Component<Props, State> {
 	private _appsUnsub: () => void;
-	private _appUnsub: () => void;
-	private _releaseUnsub: () => void;
 	constructor(props: Props) {
 		super(props);
 		this.state = {
 			appsList: [],
 			appsListLoading: true,
-			appsListError: null,
-
-			app: null,
-			release: null,
-			appLoading: props.location.pathname.startsWith('/apps/'),
-			appError: null
+			appsListError: null
 		};
 		this._appsUnsub = () => {};
-		this._appUnsub = () => {};
-		this._releaseUnsub = () => {};
-		this._fetchApp = this._fetchApp.bind(this);
 		this._handleAppsListChange = this._handleAppsListChange.bind(this);
-		this._handleAppChange = this._handleAppChange.bind(this);
-		this._handleReleaseChange = this._handleReleaseChange.bind(this);
 	}
 
 	public componentDidMount() {
-		const { location } = this.props;
 		this._fetchApps();
-		this._fetchApp(location.pathname);
 	}
 
 	private _fetchApps() {
@@ -100,72 +80,6 @@ class Dashboard extends React.Component<Props, State> {
 		});
 	}
 
-	private _fetchApp(path: string) {
-		this._appUnsub();
-		this._releaseUnsub();
-
-		this.setState({
-			appLoading: true
-		});
-
-		const m = path.match(/\/apps\/[^\/]+/);
-		const appName = m ? m[0].slice(1) : '';
-		this.props.client
-			.getApp(appName)
-			.then((app: App) => {
-				this._appUnsub = dataStore.add(app)(this._handleAppChange).unsubscribe;
-				const releaseName = app.getRelease();
-				if (releaseName === '') {
-					return [app, new Release()];
-				}
-				return this.props.client.getRelease(releaseName).then((release) => {
-					return [app, release];
-				});
-			})
-			.then(([app, release]: [App, Release]) => {
-				if (release.getName()) {
-					this._releaseUnsub = dataStore.add(release)(this._handleReleaseChange).unsubscribe;
-				}
-				this.setState({
-					app: app,
-					release: release,
-					appError: null,
-					appLoading: false
-				});
-			})
-			.catch((error: ServiceError) => {
-				this.setState({
-					app: null,
-					release: null,
-					appError: error,
-					appLoading: false
-				});
-			});
-	}
-
-	private _handleAppChange(name: string, data: any) {
-		const app = (data || null) as App | null;
-		let release = this.state.release;
-		if (this.state.app && app && app.getRelease() !== this.state.app.getRelease()) {
-			this._releaseUnsub();
-			this._releaseUnsub = dataStore.watch(app.getRelease())(this._handleReleaseChange).unsubscribe;
-			const newRelease = dataStore.get(app.getRelease());
-			if (newRelease) {
-				release = newRelease as Release;
-			}
-		}
-		this.setState({
-			app,
-			release
-		});
-	}
-
-	private _handleReleaseChange(name: string, data: any) {
-		this.setState({
-			release: (data || null) as Release | null
-		});
-	}
-
 	private _appName() {
 		const { location } = this.props;
 		const m = location.pathname.match(/\/apps\/[^\/]+/);
@@ -173,7 +87,7 @@ class Dashboard extends React.Component<Props, State> {
 	}
 
 	public render() {
-		const { appsList, appsListError, app, release, appError, appLoading } = this.state;
+		const { appsList, appsListError } = this.state;
 		const appName = this._appName();
 
 		return (
@@ -186,7 +100,7 @@ class Dashboard extends React.Component<Props, State> {
 							</Header>
 							<Box flex="grow" justify="start">
 								{appsListError ? <Notification status="warning" message={appsListError.message} /> : null}
-								<AppsListNav appsList={appsList} onNav={this._fetchApp} />
+								<AppsListNav appsList={appsList} onNav={() => {}} />
 							</Box>
 							<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
 								<Paragraph size="small">
@@ -207,17 +121,8 @@ class Dashboard extends React.Component<Props, State> {
 
 						<Box pad="medium">
 							<Switch>
-								<Route path="/apps/:name">
-									<React.Fragment>
-										{appLoading ? (
-											<Loading />
-										) : (
-											<React.Fragment>
-												{appError ? <Notification status="warning" message={appError.message} /> : null}
-												{app && release ? <AppComponent app={app} release={release} /> : null}
-											</React.Fragment>
-										)}
-									</React.Fragment>
+								<Route path="/apps/:appID">
+									<AppComponent key={appName} name={appName} />
 								</Route>
 							</Switch>
 						</Box>
