@@ -162,6 +162,26 @@ export namespace ListReleasesResponse {
   }
 }
 
+export class GetAppReleaseRequest extends jspb.Message {
+  getParent(): string;
+  setParent(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GetAppReleaseRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: GetAppReleaseRequest): GetAppReleaseRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: GetAppReleaseRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GetAppReleaseRequest;
+  static deserializeBinaryFromReader(message: GetAppReleaseRequest, reader: jspb.BinaryReader): GetAppReleaseRequest;
+}
+
+export namespace GetAppReleaseRequest {
+  export type AsObject = {
+    parent: string,
+  }
+}
+
 export class GetReleaseRequest extends jspb.Message {
   getName(): string;
   setName(value: string): void;

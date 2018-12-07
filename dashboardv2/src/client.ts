@@ -8,6 +8,7 @@ import {
 	GetAppRequest,
 	UpdateAppRequest,
 	App,
+	GetAppReleaseRequest,
 	GetReleaseRequest,
 	CreateReleaseRequest,
 	ListReleasesRequest,
@@ -24,6 +25,7 @@ export interface Client {
 	listApps: () => Promise<App[]>;
 	getApp: (name: string) => Promise<App>;
 	updateApp: (app: App) => Promise<App>;
+	getAppRelease: (appName: string) => Promise<Release>;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
@@ -75,6 +77,21 @@ class _Client implements Client {
 			const req = new UpdateAppRequest();
 			req.setApp(app);
 			this._cc.updateApp(req, (error: ServiceError, response: App | null) => {
+				if (response && error === null) {
+					dataStore.add(response);
+					resolve(response);
+				} else {
+					reject(error);
+				}
+			});
+		});
+	}
+
+	public getAppRelease(appName: string): Promise<Release> {
+		const req = new GetAppReleaseRequest();
+		req.setParent(appName);
+		return new Promise<Release>((resolve, reject) => {
+			this._cc.getAppRelease(req, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
 					dataStore.add(response);
 					resolve(response);
@@ -178,9 +195,6 @@ class _Client implements Client {
 	}
 }
 
-let transport = grpc.DefaultTransportFactory;
-const cc = new ControllerClient(Config.CONTROLLER_HOST, {
-	transport
-});
+const cc = new ControllerClient(Config.CONTROLLER_HOST, {});
 
 export default new _Client(cc);

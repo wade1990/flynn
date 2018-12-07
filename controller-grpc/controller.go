@@ -289,6 +289,18 @@ func convertRelease(r *ct.Release) *Release {
 	}
 }
 
+func (s *server) GetAppRelease(ctx context.Context, req *GetAppReleaseRequest) (*Release, error) {
+	appID := parseResourceName(req.Parent)["apps"]
+	if appID == "" {
+		return nil, controller.ErrNotFound
+	}
+	release, err := s.Client.GetAppRelease(appID)
+	if err != nil {
+		return nil, err
+	}
+	return convertRelease(release), nil
+}
+
 func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
 	releaseID := parseResourceName(req.Name)["releases"]
 	if releaseID == "" {
