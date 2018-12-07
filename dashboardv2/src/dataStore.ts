@@ -40,14 +40,17 @@ export interface DataStoreInterface {
 	get: (name: string) => Resource | undefined;
 	del: (name: string) => void;
 	watch: (...names: string[]) => WatchFunc;
+	garbageCollect: () => void;
 }
 
 export class DataStore implements DataStoreInterface {
 	private _cbs: Set<WatchFuncCallback>;
 	private _d: { [k: string]: Resource };
+	private _w: { [name: string]: number };
 	constructor() {
 		this._d = {};
 		this._cbs = new Set<WatchFuncCallback>();
+		this._w = {};
 	}
 
 	public add(...items: Resource[]): WatchFunc {
@@ -90,6 +93,9 @@ export class DataStore implements DataStoreInterface {
 				};
 				cbs.add(filteredCb);
 				this._cbs.add(filteredCb);
+				Array.from(names).forEach((n) => {
+					this._w[n] = (this._w[n] || 0) + 1;
+				});
 				return watchFunc;
 			},
 			{
@@ -111,17 +117,41 @@ export class DataStore implements DataStoreInterface {
 					};
 					cbs.add(filteredCb);
 					this._cbs.add(filteredCb);
+					Array.from(names).forEach((n) => {
+						this._w[n] = (this._w[n] || 0) + 1;
+					});
 					return watchFunc;
 				},
 				unsubscribe: () => {
 					cbs.forEach((cb) => {
 						cbs.delete(cb);
 						this._cbs.delete(cb);
+						Array.from(names).forEach((n) => {
+							this._w[n] = (this._w[n] || 0) - 1;
+							if (this._w[n] === 0) {
+								delete this._w[n];
+							}
+						});
 					});
 				}
 			}
 		);
 		return watchFunc;
+	}
+
+	public garbageCollect() {
+		const watchedNames = this._w;
+		for (let k in this._d) {
+			if (!this._d.hasOwnProperty(k)) continue;
+			if (
+				watchNames(k).find((name) => {
+					return watchedNames.hasOwnProperty(name);
+				})
+			) {
+				continue;
+			}
+			delete this._d[k];
+		}
 	}
 
 	private _publish(name: string, data: Resource | undefined) {

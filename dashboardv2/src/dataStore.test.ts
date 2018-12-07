@@ -186,6 +186,32 @@ it('watches for changes on sub resources', () => {
 	expect(watchFnCalled).toBe(2);
 });
 
+it('garbage collects resources no longer being watched', () => {
+	const ds = new DataStore();
+
+	const appName1 = 'apps/APP_ID_1';
+	const app1 = new FakeResource(appName1);
+
+	const appName2 = 'apps/APP_ID_2';
+	const app2 = new FakeResource(appName2);
+
+	ds.add(app1, app2);
+
+	expect(ds.get(appName1)).toEqual(app1);
+	expect(ds.get(appName2)).toEqual(app2);
+
+	const { unsubscribe } = ds.watch(appName1)(() => {});
+	ds.garbageCollect();
+	console.log(ds);
+	expect(ds.get(appName1)).toEqual(app1);
+	expect(ds.get(appName2)).toEqual(undefined);
+
+	unsubscribe();
+	ds.garbageCollect();
+	expect(ds.get(appName1)).toEqual(undefined);
+	expect(ds.get(appName2)).toEqual(undefined);
+});
+
 it('watches for changes on all added items', () => {
 	const ds = new DataStore();
 
