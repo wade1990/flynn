@@ -22,7 +22,7 @@
     "fz": "^0.2.0",
     "google-protobuf": "^3.6.1",
     "grommet": "^1.11.0",
-    "grpc-web-client": "^0.6.3",
+    "grpc-web-client": "~0.7.0",
     "html-webpack-plugin": "2.29.0",
     "jest": "22.4.2",
     "lodash": "^4.17.11",
