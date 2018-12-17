@@ -129,23 +129,18 @@ class AppComponent extends React.Component<Props, State> {
 
 		// conditionally fetch app and/or release
 		const { client } = this.props;
-		let errors = [] as Error[];
+		let pc = [] as Promise<any>[];
 		if (shouldFetch || !app) {
-			client.getApp(appName).catch((error: Error) => {
-				errors.push(error);
-				this.setState({
-					errors
-				});
-			});
+			pc.push(client.getApp(appName));
 		}
 		if (shouldFetch || !release) {
-			client.getAppRelease(appName).catch((error: Error) => {
-				errors.push(error);
-				this.setState({
-					errors
-				});
-			});
+			pc.push(client.getAppRelease(appName));
 		}
+		Promise.all(pc).catch((error: Error) => {
+			this.setState({
+				errors: [error]
+			});
+		});
 	}
 
 	private _deployReleaseHandler(releaseName: string) {

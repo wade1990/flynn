@@ -202,7 +202,6 @@ it('garbage collects resources no longer being watched', () => {
 
 	const { unsubscribe } = ds.watch(appName1)(() => {});
 	ds.garbageCollect();
-	console.log(ds);
 	expect(ds.get(appName1)).toEqual(app1);
 	expect(ds.get(appName2)).toEqual(undefined);
 
