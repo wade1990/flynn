@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Switch, Route, withRouter, RouteComponentProps } from 'react-router-dom';
+import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
 import Box from 'grommet/components/Box';
 import Footer from 'grommet/components/Footer';
@@ -17,15 +17,20 @@ import { AppNameContext } from './withAppName';
 import ExternalAnchor from './ExternalAnchor';
 import dataStore, { DataStore } from './dataStore';
 
-export interface Props extends RouteComponentProps<{}>, ClientProps {}
+export interface Props extends ClientProps {}
 
 // DEBUG:
+import { default as client, Client } from './client';
 declare global {
 	interface Window {
+		client: Client;
 		dataStore: DataStore;
 	}
 }
-window.dataStore = dataStore;
+if (typeof window !== 'undefined') {
+	window.dataStore = dataStore;
+	window.client = client;
+}
 
 class Dashboard extends React.Component<Props> {
 	constructor(props: Props) {
@@ -33,7 +38,7 @@ class Dashboard extends React.Component<Props> {
 	}
 
 	private _appName() {
-		const { location } = this.props;
+		const { location } = window;
 		const m = location.pathname.match(/\/apps\/[^\/]+/);
 		return m ? m[0].slice(1) : '';
 	}
@@ -43,44 +48,46 @@ class Dashboard extends React.Component<Props> {
 
 		return (
 			<GrommetApp centered={false}>
-				<AppNameContext.Provider value={appName}>
-					<Split flex="right">
-						<Sidebar colorIndex="neutral-1">
-							<Header pad="medium" justify="between">
-								<Title>Flynn Dashboard</Title>
-							</Header>
-							<Box flex="grow" justify="start">
-								<AppsListNav onNav={() => {}} />
-							</Box>
-							<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
-								<Paragraph size="small">
-									Flynn is designed, built, and managed by Prime Directive, Inc.
-									<br />
-									&copy; 2013-
-									{new Date().getFullYear()} Prime Directive, Inc. Flynn® is a trademark of Prime Directive, Inc.
-								</Paragraph>
-								<Paragraph size="small">
-									<ExternalAnchor href="https://flynn.io/legal/privacy">Privacy Policy</ExternalAnchor>
-									&nbsp;|&nbsp;
-									<ExternalAnchor href="https://flynn.io/docs/trademark-guidelines">
-										Trademark Guidelines
-									</ExternalAnchor>
-								</Paragraph>
-							</Footer>
-						</Sidebar>
+				<Router>
+					<AppNameContext.Provider value={appName}>
+						<Split flex="right">
+							<Sidebar colorIndex="neutral-1">
+								<Header pad="medium" justify="between">
+									<Title>Flynn Dashboard</Title>
+								</Header>
+								<Box flex="grow" justify="start">
+									<AppsListNav onNav={() => {}} />
+								</Box>
+								<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
+									<Paragraph size="small">
+										Flynn is designed, built, and managed by Prime Directive, Inc.
+										<br />
+										&copy; 2013-
+										{new Date().getFullYear()} Prime Directive, Inc. Flynn® is a trademark of Prime Directive, Inc.
+									</Paragraph>
+									<Paragraph size="small">
+										<ExternalAnchor href="https://flynn.io/legal/privacy">Privacy Policy</ExternalAnchor>
+										&nbsp;|&nbsp;
+										<ExternalAnchor href="https://flynn.io/docs/trademark-guidelines">
+											Trademark Guidelines
+										</ExternalAnchor>
+									</Paragraph>
+								</Footer>
+							</Sidebar>
 
-						<Box pad="medium">
-							<Switch>
-								<Route path="/apps/:appID">
-									<AppComponent key={appName} name={appName} />
-								</Route>
-							</Switch>
-						</Box>
-					</Split>
-				</AppNameContext.Provider>
+							<Box pad="medium">
+								<Switch>
+									<Route path="/apps/:appID">
+										<AppComponent key={appName} name={appName} />
+									</Route>
+								</Switch>
+							</Box>
+						</Split>
+					</AppNameContext.Provider>
+				</Router>
 			</GrommetApp>
 		);
 	}
 }
 
-export default withRouter(withClient(Dashboard));
+export default withClient(Dashboard);
