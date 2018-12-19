@@ -2,9 +2,15 @@ import * as React from 'react';
 import * as jspb from 'google-protobuf';
 import fz from 'fz';
 
+import Notification from 'grommet/components/Notification';
 import Button from 'grommet/components/Button';
 import { CheckmarkIcon, SearchInput } from 'grommet';
-import protoMapDiff, { DiffOption } from './util/protoMapDiff';
+import Loading from './Loading';
+import protoMapDiff, { DiffOption, applyProtoMapDiff } from './util/protoMapDiff';
+import protoMapReplace from './util/protoMapReplace';
+import withClient, { ClientProps } from './withClient';
+import dataStore, { Resource, WatchFunc } from './dataStore';
+import { Release } from './generated/controller_pb';
 
 import './EnvEditor.scss';
 
@@ -258,7 +264,7 @@ interface State {
 	confirming: boolean;
 }
 
-export default class EnvEditor extends React.Component<Props, State> {
+class EnvEditor extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
@@ -412,3 +418,147 @@ export function renderEnvDiff(prevEnv: Entries, env: Entries) {
 		</pre>
 	);
 }
+
+interface WrappedProps extends ClientProps {
+	appName: string;
+}
+
+interface WrappedState {
+	release: Release | null;
+	isLoading: boolean;
+	isPersisting: boolean;
+	error: Error | null;
+}
+
+class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
+	private _dataWatcher: WatchFunc | null;
+	constructor(props: WrappedProps) {
+		super(props);
+		this.state = {
+			release: null,
+			isLoading: true,
+			isPersisting: false,
+			error: null
+		};
+
+		this._dataWatcher = null;
+		this._getData = this._getData.bind(this);
+		this._envPersistHandler = this._envPersistHandler.bind(this);
+	}
+
+	public componentDidMount() {
+		this._getData();
+	}
+
+	public componentWillUnmount() {
+		this._unwatchData();
+	}
+
+	public render() {
+		const { release, isPersisting, isLoading, error } = this.state;
+		if (isLoading) {
+			return <Loading />;
+		}
+		if (error) {
+			return <Notification status="warning" message={error.message} />;
+		}
+		if (!release) throw new Error('Unexpected lack of release!');
+		return <EnvEditor entries={release.getEnvMap()} persist={this._envPersistHandler} persisting={isPersisting} />;
+	}
+
+	private _watchData(releaseName: string) {
+		const watcher = (this._dataWatcher = dataStore.watch(releaseName));
+		watcher((name: string, r: Resource | undefined) => {
+			if (!r) {
+				return;
+			}
+			this.setState({
+				release: r as Release
+			});
+		});
+	}
+
+	private _unwatchData() {
+		if (!this._dataWatcher) return;
+		this._dataWatcher.unsubscribe();
+	}
+
+	private _getData() {
+		const { client, appName } = this.props;
+		this.setState({
+			release: null,
+			isLoading: true,
+			isPersisting: false,
+			error: null
+		});
+		this._unwatchData();
+		client
+			.getAppRelease(appName)
+			.then((release) => {
+				this._watchData(release.getName());
+
+				this.setState({
+					release,
+					isLoading: false,
+					isPersisting: false,
+					error: null
+				});
+			})
+			.catch((error: Error) => {
+				this.setState({
+					release: null,
+					isLoading: false,
+					isPersisting: false,
+					error
+				});
+			});
+	}
+
+	private _envPersistHandler(next: jspb.Map<string, string>) {
+		const { client, appName } = this.props;
+		const { release } = this.state;
+		if (!release) throw new Error('Unexpected lack of release!');
+		const envDiff = protoMapDiff(release.getEnvMap(), next);
+		this.setState({
+			isLoading: false,
+			isPersisting: true,
+			error: null
+		});
+		const prevReleaseName = release.getName();
+		this._unwatchData();
+		client
+			.getAppRelease(appName)
+			.then((release) => {
+				const newRelease = new Release();
+				newRelease.setArtifactsList(release.getArtifactsList());
+				protoMapReplace(newRelease.getLabelsMap(), release.getLabelsMap());
+				protoMapReplace(newRelease.getProcessesMap(), release.getProcessesMap());
+				protoMapReplace(newRelease.getEnvMap(), applyProtoMapDiff(release.getEnvMap(), envDiff));
+				return client.createRelease(appName, newRelease);
+			})
+			.then((release) => {
+				this._watchData(release.getName());
+				return client
+					.createDeployment(appName, release.getName())
+					.then((deployment) => {
+						this.setState({
+							isPersisting: false
+						});
+					})
+					.then(() => {
+						dataStore.del(prevReleaseName);
+						return client.getApp(appName).then((app) => {
+							dataStore.add(app);
+						});
+					});
+			})
+			.catch((error: Error) => {
+				this.setState({
+					isPersisting: false,
+					error: error
+				});
+			});
+	}
+}
+
+export default withClient(WrappedEnvEditor);

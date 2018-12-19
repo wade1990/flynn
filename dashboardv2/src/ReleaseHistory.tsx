@@ -239,6 +239,12 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		this._fetchReleases();
 	}
 
+	public componentDidUpdate(prevProps: WrappedProps) {
+		if (prevProps.currentReleaseName !== this.props.currentReleaseName) {
+			this._fetchReleases();
+		}
+	}
+
 	public componentWillUnmount() {
 		this._releasesUnsub();
 	}
