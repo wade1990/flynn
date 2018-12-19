@@ -2,13 +2,13 @@ import * as React from 'react';
 import * as jspb from 'google-protobuf';
 import fz from 'fz';
 
-import Notification from 'grommet/components/Notification';
 import Button from 'grommet/components/Button';
 import { CheckmarkIcon, SearchInput } from 'grommet';
 import Loading from './Loading';
 import protoMapDiff, { DiffOption, applyProtoMapDiff } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import withClient, { ClientProps } from './withClient';
+import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import dataStore, { Resource, WatchFunc } from './dataStore';
 import { Release } from './generated/controller_pb';
 
@@ -419,7 +419,7 @@ export function renderEnvDiff(prevEnv: Entries, env: Entries) {
 	);
 }
 
-interface WrappedProps extends ClientProps {
+interface WrappedProps extends ClientProps, ErrorHandlerProps {
 	appName: string;
 }
 
@@ -427,7 +427,6 @@ interface WrappedState {
 	release: Release | null;
 	isLoading: boolean;
 	isPersisting: boolean;
-	error: Error | null;
 }
 
 class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
@@ -437,8 +436,7 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 		this.state = {
 			release: null,
 			isLoading: true,
-			isPersisting: false,
-			error: null
+			isPersisting: false
 		};
 
 		this._dataWatcher = null;
@@ -455,12 +453,9 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 	}
 
 	public render() {
-		const { release, isPersisting, isLoading, error } = this.state;
+		const { release, isPersisting, isLoading } = this.state;
 		if (isLoading) {
 			return <Loading />;
-		}
-		if (error) {
-			return <Notification status="warning" message={error.message} />;
 		}
 		if (!release) throw new Error('Unexpected lack of release!');
 		return <EnvEditor entries={release.getEnvMap()} persist={this._envPersistHandler} persisting={isPersisting} />;
@@ -484,12 +479,11 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 	}
 
 	private _getData() {
-		const { client, appName } = this.props;
+		const { client, appName, handleError } = this.props;
 		this.setState({
 			release: null,
 			isLoading: true,
-			isPersisting: false,
-			error: null
+			isPersisting: false
 		});
 		this._unwatchData();
 		client
@@ -500,29 +494,27 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 				this.setState({
 					release,
 					isLoading: false,
-					isPersisting: false,
-					error: null
+					isPersisting: false
 				});
 			})
 			.catch((error: Error) => {
 				this.setState({
 					release: null,
 					isLoading: false,
-					isPersisting: false,
-					error
+					isPersisting: false
 				});
+				handleError(error);
 			});
 	}
 
 	private _envPersistHandler(next: jspb.Map<string, string>) {
-		const { client, appName } = this.props;
+		const { client, appName, handleError } = this.props;
 		const { release } = this.state;
 		if (!release) throw new Error('Unexpected lack of release!');
 		const envDiff = protoMapDiff(release.getEnvMap(), next);
 		this.setState({
 			isLoading: false,
-			isPersisting: true,
-			error: null
+			isPersisting: true
 		});
 		const prevReleaseName = release.getName();
 		this._unwatchData();
@@ -554,11 +546,11 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 			})
 			.catch((error: Error) => {
 				this.setState({
-					isPersisting: false,
-					error: error
+					isPersisting: false
 				});
+				handleError(error);
 			});
 	}
 }
 
-export default withClient(WrappedEnvEditor);
+export default withErrorHandler(withClient(WrappedEnvEditor));

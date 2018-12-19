@@ -2,26 +2,22 @@ import * as React from 'react';
 import Heading from 'grommet/components/Heading';
 import Accordion from 'grommet/components/Accordion';
 import AccordionPanel from 'grommet/components/AccordionPanel';
-import Notification from 'grommet/components/Notification';
 
 import dataStore, { Resource, WatchFunc } from './dataStore';
 import withClient, { ClientProps } from './withClient';
-import { ServiceError } from './generated/controller_pb_service';
+import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { App } from './generated/controller_pb';
 import Loading from './Loading';
 import ReleaseHistory from './ReleaseHistory';
-import EnvEditor from './EnvEditor';
+const EnvEditor = React.lazy(() => import('./EnvEditor'));
 
-export interface Props extends ClientProps {
+export interface Props extends ClientProps, ErrorHandlerProps {
 	name: string;
 }
 
 interface State {
 	app: App | null;
-	errors: Error[];
-
 	releaseDeploying: boolean;
-	releaseDeployError: ServiceError | null;
 }
 
 class AppComponent extends React.Component<Props, State> {
@@ -30,10 +26,7 @@ class AppComponent extends React.Component<Props, State> {
 		super(props);
 		this.state = {
 			app: null,
-			errors: [],
-
-			releaseDeploying: false,
-			releaseDeployError: null
+			releaseDeploying: false
 		};
 		this._deployReleaseHandler = this._deployReleaseHandler.bind(this);
 		this._handleDataChange = this._handleDataChange.bind(this);
@@ -54,25 +47,20 @@ class AppComponent extends React.Component<Props, State> {
 	}
 
 	public render() {
-		const { app, errors } = this.state;
-
-		if (errors.length) {
-			return this._renderErrors(errors);
-		}
+		const { app } = this.state;
 
 		if (!app) {
 			return <Loading />;
 		}
 
-		const { releaseDeploying, releaseDeployError } = this.state;
+		const { releaseDeploying } = this.state;
 		return (
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
 				<Accordion openMulti={true} animate={false} active={0}>
 					<AccordionPanel heading="Release History">
-						{releaseDeployError ? <Notification status="warning" message={releaseDeployError.message} /> : null}
-
 						<ReleaseHistory
+							appName={app.getName()}
 							currentReleaseName={app.getRelease()}
 							persisting={releaseDeploying}
 							persist={this._deployReleaseHandler}
@@ -80,19 +68,11 @@ class AppComponent extends React.Component<Props, State> {
 					</AccordionPanel>
 
 					<AccordionPanel heading="Environment">
-						<EnvEditor key={app.getRelease()} appName={app.getName()} />
+						<React.Suspense fallback={<Loading />}>
+							<EnvEditor key={app.getRelease()} appName={app.getName()} />
+						</React.Suspense>
 					</AccordionPanel>
 				</Accordion>
-			</React.Fragment>
-		);
-	}
-
-	private _renderErrors(errors: Error[]) {
-		return (
-			<React.Fragment>
-				{errors.map((error) => {
-					<Notification status="warning" message={error.message} />;
-				})}
 			</React.Fragment>
 		);
 	}
@@ -110,18 +90,14 @@ class AppComponent extends React.Component<Props, State> {
 		});
 
 		// conditionally fetch app and/or release
-		const { client } = this.props;
+		const { client, handleError } = this.props;
 		if (shouldFetch || !app) {
-			client.getApp(appName).catch((error: Error) => {
-				this.setState({
-					errors: [error]
-				});
-			});
+			client.getApp(appName).catch(handleError);
 		}
 	}
 
 	private _deployReleaseHandler(releaseName: string) {
-		const { client } = this.props;
+		const { client, handleError } = this.props;
 		const { app } = this.state;
 		if (!app) return;
 		this.setState({
@@ -137,12 +113,12 @@ class AppComponent extends React.Component<Props, State> {
 					releaseDeploying: false
 				});
 			})
-			.catch((error: ServiceError) => {
+			.catch((error: Error) => {
 				this.setState({
-					releaseDeploying: false,
-					releaseDeployError: error
+					releaseDeploying: false
 				});
+				handleError(error);
 			});
 	}
 }
-export default withClient(AppComponent);
+export default withErrorHandler(withClient(AppComponent));

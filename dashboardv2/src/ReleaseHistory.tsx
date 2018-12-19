@@ -3,12 +3,11 @@ import * as jspb from 'google-protobuf';
 import { isEqual } from 'lodash';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
-import Notification from 'grommet/components/Notification';
 import CheckBox from 'grommet/components/CheckBox';
 import Button from 'grommet/components/Button';
 
 import withClient, { ClientProps } from './withClient';
-import withAppName, { AppNameProps } from './withAppName';
+import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import dataStore from './dataStore';
 import { Release } from './generated/controller_pb';
 import Loading from './Loading';
@@ -211,7 +210,8 @@ export class ReleaseHistory extends React.Component<Props, State> {
 	}
 }
 
-export interface WrappedProps extends ClientProps, AppNameProps, RouteComponentProps<{}> {
+export interface WrappedProps extends ClientProps, ErrorHandlerProps, RouteComponentProps<{}> {
+	appName: string;
 	currentReleaseName: string;
 	persisting: boolean;
 	persist: (releaseName: string) => void;
@@ -220,7 +220,6 @@ export interface WrappedProps extends ClientProps, AppNameProps, RouteComponentP
 interface WrappedState {
 	releases: Release[];
 	releasesLoading: boolean;
-	releasesError: Error | null;
 }
 
 class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> {
@@ -229,8 +228,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		super(props);
 		this.state = {
 			releases: [],
-			releasesLoading: true,
-			releasesError: null
+			releasesLoading: true
 		};
 		this._releasesUnsub = () => {};
 	}
@@ -250,7 +248,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	}
 
 	private _fetchReleases() {
-		const { client, appName } = this.props;
+		const { client, appName, handleError } = this.props;
 		this.setState({
 			releasesLoading: true
 		});
@@ -272,23 +270,20 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			})
 			.catch((error) => {
 				this.setState({
-					releasesLoading: false,
-					releasesError: error
+					releasesLoading: false
 				});
+				handleError(error);
 			});
 	}
 
 	public render() {
-		const { appName, client, ...props } = this.props;
-		const { releasesLoading, releasesError, releases } = this.state;
+		const { appName, client, handleError, ...props } = this.props;
+		const { releasesLoading, releases } = this.state;
 		if (releasesLoading) {
 			return <Loading />;
-		}
-		if (releasesError) {
-			return <Notification status="warning" message={releasesError.message} />;
 		}
 		return <ReleaseHistory {...props as Props} releases={releases} />;
 	}
 }
 
-export default withRouter(withClient(withAppName(WrappedReleaseHistory)));
+export default withErrorHandler(withRouter(withClient(WrappedReleaseHistory)));
