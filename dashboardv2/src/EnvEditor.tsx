@@ -5,7 +5,8 @@ import fz from 'fz';
 import Button from 'grommet/components/Button';
 import { CheckmarkIcon, SearchInput } from 'grommet';
 import Loading from './Loading';
-import protoMapDiff, { DiffOption, applyProtoMapDiff } from './util/protoMapDiff';
+import CreateDeployment from './CreateDeployment';
+import protoMapDiff, { applyProtoMapDiff } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
@@ -28,7 +29,7 @@ interface EnvStateInternalState {
 	changedIndices: { [key: number]: boolean };
 }
 
-class EnvState {
+export class EnvState {
 	public length: number;
 	public deletedLength: number;
 	public hasChanges: boolean;
@@ -254,35 +255,26 @@ class EnvInput extends React.Component<EnvInputProps, EnvInputState> {
 }
 
 export interface Props {
-	entries: Entries;
-	persist: (next: Entries) => void;
-	persisting: boolean;
+	entries: EnvState;
+	onSubmit: (entries: EnvState) => void;
 }
 
 interface State {
 	entries: EnvState;
-	confirming: boolean;
 }
 
 class EnvEditor extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
-			entries: new EnvState(props.entries),
-			confirming: false
+			entries: props.entries
 		};
 		this._searchInputHandler = this._searchInputHandler.bind(this);
 		this._submitHandler = this._submitHandler.bind(this);
-		this._submitConfirmHandler = this._submitConfirmHandler.bind(this);
 	}
 
 	public render() {
-		const { persisting } = this.props;
-		const { entries, confirming } = this.state;
-
-		if (confirming) {
-			return this._renderConfirm();
-		}
+		const { entries } = this.state;
 
 		return (
 			<form onSubmit={this._submitHandler} className="env-editor">
@@ -290,54 +282,18 @@ class EnvEditor extends React.Component<Props, State> {
 				{entries.map(([key, value]: [string, string], index: number) => {
 					return (
 						<div key={index} className="env-row">
-							<EnvInput
-								placeholder="ENV key"
-								value={key}
-								onChange={this._keyChangeHandler.bind(this, index)}
-								disabled={persisting}
-							/>
-							<EnvInput
-								placeholder="ENV value"
-								value={value}
-								onChange={this._valueChangeHandler.bind(this, index)}
-								disabled={persisting}
-							/>
+							<EnvInput placeholder="ENV key" value={key} onChange={this._keyChangeHandler.bind(this, index)} />
+							<EnvInput placeholder="ENV value" value={value} onChange={this._valueChangeHandler.bind(this, index)} />
 						</div>
 					);
 				})}
-				{persisting ? (
-					// Disable save button with saving indicator
-					<Button type="button" primary icon={<CheckmarkIcon />} label="Deploying..." />
-				) : entries.hasChanges ? (
+				{entries.hasChanges ? (
 					// Enable save button
 					<Button type="submit" primary icon={<CheckmarkIcon />} label="Review Changes" />
 				) : (
 					// Disable save button
 					<Button type="button" primary icon={<CheckmarkIcon />} label="Review Changes" />
 				)}
-			</form>
-		);
-	}
-
-	private _renderConfirm() {
-		const { entries } = this.state;
-		const prevEntries = this.props.entries;
-
-		return (
-			<form onSubmit={this._submitConfirmHandler} className="env-editor">
-				{renderEnvDiff(prevEntries, entries.entries())}
-				<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy" />
-				&nbsp;
-				<Button
-					type="button"
-					label="Continue Editing"
-					onClick={(e: React.SyntheticEvent) => {
-						e.preventDefault();
-						this.setState({
-							confirming: false
-						});
-					}}
-				/>
 			</form>
 		);
 	}
@@ -371,52 +327,8 @@ class EnvEditor extends React.Component<Props, State> {
 
 	private _submitHandler(e: React.SyntheticEvent) {
 		e.preventDefault();
-		this.setState({
-			confirming: true
-		});
+		this.props.onSubmit(this.state.entries);
 	}
-
-	private _submitConfirmHandler(e: React.SyntheticEvent) {
-		e.preventDefault();
-		this.setState({
-			confirming: false
-		});
-		this.props.persist(this.state.entries.entries());
-	}
-}
-
-export function renderEnvDiff(prevEnv: Entries, env: Entries) {
-	const diff = protoMapDiff(prevEnv, env, DiffOption.INCLUDE_UNCHANGED).sort((a, b) => {
-		return a.key.localeCompare(b.key);
-	});
-
-	return (
-		<pre>
-			{diff.map((item) => {
-				let value;
-				let prefix = ' ';
-				switch (item.op) {
-					case 'keep':
-						value = env.get(item.key);
-						break;
-					case 'remove':
-						prefix = '-';
-						value = prevEnv.get(item.key);
-						break;
-					case 'add':
-						prefix = '+';
-						value = env.get(item.key);
-						break;
-				}
-				return (
-					<span key={item.op + item.key} className={'env-diff-' + item.op}>
-						{prefix} {item.key} = {value}
-						<br />
-					</span>
-				);
-			})}
-		</pre>
-	);
 }
 
 interface WrappedProps extends ClientProps, ErrorHandlerProps {
@@ -426,7 +338,8 @@ interface WrappedProps extends ClientProps, ErrorHandlerProps {
 interface WrappedState {
 	release: Release | null;
 	isLoading: boolean;
-	isPersisting: boolean;
+	isDeploying: boolean;
+	envState: EnvState | null;
 }
 
 class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
@@ -436,12 +349,16 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 		this.state = {
 			release: null,
 			isLoading: true,
-			isPersisting: false
+			isDeploying: false,
+			envState: null
 		};
 
 		this._dataWatcher = null;
 		this._getData = this._getData.bind(this);
-		this._envPersistHandler = this._envPersistHandler.bind(this);
+		this._handleSubmit = this._handleSubmit.bind(this);
+		this._buildNewRelease = this._buildNewRelease.bind(this);
+		this._handleDeployCancel = this._handleDeployCancel.bind(this);
+		this._handleDeploymentCreate = this._handleDeploymentCreate.bind(this);
 	}
 
 	public componentDidMount() {
@@ -453,12 +370,23 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 	}
 
 	public render() {
-		const { release, isPersisting, isLoading } = this.state;
+		const { appName } = this.props;
+		const { release, isLoading, isDeploying, envState } = this.state;
 		if (isLoading) {
 			return <Loading />;
 		}
+		if (isDeploying) {
+			return (
+				<CreateDeployment
+					appName={appName}
+					buildNewRelease={this._buildNewRelease}
+					onCancel={this._handleDeployCancel}
+					onCreate={this._handleDeploymentCreate}
+				/>
+			);
+		}
 		if (!release) throw new Error('Unexpected lack of release!');
-		return <EnvEditor entries={release.getEnvMap()} persist={this._envPersistHandler} persisting={isPersisting} />;
+		return <EnvEditor entries={envState || new EnvState(release.getEnvMap())} onSubmit={this._handleSubmit} />;
 	}
 
 	private _watchData(releaseName: string) {
@@ -482,74 +410,60 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 		const { client, appName, handleError } = this.props;
 		this.setState({
 			release: null,
-			isLoading: true,
-			isPersisting: false
+			isLoading: true
 		});
 		this._unwatchData();
-		client
+		return client
 			.getAppRelease(appName)
 			.then((release) => {
 				this._watchData(release.getName());
 
 				this.setState({
 					release,
-					isLoading: false,
-					isPersisting: false
+					isLoading: false
 				});
 			})
 			.catch((error: Error) => {
 				this.setState({
 					release: null,
-					isLoading: false,
-					isPersisting: false
+					isLoading: false
 				});
 				handleError(error);
 			});
 	}
 
-	private _envPersistHandler(next: jspb.Map<string, string>) {
-		const { client, appName, handleError } = this.props;
-		const { release } = this.state;
-		if (!release) throw new Error('Unexpected lack of release!');
-		const envDiff = protoMapDiff(release.getEnvMap(), next);
+	private _handleSubmit(entries: EnvState) {
 		this.setState({
-			isLoading: false,
-			isPersisting: true
+			isDeploying: true,
+			envState: entries
 		});
-		const prevReleaseName = release.getName();
-		this._unwatchData();
-		client
-			.getAppRelease(appName)
-			.then((release) => {
-				const newRelease = new Release();
-				newRelease.setArtifactsList(release.getArtifactsList());
-				protoMapReplace(newRelease.getLabelsMap(), release.getLabelsMap());
-				protoMapReplace(newRelease.getProcessesMap(), release.getProcessesMap());
-				protoMapReplace(newRelease.getEnvMap(), applyProtoMapDiff(release.getEnvMap(), envDiff));
-				return client.createRelease(appName, newRelease);
-			})
-			.then((release) => {
-				this._watchData(release.getName());
-				return client
-					.createDeployment(appName, release.getName())
-					.then((deployment) => {
-						this.setState({
-							isPersisting: false
-						});
-					})
-					.then(() => {
-						dataStore.del(prevReleaseName);
-						return client.getApp(appName).then((app) => {
-							dataStore.add(app);
-						});
-					});
-			})
-			.catch((error: Error) => {
-				this.setState({
-					isPersisting: false
-				});
-				handleError(error);
+	}
+
+	private _buildNewRelease(currentRelease: Release): Release {
+		const { envState } = this.state;
+		if (!envState) throw new Error('_buildNewRelease invalid state!');
+		const envDiff = protoMapDiff(currentRelease.getEnvMap(), envState.entries());
+		const newRelease = new Release();
+		newRelease.setArtifactsList(currentRelease.getArtifactsList());
+		protoMapReplace(newRelease.getLabelsMap(), currentRelease.getLabelsMap());
+		protoMapReplace(newRelease.getProcessesMap(), currentRelease.getProcessesMap());
+		protoMapReplace(newRelease.getEnvMap(), applyProtoMapDiff(currentRelease.getEnvMap(), envDiff));
+		return newRelease;
+	}
+
+	private _handleDeployCancel() {
+		this.setState({
+			isDeploying: false
+		});
+	}
+
+	private _handleDeploymentCreate() {
+		this._getData().then(() => {
+			this.setState({
+				isDeploying: false,
+				envState: null
 			});
+		});
 	}
 }
 

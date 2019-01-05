@@ -1,17 +1,18 @@
 import * as React from 'react';
-import * as jspb from 'google-protobuf';
 import { isEqual } from 'lodash';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
 import CheckBox from 'grommet/components/CheckBox';
 import Button from 'grommet/components/Button';
+import { CheckmarkIcon } from 'grommet';
 
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import dataStore from './dataStore';
-import { Release } from './generated/controller_pb';
+import { Release, Deployment } from './generated/controller_pb';
 import Loading from './Loading';
-import { renderEnvDiff } from './EnvEditor';
+import CreateDeployment from './CreateDeployment';
+import { renderRelease } from './Release';
 import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 import './ReleaseHistory.scss';
@@ -55,8 +56,8 @@ function mapReleases<T>(
 export interface Props extends RouteComponentProps<{}> {
 	releases: Release[];
 	currentReleaseName: string;
-	persisting: boolean;
-	persist: (releaseName: string) => void;
+	selectedReleaseName: string;
+	onSubmit: (releaseName: string) => void;
 }
 
 interface State {
@@ -67,13 +68,13 @@ export class ReleaseHistory extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
-			selectedReleaseName: props.currentReleaseName
+			selectedReleaseName: props.selectedReleaseName || props.currentReleaseName
 		};
 		this._submitHandler = this._submitHandler.bind(this);
 	}
 
 	public render() {
-		const { releases, currentReleaseName, persisting, location, history } = this.props;
+		const { releases, currentReleaseName, location, history } = this.props;
 		const { selectedReleaseName } = this.state;
 
 		const urlParams = parseURLParams(location.search);
@@ -162,7 +163,7 @@ export class ReleaseHistory extends React.Component<Props, State> {
 												}
 											}}
 										/>
-										{this._renderRelease(r, p)}
+										{renderRelease(r, p)}
 									</label>
 								</li>
 							);
@@ -171,32 +172,13 @@ export class ReleaseHistory extends React.Component<Props, State> {
 					)}
 				</ul>
 
-				{persisting || currentReleaseName === selectedReleaseName ? (
+				{currentReleaseName === selectedReleaseName ? (
 					// disabled button
-					<Button primary label={persisting ? 'Deploying...' : 'Deploy Release'} />
+					<Button primary icon={<CheckmarkIcon />} label="Deploy Release" />
 				) : (
-					<Button type="submit" primary label="Deploy Release" />
+					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
 				)}
 			</form>
-		);
-	}
-
-	private _renderRelease(release: Release, prev: Release | null) {
-		const labels = release.getLabelsMap();
-		const gitCommit = labels.get('git.commit');
-		return (
-			<div>
-				Release{' '}
-				{
-					release
-						.getName()
-						.split('/')
-						.slice(-1)[0]
-				}
-				<br />
-				{gitCommit ? <>git.commit {gitCommit}</> : null}
-				{renderEnvDiff(prev ? prev.getEnvMap() : new jspb.Map([]), release.getEnvMap())}
-			</div>
 		);
 	}
 
@@ -206,20 +188,20 @@ export class ReleaseHistory extends React.Component<Props, State> {
 		if (selectedReleaseName == '') {
 			return;
 		}
-		this.props.persist(selectedReleaseName);
+		this.props.onSubmit(selectedReleaseName);
 	}
 }
 
 export interface WrappedProps extends ClientProps, ErrorHandlerProps, RouteComponentProps<{}> {
 	appName: string;
 	currentReleaseName: string;
-	persisting: boolean;
-	persist: (releaseName: string) => void;
 }
 
 interface WrappedState {
 	releases: Release[];
 	releasesLoading: boolean;
+	isDeploying: boolean;
+	releaseName: string;
 }
 
 class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> {
@@ -228,9 +210,14 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		super(props);
 		this.state = {
 			releases: [],
-			releasesLoading: true
+			releasesLoading: true,
+			isDeploying: false,
+			releaseName: ''
 		};
 		this._releasesUnsub = () => {};
+		this._handleSubmit = this._handleSubmit.bind(this);
+		this._handleDeployCancel = this._handleDeployCancel.bind(this);
+		this._handleDeploymentCreate = this._handleDeploymentCreate.bind(this);
 	}
 
 	public componentDidMount() {
@@ -252,7 +239,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		this.setState({
 			releasesLoading: true
 		});
-		client
+		return client
 			.listReleases(appName)
 			.then((releases) => {
 				const watcher = dataStore.watch(...releases.map((r) => r.getName()));
@@ -278,11 +265,50 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 
 	public render() {
 		const { appName, client, handleError, ...props } = this.props;
-		const { releasesLoading, releases } = this.state;
+		const { releasesLoading, releases, isDeploying, releaseName } = this.state;
 		if (releasesLoading) {
 			return <Loading />;
 		}
-		return <ReleaseHistory {...props as Props} releases={releases} />;
+		if (isDeploying) {
+			return (
+				<CreateDeployment
+					appName={appName}
+					releaseName={releaseName}
+					onCancel={this._handleDeployCancel}
+					onCreate={this._handleDeploymentCreate}
+				/>
+			);
+		}
+		return (
+			<ReleaseHistory
+				{...props as Props}
+				selectedReleaseName={releaseName}
+				releases={releases}
+				onSubmit={this._handleSubmit}
+			/>
+		);
+	}
+
+	private _handleSubmit(releaseName: string) {
+		this.setState({
+			isDeploying: true,
+			releaseName
+		});
+	}
+
+	private _handleDeployCancel() {
+		this.setState({
+			isDeploying: false
+		});
+	}
+
+	private _handleDeploymentCreate(deployment: Deployment) {
+		this._fetchReleases().then(() => {
+			this.setState({
+				isDeploying: false,
+				releaseName: ''
+			});
+		});
 	}
 }
 

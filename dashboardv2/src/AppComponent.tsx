@@ -17,7 +17,6 @@ export interface Props extends ClientProps, ErrorHandlerProps {
 
 interface State {
 	app: App | null;
-	releaseDeploying: boolean;
 }
 
 class AppComponent extends React.Component<Props, State> {
@@ -25,10 +24,8 @@ class AppComponent extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
-			app: null,
-			releaseDeploying: false
+			app: null
 		};
-		this._deployReleaseHandler = this._deployReleaseHandler.bind(this);
 		this._handleDataChange = this._handleDataChange.bind(this);
 	}
 
@@ -53,18 +50,12 @@ class AppComponent extends React.Component<Props, State> {
 			return <Loading />;
 		}
 
-		const { releaseDeploying } = this.state;
 		return (
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
 				<Accordion openMulti={true} animate={false} active={0}>
 					<AccordionPanel heading="Release History">
-						<ReleaseHistory
-							appName={app.getName()}
-							currentReleaseName={app.getRelease()}
-							persisting={releaseDeploying}
-							persist={this._deployReleaseHandler}
-						/>
+						<ReleaseHistory appName={app.getName()} currentReleaseName={app.getRelease()} />
 					</AccordionPanel>
 
 					<AccordionPanel heading="Environment">
@@ -94,31 +85,6 @@ class AppComponent extends React.Component<Props, State> {
 		if (shouldFetch || !app) {
 			client.getApp(appName).catch(handleError);
 		}
-	}
-
-	private _deployReleaseHandler(releaseName: string) {
-		const { client, handleError } = this.props;
-		const { app } = this.state;
-		if (!app) return;
-		this.setState({
-			releaseDeploying: true
-		});
-		client
-			.createDeployment(app.getName(), releaseName)
-			.then(() => {
-				return client.getApp(app.getName());
-			})
-			.then(() => {
-				this.setState({
-					releaseDeploying: false
-				});
-			})
-			.catch((error: Error) => {
-				this.setState({
-					releaseDeploying: false
-				});
-				handleError(error);
-			});
 	}
 }
 export default withErrorHandler(withClient(AppComponent));

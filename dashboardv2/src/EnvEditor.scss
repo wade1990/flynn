@@ -1,5 +1,6 @@
 .env-editor {
-	> .grommetux-search-input, .grommetux-search-input > input {
+	> .grommetux-search-input,
+	.grommetux-search-input > input {
 		width: 100%;
 		border-radius: 0;
 	}
@@ -10,7 +11,8 @@
 
 	> .env-row {
 		display: flex;
-		> input[type=text], textarea {
+		> input[type='text'],
+		textarea {
 			width: 100%;
 			border-radius: 0;
 		}
@@ -29,7 +31,7 @@
 	}
 
 	> .env-row + .env-row {
-		> input[type=text] {
+		> input[type='text'] {
 			margin-top: 0.25rem;
 		}
 	}
@@ -37,19 +39,4 @@
 	> .env-row:last-of-type {
 		margin-bottom: 1rem;
 	}
-}
-
-.env-diff-keep {
-}
-
-.env-diff-remove, .env-diff-add {
-	font-weight: bold;
-}
-
-.env-diff-remove {
-	background-color: rgba(255, 0, 0, 0.075);
-}
-
-.env-diff-add {
-	background-color: rgba(0, 255, 0, 0.075);
 }
