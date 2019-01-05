@@ -130,7 +130,7 @@ func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsR
 }
 
 func (s *server) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {
-	ctApp, err := s.Client.GetApp(parseResourceName(req.Name)["apps"])
+	ctApp, err := s.Client.GetApp(parseIDFromName(req.Name, "apps"))
 	if err != nil {
 		return nil, err
 	}
@@ -139,11 +139,11 @@ func (s *server) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {
 
 func backConvertApp(a *App) *ct.App {
 	return &ct.App{
-		ID:            parseResourceName(a.Name)["apps"],
+		ID:            parseIDFromName(a.Name, "apps"),
 		Name:          a.DisplayName,
 		Meta:          a.Labels,
 		Strategy:      a.Strategy,
-		ReleaseID:     parseResourceName(a.Release)["releases"],
+		ReleaseID:     parseIDFromName(a.Release, "releases"),
 		DeployTimeout: a.DeployTimeout,
 		CreatedAt:     timestampFromProto(a.CreateTime),
 		UpdatedAt:     timestampFromProto(a.UpdateTime),
@@ -290,7 +290,7 @@ func convertRelease(r *ct.Release) *Release {
 }
 
 func (s *server) GetAppRelease(ctx context.Context, req *GetAppReleaseRequest) (*Release, error) {
-	appID := parseResourceName(req.Parent)["apps"]
+	appID := parseIDFromName(req.Parent, "apps")
 	if appID == "" {
 		return nil, controller.ErrNotFound
 	}
@@ -302,7 +302,7 @@ func (s *server) GetAppRelease(ctx context.Context, req *GetAppReleaseRequest) (
 }
 
 func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
-	releaseID := parseResourceName(req.Name)["releases"]
+	releaseID := parseIDFromName(req.Name, "releases")
 	if releaseID == "" {
 		return nil, controller.ErrNotFound
 	}
@@ -314,7 +314,7 @@ func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Relea
 }
 
 func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*ListReleasesResponse, error) {
-	appID := parseResourceName(req.Parent)["apps"]
+	appID := parseIDFromName(req.Parent, "apps")
 	var ctReleases []*ct.Release
 	if appID == "" {
 		res, err := s.Client.ReleaseList()
@@ -366,7 +366,7 @@ func (s *server) CreateRelease(ctx context.Context, req *CreateReleaseRequest) (
 		Meta:        r.Labels,
 		Processes:   backConvertProcesses(r.Processes),
 	}
-	if err := s.Client.CreateRelease(parseResourceName(req.Parent)["apps"], ctRelease); err != nil {
+	if err := s.Client.CreateRelease(parseIDFromName(req.Parent, "apps"), ctRelease); err != nil {
 		return nil, err
 	}
 	return convertRelease(ctRelease), nil
@@ -440,7 +440,7 @@ func convertDeploymentEventJobState(from ct.JobState) DeploymentEvent_JobState {
 }
 
 func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_CreateDeploymentServer) error {
-	d, err := s.Client.CreateDeployment(parseResourceName(req.Parent)["apps"], parseResourceName(req.Release)["releases"])
+	d, err := s.Client.CreateDeployment(parseIDFromName(req.Parent, "apps"), parseIDFromName(req.Release, "releases"))
 	if err != nil {
 		return err
 	}
@@ -512,7 +512,7 @@ func convertEventTypeSlice(in []string) []ct.EventType {
 func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEventsServer) error {
 	events := make(chan *ct.Event)
 	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       parseResourceName(req.Parent)["apps"],
+		AppID:       parseIDFromName(req.Parent, "apps"),
 		ObjectTypes: convertEventTypeSlice(req.ObjectTypes),
 		ObjectID:    lastResourceName(req.Name),
 		Past:        req.Past,
@@ -582,18 +582,18 @@ func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEven
 	return eventStream.Err()
 }
 
-func parseResourceName(name string) map[string]string {
+func parseIDFromName(name string, resource string) string {
 	parts := strings.Split(name, "/")
 	idMap := make(map[string]string, len(parts)/2)
 	for i := 0; i < len(parts)-1; i += 2 {
 		if i == len(parts) {
-			return idMap
+			return idMap[resource]
 		}
 		resourceName := parts[i]
 		resourceID := parts[i+1]
 		idMap[resourceName] = resourceID
 	}
-	return idMap
+	return idMap[resource]
 }
 
 func lastResourceName(name string) string {
