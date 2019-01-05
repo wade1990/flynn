@@ -537,33 +537,22 @@ func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEven
 		switch ctEvent.ObjectType {
 		case ct.EventTypeApp, ct.EventTypeAppDeletion:
 			event.Parent = fmt.Sprintf("apps/%s", ctEvent.ObjectID)
-		case ct.EventTypeAppRelease, ct.EventTypeRelease, ct.EventTypeReleaseDeletion:
-			event.Parent = fmt.Sprintf("apps/%s/releases/%s", ctEvent.AppID, ctEvent.ObjectID)
-		case ct.EventTypeDeployment:
-			event.Parent = fmt.Sprintf("apps/%s/deployments/%s", ctEvent.AppID, ctEvent.ObjectID)
-		case ct.EventTypeRoute, ct.EventTypeRouteDeletion:
-			event.Parent = fmt.Sprintf("apps/%s/routes/%s", ctEvent.AppID, ctEvent.ObjectID)
-		}
-
-		switch ctEvent.ObjectType {
-		case ct.EventTypeApp:
 			var ctApp *ct.App
 			if err := json.Unmarshal(ctEvent.Data, &ctApp); err != nil {
 				fmt.Printf("Failed to unmarshal app event(%s): %s\n", ctEvent.ObjectID, err)
 				continue
 			}
 			event.App = convertApp(ctApp)
-		case ct.EventTypeAppDeletion:
-		case ct.EventTypeAppRelease:
-		case ct.EventTypeRelease:
+		case ct.EventTypeAppRelease, ct.EventTypeRelease, ct.EventTypeReleaseDeletion:
+			event.Parent = fmt.Sprintf("apps/%s/releases/%s", ctEvent.AppID, ctEvent.ObjectID)
 			var ctRelease *ct.Release
 			if err := json.Unmarshal(ctEvent.Data, &ctRelease); err != nil {
 				fmt.Printf("Failed to unmarshal release event(%s): %s\n", ctEvent.ObjectID, err)
 				continue
 			}
 			event.Release = convertRelease(ctRelease)
-		case ct.EventTypeReleaseDeletion:
 		case ct.EventTypeDeployment:
+			event.Parent = fmt.Sprintf("apps/%s/deployments/%s", ctEvent.AppID, ctEvent.ObjectID)
 			var ctDeploymentEvent *ct.DeploymentEvent
 			if err := json.Unmarshal(ctEvent.Data, &ctDeploymentEvent); err != nil {
 				fmt.Printf("Failed to unmarshal deployment event(%s): %s\n", ctEvent.ObjectID, err)
@@ -580,8 +569,8 @@ func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEven
 				Deployment: convertDeployment(ctDeployment),
 			}
 			event.Error = ctDeploymentEvent.Error
-		case ct.EventTypeRoute:
-		case ct.EventTypeRouteDeletion:
+		case ct.EventTypeRoute, ct.EventTypeRouteDeletion:
+			event.Parent = fmt.Sprintf("apps/%s/routes/%s", ctEvent.AppID, ctEvent.ObjectID)
 		}
 
 		es.Send(event)
