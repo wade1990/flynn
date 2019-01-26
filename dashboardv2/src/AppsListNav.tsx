@@ -1,41 +1,37 @@
 import * as React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
-import Notification from 'grommet/components/Notification';
 import List from 'grommet/components/List';
 import ListItem from 'grommet/components/ListItem';
 
-import dataStore, { Resource, WatchFunc } from './dataStore';
 import withClient, { ClientProps } from './withClient';
+import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import Loading from './Loading';
 import NavLink from './NavLink';
 import { App } from './generated/controller_pb';
 
-export interface Props extends RouteComponentProps<{}>, ClientProps {
+export interface Props extends RouteComponentProps<{}>, ClientProps, ErrorHandlerProps {
 	onNav(path: string): void;
 }
 
 interface State {
 	isLoading: boolean;
-	errors: Error[];
 	apps: App[];
 }
 
 class AppsListNav extends React.Component<Props, State> {
-	private __dataWatcher: WatchFunc | null;
+	private __listAppsStreamCancel: () => void;
 
 	constructor(props: Props) {
 		super(props);
 
 		this.state = {
 			isLoading: true,
-			errors: [],
 			apps: []
 		};
 
-		this.__dataWatcher = null;
+		this.__listAppsStreamCancel = () => {};
 		this._navHandler = this._navHandler.bind(this);
-		this._handleDataChange = this._handleDataChange.bind(this);
 	}
 
 	public componentDidMount() {
@@ -44,21 +40,15 @@ class AppsListNav extends React.Component<Props, State> {
 	}
 
 	public componentWillUnmount() {
-		if (this.__dataWatcher) {
-			this.__dataWatcher.unsubscribe();
-		}
+		this.__listAppsStreamCancel();
 	}
 
 	public render() {
 		const { location } = this.props;
-		const { isLoading, errors, apps } = this.state;
+		const { isLoading, apps } = this.state;
 
 		if (isLoading) {
 			return <Loading />;
-		}
-
-		if (errors.length > 0) {
-			return this._renderErrors(errors);
 		}
 
 		let selectedAppRouteIndex;
@@ -90,42 +80,21 @@ class AppsListNav extends React.Component<Props, State> {
 		);
 	}
 
-	private _renderErrors(errors: Error[]) {
-		return (
-			<React.Fragment>
-				{errors.map((error) => {
-					<Notification status="warning" message={error.message} />;
-				})}
-			</React.Fragment>
-		);
-	}
-
 	private _getData() {
-		const { client } = this.props;
+		const { client, handleError } = this.props;
 		this.setState({
-			isLoading: true,
-			errors: []
+			isLoading: true
 		});
-		client
-			.listApps()
-			.then((apps) => {
-				this.__dataWatcher = dataStore.add(...apps).arrayWatcher(this._handleDataChange);
-				this.setState({
-					isLoading: false,
-					errors: [],
-					apps
-				});
-			})
-			.catch((error: Error) => {
-				this.setState({
-					isLoading: false,
-					errors: [error]
-				});
+		this.__listAppsStreamCancel();
+		this.__listAppsStreamCancel = client.listAppsStream((apps: App[], error: Error | null) => {
+			this.setState({
+				isLoading: false,
+				apps
 			});
-	}
-
-	private _handleDataChange(list: Resource[], name: string, resource: Resource | undefined) {
-		// TODO(jvatic): refresh data from cache
+			if (error) {
+				handleError(error);
+			}
+		});
 	}
 
 	private _navHandler(path: string) {
@@ -137,4 +106,4 @@ class AppsListNav extends React.Component<Props, State> {
 	}
 }
 
-export default withClient(withRouter(AppsListNav));
+export default withErrorHandler(withClient(withRouter(AppsListNav)));
