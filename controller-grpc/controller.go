@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	controller "github.com/flynn/flynn/controller/client"
@@ -114,7 +115,7 @@ func convertApp(a *ct.App) *App {
 	}
 }
 
-func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsResponse, error) {
+func (s *server) listApps() ([]*App, error) {
 	ctApps, err := s.Client.AppList()
 	if err != nil {
 		return nil, err
@@ -123,10 +124,89 @@ func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsR
 	for i, a := range ctApps {
 		apps[i] = convertApp(a)
 	}
+	return apps, nil
+}
+
+func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsResponse, error) {
+	apps, err := s.listApps()
+	if err != nil {
+		return nil, err
+	}
 	return &ListAppsResponse{
 		Apps:          apps,
-		NextPageToken: "", // there is no pagination
+		NextPageToken: "", // TODO(jvatic): pagination
 	}, nil
+}
+
+func (s *server) ListAppsStream(stream Controller_ListAppsStreamServer) error {
+	var apps []*App
+	var appsMtx sync.RWMutex
+	refreshApps := func() error {
+		appsMtx.Lock()
+		defer appsMtx.Unlock()
+		var err error
+		apps, err = s.listApps()
+		return err
+	}
+
+	sendResponse := func() {
+		appsMtx.RLock()
+		stream.Send(&ListAppsResponse{
+			Apps:          apps,
+			NextPageToken: "", // TODO(jvatic): Pagination
+		})
+		appsMtx.RUnlock()
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			_, err := stream.Recv()
+			if err != nil {
+				fmt.Printf("ListAppsStream: Error receiving request: %s\n", err)
+				break
+			}
+			// TODO(jvatic): Pagination
+			if err := refreshApps(); err != nil {
+				fmt.Printf("ListAppsStream: Error refreshing apps: %s\n", err)
+				continue
+			}
+			sendResponse()
+		}
+	}()
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		ObjectTypes: []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease},
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if _, ok := <-events; !ok {
+				break
+			}
+			if err := refreshApps(); err != nil {
+				fmt.Printf("ListAppsStream: Error refreshing apps: %s\n", err)
+				continue
+			}
+			sendResponse()
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
 }
 
 func (s *server) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {

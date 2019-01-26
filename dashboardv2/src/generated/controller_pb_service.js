@@ -19,6 +19,15 @@ Controller.ListApps = {
   responseType: controller_pb.ListAppsResponse
 };
 
+Controller.ListAppsStream = {
+  methodName: "ListAppsStream",
+  service: Controller,
+  requestStream: true,
+  responseStream: true,
+  requestType: controller_pb.ListAppsRequest,
+  responseType: controller_pb.ListAppsResponse
+};
+
 Controller.GetApp = {
   methodName: "GetApp",
   service: Controller,
@@ -133,6 +142,51 @@ ControllerClient.prototype.listApps = function listApps(requestMessage, metadata
   return {
     cancel: function () {
       callback = null;
+      client.close();
+    }
+  };
+};
+
+ControllerClient.prototype.listAppsStream = function listAppsStream(metadata) {
+  var listeners = {
+    data: [],
+    end: [],
+    status: []
+  };
+  var client = grpc.client(Controller.ListAppsStream, {
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport
+  });
+  client.onEnd(function (status, statusMessage, trailers) {
+    listeners.end.forEach(function (handler) {
+      handler();
+    });
+    listeners.status.forEach(function (handler) {
+      handler({ code: status, details: statusMessage, metadata: trailers });
+    });
+    listeners = null;
+  });
+  client.onMessage(function (message) {
+    listeners.data.forEach(function (handler) {
+      handler(message);
+    })
+  });
+  client.start(metadata);
+  return {
+    on: function (type, handler) {
+      listeners[type].push(handler);
+      return this;
+    },
+    write: function (requestMessage) {
+      client.send(requestMessage);
+      return this;
+    },
+    end: function () {
+      client.finishSend();
+    },
+    cancel: function () {
+      listeners = null;
       client.close();
     }
   };

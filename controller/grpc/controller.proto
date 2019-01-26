@@ -11,6 +11,9 @@ service Controller {
   rpc ListApps (ListAppsRequest) returns (ListAppsResponse) {
     option (google.api.http).get = "/v2/apps";
   };
+  rpc ListAppsStream (stream ListAppsRequest) returns (stream ListAppsResponse) {
+    option (google.api.http).get = "/v2/apps";
+  };
   rpc GetApp (GetAppRequest) returns (App) {
     option (google.api.http).get = "/v2/{name=apps/-}";
   };

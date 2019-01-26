@@ -23,6 +23,7 @@ import dataStore from './dataStore';
 
 export interface Client {
 	listApps: () => Promise<App[]>;
+	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
 	getApp: (name: string) => Promise<App>;
 	updateApp: (app: App) => Promise<App>;
 	getAppRelease: (appName: string) => Promise<Release>;
@@ -34,6 +35,7 @@ export interface Client {
 }
 
 export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
+export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
 
 export interface StreamEventsOptions {}
 
@@ -55,6 +57,16 @@ class _Client implements Client {
 				}
 			});
 		});
+	}
+
+	public listAppsStream(cb: ListAppsStreamCallback): () => void {
+		const stream = this._cc.listAppsStream();
+		stream.write(new ListAppsRequest());
+		stream.on('data', (response: ListAppsResponse) => {
+			cb(response.getAppsList(), null);
+		});
+		// TODO(jvatic): Handle stream error
+		return stream.cancel;
 	}
 
 	public getApp(name: string): Promise<App> {

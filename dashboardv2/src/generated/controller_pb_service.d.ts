@@ -13,6 +13,15 @@ type ControllerListApps = {
   readonly responseType: typeof controller_pb.ListAppsResponse;
 };
 
+type ControllerListAppsStream = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: true;
+  readonly responseStream: true;
+  readonly requestType: typeof controller_pb.ListAppsRequest;
+  readonly responseType: typeof controller_pb.ListAppsResponse;
+};
+
 type ControllerGetApp = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -97,6 +106,7 @@ type ControllerStreamEvents = {
 export class Controller {
   static readonly serviceName: string;
   static readonly ListApps: ControllerListApps;
+  static readonly ListAppsStream: ControllerListAppsStream;
   static readonly GetApp: ControllerGetApp;
   static readonly UpdateApp: ControllerUpdateApp;
   static readonly GetAppRelease: ControllerGetAppRelease;
@@ -149,6 +159,7 @@ export class ControllerClient {
     requestMessage: controller_pb.ListAppsRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.ListAppsResponse|null) => void
   ): UnaryResponse;
+  listAppsStream(metadata?: grpc.Metadata): BidirectionalStream<controller_pb.ListAppsRequest, controller_pb.ListAppsResponse>;
   getApp(
     requestMessage: controller_pb.GetAppRequest,
     metadata: grpc.Metadata,
