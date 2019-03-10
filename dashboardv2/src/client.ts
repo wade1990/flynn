@@ -25,6 +25,7 @@ export interface Client {
 	listApps: () => Promise<App[]>;
 	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
 	getApp: (name: string) => Promise<App>;
+	streamApp: (name: string, cb: StreamAppCallback) => () => void;
 	updateApp: (app: App) => Promise<App>;
 	getAppRelease: (appName: string) => Promise<Release>;
 	getRelease: (name: string) => Promise<Release>;
@@ -36,6 +37,7 @@ export interface Client {
 
 export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
 export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
+export type StreamAppCallback = (app: App, error: Error | null) => void;
 
 export interface StreamEventsOptions {}
 
@@ -82,6 +84,17 @@ class _Client implements Client {
 				}
 			});
 		});
+	}
+
+	public streamApp(name: string, cb: StreamAppCallback): () => void {
+		const getAppRequest = new GetAppRequest();
+		getAppRequest.setName(name);
+		const stream = this._cc.streamApp(getAppRequest);
+		stream.on('data', (response: App) => {
+			cb(response, null);
+		});
+		// TODO(jvatic): Handle stream error
+		return stream.cancel;
 	}
 
 	public updateApp(app: App): Promise<App> {

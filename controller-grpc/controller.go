@@ -217,6 +217,63 @@ func (s *server) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {
 	return convertApp(ctApp), nil
 }
 
+func (s *server) StreamApp(req *GetAppRequest, stream Controller_StreamAppServer) error {
+	var app *App
+	var appMtx sync.RWMutex
+	appID := parseIDFromName(req.Name, "apps")
+	refreshApp := func() error {
+		appMtx.Lock()
+		defer appMtx.Unlock()
+		ctApp, err := s.Client.GetApp(appID)
+		if err != nil {
+			return err
+		}
+		app = convertApp(ctApp)
+		return nil
+	}
+
+	sendResponse := func() {
+		appMtx.RLock()
+		stream.Send(app)
+		appMtx.RUnlock()
+	}
+
+	var wg sync.WaitGroup
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		AppID:       appID,
+		ObjectTypes: []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease},
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if err := refreshApp(); err != nil {
+				fmt.Printf("StreamApp: Error refreshing app: %s\n", err)
+				continue
+			}
+			sendResponse()
+
+			// wait for events before refreshing app and sending respond again
+			if _, ok := <-events; !ok {
+				break
+			}
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
+}
+
 func backConvertApp(a *App) *ct.App {
 	return &ct.App{
 		ID:            parseIDFromName(a.Name, "apps"),
