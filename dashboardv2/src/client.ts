@@ -28,6 +28,7 @@ export interface Client {
 	streamApp: (name: string, cb: StreamAppCallback) => () => void;
 	updateApp: (app: App) => Promise<App>;
 	getAppRelease: (appName: string) => Promise<Release>;
+	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
@@ -38,6 +39,7 @@ export interface Client {
 export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
 export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
 export type StreamAppCallback = (app: App, error: Error | null) => void;
+export type StreamAppReleaseCallback = (release: Release, error: Error | null) => void;
 
 export interface StreamEventsOptions {}
 
@@ -125,6 +127,17 @@ class _Client implements Client {
 				}
 			});
 		});
+	}
+
+	public streamAppRelease(appName: string, cb: StreamAppReleaseCallback): () => void {
+		const req = new GetAppReleaseRequest();
+		req.setParent(appName);
+		const stream = this._cc.streamAppRelease(req);
+		stream.on('data', (response: Release) => {
+			cb(response, null);
+		});
+		// TODO(jvatic): Handle stream error
+		return stream.cancel;
 	}
 
 	public getRelease(name: string): Promise<Release> {

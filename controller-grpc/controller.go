@@ -438,6 +438,63 @@ func (s *server) GetAppRelease(ctx context.Context, req *GetAppReleaseRequest) (
 	return convertRelease(release), nil
 }
 
+func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_StreamAppReleaseServer) error {
+	var release *Release
+	var releaseMtx sync.RWMutex
+	appID := parseIDFromName(req.Parent, "apps")
+	refreshRelease := func() error {
+		releaseMtx.Lock()
+		defer releaseMtx.Unlock()
+		ctRelease, err := s.Client.GetAppRelease(appID)
+		if err != nil {
+			return err
+		}
+		release = convertRelease(ctRelease)
+		return nil
+	}
+
+	sendResponse := func() {
+		releaseMtx.RLock()
+		stream.Send(release)
+		releaseMtx.RUnlock()
+	}
+
+	var wg sync.WaitGroup
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		AppID:       appID,
+		ObjectTypes: []ct.EventType{ct.EventTypeAppRelease},
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if err := refreshRelease(); err != nil {
+				fmt.Printf("StreamApp: Error refreshing app: %s\n", err)
+				continue
+			}
+			sendResponse()
+
+			// wait for events before refreshing release and sending respond again
+			if _, ok := <-events; !ok {
+				break
+			}
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
+}
+
 func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
 	releaseID := parseIDFromName(req.Name, "releases")
 	if releaseID == "" {

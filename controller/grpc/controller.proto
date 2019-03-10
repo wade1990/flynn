@@ -26,6 +26,9 @@ service Controller {
   rpc GetAppRelease(GetAppReleaseRequest) returns (Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/release";
   };
+  rpc StreamAppRelease(GetAppReleaseRequest) returns (stream Release) {
+    option (google.api.http).get = "/v2/{{name=apps/-}/release";
+  };
   rpc GetRelease(GetReleaseRequest) returns (Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/releases/-";
   };
