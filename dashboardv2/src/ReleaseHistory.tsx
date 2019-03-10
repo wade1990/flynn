@@ -8,7 +8,6 @@ import { CheckmarkIcon } from 'grommet';
 
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
-import dataStore from './dataStore';
 import { Release, Deployment } from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
@@ -71,6 +70,16 @@ export class ReleaseHistory extends React.Component<Props, State> {
 			selectedReleaseName: props.selectedReleaseName || props.currentReleaseName
 		};
 		this._submitHandler = this._submitHandler.bind(this);
+	}
+
+	public componentDidUpdate(prevProps: Props, prevState: State) {
+		const { currentReleaseName } = this.props;
+		const { selectedReleaseName } = this.state;
+		if (selectedReleaseName === prevProps.currentReleaseName && currentReleaseName !== prevState.selectedReleaseName) {
+			this.setState({
+				selectedReleaseName: currentReleaseName
+			});
+		}
 	}
 
 	public render() {
@@ -205,7 +214,7 @@ interface WrappedState {
 }
 
 class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> {
-	private _releasesUnsub: () => void;
+	private __streamReleasesCancel: () => void;
 	constructor(props: WrappedProps) {
 		super(props);
 		this.state = {
@@ -214,7 +223,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			isDeploying: false,
 			releaseName: ''
 		};
-		this._releasesUnsub = () => {};
+		this.__streamReleasesCancel = () => {};
 		this._handleSubmit = this._handleSubmit.bind(this);
 		this._handleDeployCancel = this._handleDeployCancel.bind(this);
 		this._handleDeploymentCreate = this._handleDeploymentCreate.bind(this);
@@ -224,14 +233,8 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		this._fetchReleases();
 	}
 
-	public componentDidUpdate(prevProps: WrappedProps) {
-		if (prevProps.currentReleaseName !== this.props.currentReleaseName) {
-			this._fetchReleases();
-		}
-	}
-
 	public componentWillUnmount() {
-		this._releasesUnsub();
+		this.__streamReleasesCancel();
 	}
 
 	private _fetchReleases() {
@@ -239,28 +242,17 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		this.setState({
 			releasesLoading: true
 		});
-		return client
-			.listReleases(appName)
-			.then((releases) => {
-				const watcher = dataStore.watch(...releases.map((r) => r.getName()));
-				watcher.arrayWatcher((releases) => {
-					this.setState({
-						releases: releases as Release[]
-					});
-				});
-				this._releasesUnsub = watcher.unsubscribe;
+		this.__streamReleasesCancel();
+		this.__streamReleasesCancel = client.listReleasesStream(appName, (releases: Release[], error: Error | null) => {
+			if (error) {
+				return handleError(error);
+			}
 
-				this.setState({
-					releasesLoading: false,
-					releases
-				});
-			})
-			.catch((error) => {
-				this.setState({
-					releasesLoading: false
-				});
-				handleError(error);
+			this.setState({
+				releasesLoading: false,
+				releases
 			});
+		});
 	}
 
 	public render() {
@@ -303,11 +295,9 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	}
 
 	private _handleDeploymentCreate(deployment: Deployment) {
-		this._fetchReleases().then(() => {
-			this.setState({
-				isDeploying: false,
-				releaseName: ''
-			});
+		this.setState({
+			isDeploying: false,
+			releaseName: ''
 		});
 	}
 }
