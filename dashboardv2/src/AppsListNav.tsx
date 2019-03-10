@@ -35,7 +35,6 @@ class AppsListNav extends React.Component<Props, State> {
 	}
 
 	public componentDidMount() {
-		// fetch app and release
 		this._getData();
 	}
 
