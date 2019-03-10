@@ -354,6 +354,7 @@ interface WrappedState {
 	isLoading: boolean;
 	isDeploying: boolean;
 	envState: EnvState | null;
+	newRelease: Release | null;
 }
 
 class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
@@ -364,7 +365,8 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 			release: null,
 			isLoading: true,
 			isDeploying: false,
-			envState: null
+			envState: null,
+			newRelease: null
 		};
 
 		this.__streamAppReleaseCancel = () => {};
@@ -386,7 +388,7 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 
 	public render() {
 		const { appName } = this.props;
-		const { release, isLoading, isDeploying, envState } = this.state;
+		const { release, isLoading, isDeploying, envState, newRelease } = this.state;
 		if (isLoading) {
 			return <Loading />;
 		}
@@ -394,7 +396,7 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 			return (
 				<CreateDeployment
 					appName={appName}
-					buildNewRelease={this._buildNewRelease}
+					newRelease={newRelease || undefined}
 					onCancel={this._handleDeployCancel}
 					onCreate={this._handleDeploymentCreate}
 				/>
@@ -442,6 +444,7 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 			this.setState({
 				release,
 				envState,
+				newRelease: this.state.isDeploying ? this._buildNewRelease(release, envState) : null,
 				isLoading: false
 			});
 		});
@@ -456,13 +459,12 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 	private _handleSubmit(entries: EnvState) {
 		this.setState({
 			isDeploying: true,
+			newRelease: this._buildNewRelease(this.state.release as Release, entries),
 			envState: entries
 		});
 	}
 
-	private _buildNewRelease(currentRelease: Release): Release {
-		const { envState } = this.state;
-		if (!envState) throw new Error('_buildNewRelease invalid state!');
+	private _buildNewRelease(currentRelease: Release, envState: EnvState): Release {
 		const envDiff = protoMapDiff(currentRelease.getEnvMap(), envState.entries());
 		const newRelease = new Release();
 		newRelease.setArtifactsList(currentRelease.getArtifactsList());

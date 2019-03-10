@@ -12,7 +12,7 @@ import { renderRelease } from './Release';
 interface Props extends ErrorHandlerProps, ClientProps {
 	appName: string;
 	releaseName?: string;
-	buildNewRelease?: (currentRelease: Release) => Release;
+	newRelease?: Release;
 	onCancel: () => void;
 	onCreate: (deployment: Deployment) => void;
 }
@@ -32,12 +32,14 @@ class CreateDeployment extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 
+		const { newRelease } = props;
+
 		this.state = {
 			isLoading: true,
 			isCreating: false,
 			currentRelease: null,
 			nextRelease: null,
-			newRelease: null
+			newRelease: newRelease || null
 		};
 
 		this.__streamAppReleaseCancel = () => {};
@@ -48,6 +50,15 @@ class CreateDeployment extends React.Component<Props, State> {
 	public componentDidMount() {
 		this._isMounted = true;
 		this._getData();
+	}
+
+	public componentDidUpdate(prevProps: Props) {
+		const { newRelease } = this.props;
+		if (prevProps.newRelease !== newRelease) {
+			this.setState({
+				newRelease: newRelease || null
+			});
+		}
 	}
 
 	public componentWillUnmount() {
@@ -87,7 +98,7 @@ class CreateDeployment extends React.Component<Props, State> {
 
 	private _getData() {
 		if (!this._isMounted) return;
-		const { appName, releaseName, buildNewRelease, client, handleError } = this.props;
+		const { appName, releaseName, client, handleError } = this.props;
 		this.setState({
 			isLoading: true
 		});
@@ -98,16 +109,17 @@ class CreateDeployment extends React.Component<Props, State> {
 			this.__streamAppReleaseCancel = client.streamAppRelease(
 				appName,
 				(currentRelease: Release, error: Error | null) => {
+					const { newRelease } = this.state;
 					const nextState = {
 						isLoading: false,
 						currentRelease
 					} as State;
 					if (releaseName) {
 						nextState.nextRelease = nextRelease;
-					} else if (buildNewRelease) {
-						nextState.newRelease = buildNewRelease(currentRelease);
+					} else if (newRelease) {
+						nextState.newRelease = newRelease;
 					} else {
-						throw new Error('<CreateDeployment> requires either `releaseName` or `buildNewRelease` props.');
+						throw new Error('<CreateDeployment> requires either `releaseName` or `newRelease` props.');
 					}
 					this.setState(nextState);
 				}
@@ -154,8 +166,7 @@ class CreateDeployment extends React.Component<Props, State> {
 	}
 
 	private _createRelease(newRelease: Release) {
-		const { client, appName, buildNewRelease } = this.props;
-		if (!buildNewRelease) throw new Error('Unexpected lack of buildNewRelease prop!');
+		const { client, appName } = this.props;
 		return client.createRelease(appName, newRelease);
 	}
 
