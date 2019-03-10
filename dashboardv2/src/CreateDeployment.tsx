@@ -27,6 +27,7 @@ interface State {
 
 class CreateDeployment extends React.Component<Props, State> {
 	private _isMounted: boolean;
+	private __streamAppReleaseCancel: () => void;
 
 	constructor(props: Props) {
 		super(props);
@@ -39,6 +40,7 @@ class CreateDeployment extends React.Component<Props, State> {
 			newRelease: null
 		};
 
+		this.__streamAppReleaseCancel = () => {};
 		this._handleNextReleaseSubmit = this._handleNextReleaseSubmit.bind(this);
 		this._handleCancelBtnClick = this._handleCancelBtnClick.bind(this);
 	}
@@ -50,6 +52,7 @@ class CreateDeployment extends React.Component<Props, State> {
 
 	public componentWillUnmount() {
 		this._isMounted = false;
+		this.__streamAppReleaseCancel();
 	}
 
 	public render() {
@@ -88,45 +91,33 @@ class CreateDeployment extends React.Component<Props, State> {
 		this.setState({
 			isLoading: true
 		});
-		if (releaseName) {
-			Promise.all([client.getAppRelease(appName), client.getRelease(releaseName)])
-				.then(([currentRelease, nextRelease]: [Release, Release]) => {
-					if (!this._isMounted) return;
-					this.setState({
+
+		this.__streamAppReleaseCancel();
+		const p = releaseName ? client.getRelease(releaseName) : Promise.resolve(new Release());
+		p.then((nextRelease: Release) => {
+			this.__streamAppReleaseCancel = client.streamAppRelease(
+				appName,
+				(currentRelease: Release, error: Error | null) => {
+					const nextState = {
 						isLoading: false,
-						currentRelease,
-						nextRelease
-					});
-				})
-				.catch((error: Error) => {
-					if (!this._isMounted) return;
-					this.setState({
-						isLoading: false
-					});
-					handleError(error);
-				});
-		} else if (buildNewRelease) {
-			client
-				.getAppRelease(appName)
-				.then((currentRelease: Release) => {
-					if (!this._isMounted) return;
-					const newRelease = buildNewRelease(currentRelease);
-					this.setState({
-						isLoading: false,
-						currentRelease,
-						newRelease
-					});
-				})
-				.catch((error: Error) => {
-					if (!this._isMounted) return;
-					this.setState({
-						isLoading: false
-					});
-					handleError(error);
-				});
-		} else {
-			throw new Error('<CreateDeployment> requires either `releaseName` or `buildNewRelease` props.');
-		}
+						currentRelease
+					} as State;
+					if (releaseName) {
+						nextState.nextRelease = nextRelease;
+					} else if (buildNewRelease) {
+						nextState.newRelease = buildNewRelease(currentRelease);
+					} else {
+						throw new Error('<CreateDeployment> requires either `releaseName` or `buildNewRelease` props.');
+					}
+					this.setState(nextState);
+				}
+			);
+		}).catch((error: Error) => {
+			this.setState({
+				isLoading: false
+			});
+			handleError(error);
+		});
 	}
 
 	private _handleNextReleaseSubmit(e: React.SyntheticEvent) {
@@ -139,7 +130,7 @@ class CreateDeployment extends React.Component<Props, State> {
 		});
 		let p = Promise.resolve(null) as Promise<any>;
 		if (newRelease) {
-			p = this._createRelease().then((release: Release) => {
+			p = this._createRelease(newRelease).then((release: Release) => {
 				return this._createDeployment(release);
 			});
 		} else if (nextRelease) {
@@ -162,13 +153,10 @@ class CreateDeployment extends React.Component<Props, State> {
 		onCancel();
 	}
 
-	private _createRelease() {
+	private _createRelease(newRelease: Release) {
 		const { client, appName, buildNewRelease } = this.props;
 		if (!buildNewRelease) throw new Error('Unexpected lack of buildNewRelease prop!');
-		return client.getAppRelease(appName).then((release) => {
-			const newRelease = buildNewRelease(release);
-			return client.createRelease(appName, newRelease);
-		});
+		return client.createRelease(appName, newRelease);
 	}
 
 	private _createDeployment(release: Release) {
