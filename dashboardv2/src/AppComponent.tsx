@@ -3,7 +3,6 @@ import Heading from 'grommet/components/Heading';
 import Accordion from 'grommet/components/Accordion';
 import AccordionPanel from 'grommet/components/AccordionPanel';
 
-import dataStore, { Resource, WatchFunc } from './dataStore';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { App } from './generated/controller_pb';
@@ -20,27 +19,22 @@ interface State {
 }
 
 class AppComponent extends React.Component<Props, State> {
-	private __dataWatcher: WatchFunc;
+	private __streamAppCancel: () => void;
 	constructor(props: Props) {
 		super(props);
 		this.state = {
 			app: null
 		};
-		this._handleDataChange = this._handleDataChange.bind(this);
+		this.__streamAppCancel = () => {};
 	}
 
 	public componentDidMount() {
-		const appName = this.props.name;
-
-		// watch for changes on app and all sub resources (e.g. release)
-		this.__dataWatcher = dataStore.watch(appName)(this._handleDataChange);
-
 		// fetch app and release
-		this._getData(true);
+		this._getData();
 	}
 
 	public componentWillUnmount() {
-		this.__dataWatcher.unsubscribe();
+		this.__streamAppCancel();
 	}
 
 	public render() {
@@ -68,23 +62,18 @@ class AppComponent extends React.Component<Props, State> {
 		);
 	}
 
-	private _handleDataChange(name: string, resource: Resource | undefined) {
-		this._getData();
-	}
-
-	private _getData(shouldFetch: boolean = false) {
-		// populate app and release from dataStore if available
+	private _getData() {
 		const appName = this.props.name;
-		const app = dataStore.get(appName) as App | null;
-		this.setState({
-			app: app
-		});
-
-		// conditionally fetch app and/or release
 		const { client, handleError } = this.props;
-		if (shouldFetch || !app) {
-			client.getApp(appName).catch(handleError);
-		}
+		this.__streamAppCancel();
+		this.__streamAppCancel = client.streamApp(appName, (app: App, error: Error | null) => {
+			if (error !== null) {
+				return handleError(error);
+			}
+			this.setState({
+				app
+			});
+		});
 	}
 }
 export default withErrorHandler(withClient(AppComponent));
