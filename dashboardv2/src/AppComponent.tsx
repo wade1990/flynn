@@ -54,7 +54,7 @@ class AppComponent extends React.Component<Props, State> {
 
 					<AccordionPanel heading="Environment">
 						<React.Suspense fallback={<Loading />}>
-							<EnvEditor key={app.getRelease()} appName={app.getName()} />
+							<EnvEditor appName={app.getName()} />
 						</React.Suspense>
 					</AccordionPanel>
 				</Accordion>

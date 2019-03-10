@@ -6,11 +6,10 @@ import Button from 'grommet/components/Button';
 import { CheckmarkIcon, SearchInput } from 'grommet';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
-import protoMapDiff, { applyProtoMapDiff } from './util/protoMapDiff';
+import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
-import dataStore, { Resource, WatchFunc } from './dataStore';
 import { Release } from './generated/controller_pb';
 
 import './EnvEditor.scss';
@@ -109,6 +108,30 @@ export class EnvState {
 			},
 			[] as Array<T>
 		);
+	}
+
+	public applyDiff(diff: Diff<string, string>) {
+		diff.forEach((op: DiffOp<string, string>) => {
+			let index = this._entries.toArray().findIndex(([key, value]: [string, string]) => {
+				return key === op.key;
+			});
+			switch (op.op) {
+				case 'add':
+					if (op.value) {
+						if (index === -1) {
+							index = this._entries.toArray().length;
+						}
+						this.setKeyAtIndex(index, op.key);
+						this.setValueAtIndex(index, op.value);
+					}
+					break;
+				case 'remove':
+					if (index !== -1) {
+						this.removeEntryAtIndex(index);
+					}
+					break;
+			}
+		});
 	}
 
 	public setKeyAtIndex(index: number, key: string) {
@@ -256,25 +279,22 @@ class EnvInput extends React.Component<EnvInputProps, EnvInputState> {
 
 export interface Props {
 	entries: EnvState;
+	onChange: (entries: EnvState) => void;
 	onSubmit: (entries: EnvState) => void;
 }
 
-interface State {
-	entries: EnvState;
-}
+interface State {}
 
 class EnvEditor extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
-		this.state = {
-			entries: props.entries
-		};
+		this.state = {};
 		this._searchInputHandler = this._searchInputHandler.bind(this);
 		this._submitHandler = this._submitHandler.bind(this);
 	}
 
 	public render() {
-		const { entries } = this.state;
+		const { entries } = this.props;
 
 		return (
 			<form onSubmit={this._submitHandler} className="env-editor">
@@ -299,35 +319,29 @@ class EnvEditor extends React.Component<Props, State> {
 	}
 
 	private _keyChangeHandler(index: number, key: string) {
-		let nextEntries = this.state.entries.dup();
+		let nextEntries = this.props.entries.dup();
 		if (key.length > 0) {
 			nextEntries.setKeyAtIndex(index, key);
 		} else {
 			nextEntries.removeEntryAtIndex(index);
 		}
-		this.setState({
-			entries: nextEntries
-		});
+		this.props.onChange(nextEntries);
 	}
 
 	private _valueChangeHandler(index: number, value: string) {
-		let nextEntries = this.state.entries.dup();
+		let nextEntries = this.props.entries.dup();
 		nextEntries.setValueAtIndex(index, value);
-		this.setState({
-			entries: nextEntries
-		});
+		this.props.onChange(nextEntries);
 	}
 
 	private _searchInputHandler(e: React.ChangeEvent<HTMLInputElement>) {
 		const value = e.target.value || '';
-		this.setState({
-			entries: this.state.entries.filtered(value)
-		});
+		this.props.onChange(this.props.entries.filtered(value));
 	}
 
 	private _submitHandler(e: React.SyntheticEvent) {
 		e.preventDefault();
-		this.props.onSubmit(this.state.entries);
+		this.props.onSubmit(this.props.entries);
 	}
 }
 
@@ -343,7 +357,7 @@ interface WrappedState {
 }
 
 class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
-	private _dataWatcher: WatchFunc | null;
+	private __streamAppReleaseCancel: () => void;
 	constructor(props: WrappedProps) {
 		super(props);
 		this.state = {
@@ -353,8 +367,9 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 			envState: null
 		};
 
-		this._dataWatcher = null;
+		this.__streamAppReleaseCancel = () => {};
 		this._getData = this._getData.bind(this);
+		this._handleChange = this._handleChange.bind(this);
 		this._handleSubmit = this._handleSubmit.bind(this);
 		this._buildNewRelease = this._buildNewRelease.bind(this);
 		this._handleDeployCancel = this._handleDeployCancel.bind(this);
@@ -366,7 +381,7 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 	}
 
 	public componentWillUnmount() {
-		this._unwatchData();
+		this.__streamAppReleaseCancel();
 	}
 
 	public render() {
@@ -386,50 +401,56 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 			);
 		}
 		if (!release) throw new Error('Unexpected lack of release!');
-		return <EnvEditor entries={envState || new EnvState(release.getEnvMap())} onSubmit={this._handleSubmit} />;
-	}
-
-	private _watchData(releaseName: string) {
-		const watcher = (this._dataWatcher = dataStore.watch(releaseName));
-		watcher((name: string, r: Resource | undefined) => {
-			if (!r) {
-				return;
-			}
-			this.setState({
-				release: r as Release
-			});
-		});
-	}
-
-	private _unwatchData() {
-		if (!this._dataWatcher) return;
-		this._dataWatcher.unsubscribe();
+		return (
+			<EnvEditor
+				entries={envState || new EnvState(release.getEnvMap())}
+				onChange={this._handleChange}
+				onSubmit={this._handleSubmit}
+			/>
+		);
 	}
 
 	private _getData() {
 		const { client, appName, handleError } = this.props;
 		this.setState({
 			release: null,
+			envState: null,
 			isLoading: true
 		});
-		this._unwatchData();
-		return client
-			.getAppRelease(appName)
-			.then((release) => {
-				this._watchData(release.getName());
+		this.__streamAppReleaseCancel();
+		this.__streamAppReleaseCancel = client.streamAppRelease(appName, (release: Release, error: Error | null) => {
+			if (error) {
+				return handleError(error);
+			}
 
-				this.setState({
-					release,
-					isLoading: false
-				});
-			})
-			.catch((error: Error) => {
-				this.setState({
-					release: null,
-					isLoading: false
-				});
-				handleError(error);
+			// maintain any changes made
+			const envState = new EnvState(release.getEnvMap());
+			const prevEnvState = this.state.envState;
+			const prevRelease = this.state.release;
+			if (!prevRelease || prevRelease.getName() !== release.getName()) {
+				if (prevEnvState && prevEnvState.hasChanges) {
+					const envDiff = protoMapDiff(
+						prevRelease ? prevRelease.getEnvMap() : new jspb.Map<string, string>([]),
+						prevEnvState.entries()
+					);
+					if (envDiff.length) {
+						envState.applyDiff(envDiff);
+					}
+				}
+			}
+
+			this.setState({
+				release,
+				envState,
+				isLoading: false
 			});
+		});
+	}
+
+	private _handleChange(entries: EnvState) {
+		this.setState({
+			envState: entries
+		});
 	}
 
 	private _handleSubmit(entries: EnvState) {
@@ -458,11 +479,9 @@ class WrappedEnvEditor extends React.Component<WrappedProps, WrappedState> {
 	}
 
 	private _handleDeploymentCreate() {
-		this._getData().then(() => {
-			this.setState({
-				isDeploying: false,
-				envState: null
-			});
+		this.setState({
+			isDeploying: false,
+			envState: null
 		});
 	}
 }
