@@ -85,6 +85,15 @@ type ControllerListReleases = {
   readonly responseType: typeof controller_pb.ListReleasesResponse;
 };
 
+type ControllerListReleasesStream = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: true;
+  readonly responseStream: true;
+  readonly requestType: typeof controller_pb.ListReleasesRequest;
+  readonly responseType: typeof controller_pb.ListReleasesResponse;
+};
+
 type ControllerStreamAppLog = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -132,6 +141,7 @@ export class Controller {
   static readonly StreamAppRelease: ControllerStreamAppRelease;
   static readonly GetRelease: ControllerGetRelease;
   static readonly ListReleases: ControllerListReleases;
+  static readonly ListReleasesStream: ControllerListReleasesStream;
   static readonly StreamAppLog: ControllerStreamAppLog;
   static readonly CreateRelease: ControllerCreateRelease;
   static readonly CreateDeployment: ControllerCreateDeployment;
@@ -227,6 +237,7 @@ export class ControllerClient {
     requestMessage: controller_pb.ListReleasesRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.ListReleasesResponse|null) => void
   ): UnaryResponse;
+  listReleasesStream(metadata?: grpc.Metadata): BidirectionalStream<controller_pb.ListReleasesRequest, controller_pb.ListReleasesResponse>;
   streamAppLog(requestMessage: controller_pb.StreamAppLogRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.LogChunk>;
   createRelease(
     requestMessage: controller_pb.CreateReleaseRequest,

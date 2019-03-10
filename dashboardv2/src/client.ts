@@ -31,6 +31,11 @@ export interface Client {
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
+	listReleasesStream: (
+		parentName: string,
+		cb: ListReleasesStreamCallback,
+		filterLabels?: { [key: string]: string }
+	) => () => void;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
 	streamEvents: (options: StreamEventsOptions, callback: StreamEventsCallback) => ResponseStream<Event>;
@@ -40,6 +45,7 @@ export type StreamEventsCallback = (event: Event | null, error: Error | null) =>
 export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
 export type StreamAppCallback = (app: App, error: Error | null) => void;
 export type StreamAppReleaseCallback = (release: Release, error: Error | null) => void;
+export type ListReleasesStreamCallback = (releases: Release[], error: Error | null) => void;
 
 export interface StreamEventsOptions {}
 
@@ -155,16 +161,21 @@ class _Client implements Client {
 		});
 	}
 
+	private _buildReleasesReqest(parentName: string, filterLabels?: { [key: string]: string }): ListReleasesRequest {
+		const req = new ListReleasesRequest();
+		req.setParent(parentName);
+		if (filterLabels) {
+			const fl = req.getFilterLabelsMap();
+			for (const [k, v] of Object.entries(filterLabels)) {
+				fl.set(k, v);
+			}
+		}
+		return req;
+	}
+
 	public listReleases(parentName: string, filterLabels?: { [key: string]: string }): Promise<Release[]> {
 		return new Promise<Release[]>((resolve, reject) => {
-			const req = new ListReleasesRequest();
-			req.setParent(parentName);
-			if (filterLabels) {
-				const fl = req.getFilterLabelsMap();
-				for (const [k, v] of Object.entries(filterLabels)) {
-					fl.set(k, v);
-				}
-			}
+			const req = this._buildReleasesReqest(parentName, filterLabels);
 			this._cc.listReleases(req, (error: ServiceError, response: ListReleasesResponse) => {
 				if (response && error === null) {
 					const releases = response.getReleasesList();
@@ -175,6 +186,21 @@ class _Client implements Client {
 				}
 			});
 		});
+	}
+
+	public listReleasesStream(
+		parentName: string,
+		cb: ListReleasesStreamCallback,
+		filterLabels?: { [key: string]: string }
+	): () => void {
+		const stream = this._cc.listReleasesStream();
+		const req = this._buildReleasesReqest(parentName, filterLabels);
+		stream.write(req);
+		stream.on('data', (response: ListReleasesResponse) => {
+			cb(response.getReleasesList(), null);
+		});
+		// TODO(jvatic): Handle stream error
+		return stream.cancel;
 	}
 
 	public createRelease(parentName: string, release: Release): Promise<Release> {

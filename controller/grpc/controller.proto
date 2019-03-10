@@ -35,6 +35,9 @@ service Controller {
   rpc ListReleases(ListReleasesRequest) returns (ListReleasesResponse) {
     option (google.api.http).get = "/v2/{{name=apps/-}/releases";
   };
+  rpc ListReleasesStream(stream ListReleasesRequest) returns (stream ListReleasesResponse) {
+    option (google.api.http).get = "/v2/{{name=apps/-}/releases";
+  };
   rpc StreamAppLog (StreamAppLogRequest) returns (stream LogChunk) {
     option (google.api.http).get = "/v2/{name=apps/-}/log}";
   };

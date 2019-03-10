@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	fmt "fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -507,7 +508,7 @@ func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Relea
 	return convertRelease(release), nil
 }
 
-func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*ListReleasesResponse, error) {
+func (s *server) listReleases(req *ListReleasesRequest) ([]*Release, error) {
 	appID := parseIDFromName(req.Parent, "apps")
 	var ctReleases []*ct.Release
 	if appID == "" {
@@ -545,7 +546,97 @@ func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*L
 		}
 	}
 
-	return &ListReleasesResponse{Releases: filtered}, nil
+	return filtered, nil
+}
+
+func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*ListReleasesResponse, error) {
+	releases, err := s.listReleases(req)
+	if err != nil {
+		return nil, err
+	}
+	return &ListReleasesResponse{Releases: releases}, nil
+}
+
+func (s *server) ListReleasesStream(stream Controller_ListReleasesStreamServer) error {
+	var req *ListReleasesRequest
+	var reqMtx sync.RWMutex
+	var releases []*Release
+	var releasesMtx sync.RWMutex
+	refreshReleases := func() error {
+		releasesMtx.Lock()
+		defer releasesMtx.Unlock()
+		reqMtx.RLock()
+		defer reqMtx.RUnlock()
+		var err error
+		if req != nil {
+			releases, err = s.listReleases(req)
+		}
+		return err
+	}
+
+	sendResponse := func() {
+		releasesMtx.RLock()
+		stream.Send(&ListReleasesResponse{
+			Releases:      releases,
+			NextPageToken: "", // TODO(jvatic): Pagination
+		})
+		releasesMtx.RUnlock()
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			r, err := stream.Recv()
+			if err != nil {
+				if err != io.EOF {
+					fmt.Printf("ListReleasesStream: Error receiving request: %s\n", err)
+				}
+				break
+			}
+			reqMtx.Lock()
+			req = r
+			reqMtx.Unlock()
+			// TODO(jvatic): Pagination
+			if err := refreshReleases(); err != nil {
+				fmt.Printf("ListReleasesStream: Error refreshing releases: %s\n", err)
+				continue
+			}
+			sendResponse()
+		}
+	}()
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		ObjectTypes: []ct.EventType{ct.EventTypeRelease, ct.EventTypeReleaseDeletion},
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if _, ok := <-events; !ok {
+				break
+			}
+			if err := refreshReleases(); err != nil {
+				fmt.Printf("ListReleasesStream: Error refreshing releases: %s\n", err)
+				continue
+			}
+			sendResponse()
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
 }
 
 func (s *server) StreamAppLog(*StreamAppLogRequest, Controller_StreamAppLogServer) error {
