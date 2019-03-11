@@ -22,7 +22,6 @@ import {
 	Event,
 	StreamEventsRequest
 } from './generated/controller_pb';
-import dataStore from './dataStore';
 
 export interface Client {
 	listApps: () => Promise<App[]>;
@@ -66,7 +65,6 @@ class _Client implements Client {
 			this._cc.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
 				if (error === null) {
 					const apps = response ? response.getAppsList() : [];
-					dataStore.add(...apps);
 					resolve(apps);
 				} else {
 					reject(error);
@@ -91,7 +89,6 @@ class _Client implements Client {
 		return new Promise<App>((resolve, reject) => {
 			this._cc.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
 				if (response && error === null) {
-					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -117,7 +114,6 @@ class _Client implements Client {
 			req.setApp(app);
 			this._cc.updateApp(req, (error: ServiceError, response: App | null) => {
 				if (response && error === null) {
-					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -132,7 +128,6 @@ class _Client implements Client {
 		return new Promise<Release>((resolve, reject) => {
 			this._cc.getAppRelease(req, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
-					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -184,7 +179,6 @@ class _Client implements Client {
 		return new Promise<Release>((resolve, reject) => {
 			this._cc.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
-					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -211,7 +205,6 @@ class _Client implements Client {
 			this._cc.listReleases(req, (error: ServiceError, response: ListReleasesResponse) => {
 				if (response && error === null) {
 					const releases = response.getReleasesList();
-					dataStore.add(...releases);
 					resolve(releases);
 				} else {
 					reject(error);
@@ -242,7 +235,6 @@ class _Client implements Client {
 		return new Promise<Release>((resolve, reject) => {
 			this._cc.createRelease(req, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
-					dataStore.add(response);
 					resolve(response);
 				} else {
 					reject(error);
@@ -264,7 +256,6 @@ class _Client implements Client {
 					const d = de && de.getDeployment();
 					if (d) {
 						deployment = d;
-						dataStore.add(deployment);
 					}
 				}
 			});

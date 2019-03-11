@@ -16,7 +16,6 @@ import Loading from './Loading';
 import AppsListNav from './AppsListNav';
 import withClient, { ClientProps } from './withClient';
 import ExternalAnchor from './ExternalAnchor';
-import dataStore, { DataStore } from './dataStore';
 import { registerErrorHandler } from './withErrorHandler';
 
 const AppComponent = React.lazy(() => import('./AppComponent'));
@@ -33,11 +32,9 @@ import { default as client, Client } from './client';
 declare global {
 	interface Window {
 		client: Client;
-		dataStore: DataStore;
 	}
 }
 if (typeof window !== 'undefined') {
-	window.dataStore = dataStore;
 	window.client = client;
 }
 

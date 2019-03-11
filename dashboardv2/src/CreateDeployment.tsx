@@ -5,7 +5,6 @@ import { CheckmarkIcon } from 'grommet';
 import { Release, Deployment } from './generated/controller_pb';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import withClient, { ClientProps } from './withClient';
-import dataStore from './dataStore';
 import Loading from './Loading';
 import { renderRelease } from './Release';
 
@@ -175,16 +174,9 @@ class CreateDeployment extends React.Component<Props, State> {
 		const { currentRelease } = this.state;
 		return client.createDeployment(appName, release.getName()).then((deployment: Deployment) => {
 			if (currentRelease) {
-				const prevReleaseName = currentRelease.getName();
-				dataStore.del(prevReleaseName);
-				return client
-					.getApp(appName)
-					.then((app) => {
-						dataStore.add(app);
-					})
-					.then(() => {
-						return deployment;
-					});
+				return client.getApp(appName).then(() => {
+					return deployment;
+				});
 			}
 			return deployment;
 		});
