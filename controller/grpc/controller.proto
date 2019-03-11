@@ -29,6 +29,7 @@ service Controller {
   rpc StreamAppRelease(GetAppReleaseRequest) returns (stream Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/release";
   };
+  rpc UpdateFormation (UpdateFormationRequest) returns (Formation) {};
   rpc StreamAppFormation(GetAppFormationRequest) returns (stream Formation) {
     option (google.api.http).get = "/v2/{{name=apps/-}/formation";
   };
@@ -94,6 +95,12 @@ message ListReleasesResponse {
 message GetAppReleaseRequest {
   // parent = "apps/APP_ID"
   string parent = 1;
+}
+
+message UpdateFormationRequest {
+  // parent = "apps/APP_ID/formations/RELEASE_ID"
+  string parent = 1;
+  Formation formation = 2;
 }
 
 message GetAppFormationRequest {

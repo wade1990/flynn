@@ -506,6 +506,24 @@ func convertFormation(ctFormation *ct.Formation) *Formation {
 	}
 }
 
+func (s *server) UpdateFormation(ctx context.Context, req *UpdateFormationRequest) (*Formation, error) {
+	appID := parseIDFromName(req.Parent, "apps")
+	releaseID := parseIDFromName(req.Parent, "formations")
+	formation := req.Formation
+	ctFormation := &ct.Formation{
+		AppID:     appID,
+		ReleaseID: releaseID,
+		Processes: parseDeploymentProcesses(formation.Processes),
+		Tags:      parseDeploymentTags(formation.Tags),
+		CreatedAt: timestampFromProto(formation.CreateTime),
+		UpdatedAt: timestampFromProto(formation.UpdateTime),
+	}
+	if err := s.Client.PutFormation(ctFormation); err != nil {
+		return nil, err
+	}
+	return convertFormation(ctFormation), nil
+}
+
 func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controller_StreamAppFormationServer) error {
 	var formation *Formation
 	var formationMtx sync.RWMutex
@@ -729,10 +747,26 @@ func (s *server) CreateRelease(ctx context.Context, req *CreateReleaseRequest) (
 	return convertRelease(ctRelease), nil
 }
 
+func parseDeploymentTags(from map[string]*DeploymentProcessTags) map[string]map[string]string {
+	to := make(map[string]map[string]string, len(from))
+	for k, v := range from {
+		to[k] = v.Tags
+	}
+	return to
+}
+
 func convertDeploymentTags(from map[string]map[string]string) map[string]*DeploymentProcessTags {
 	to := make(map[string]*DeploymentProcessTags, len(from))
 	for k, v := range from {
 		to[k] = &DeploymentProcessTags{Tags: v}
+	}
+	return to
+}
+
+func parseDeploymentProcesses(from map[string]int32) map[string]int {
+	to := make(map[string]int, len(from))
+	for k, v := range from {
+		to[k] = int(v)
 	}
 	return to
 }

@@ -16,6 +16,7 @@ import {
 	Release,
 	GetAppFormationRequest,
 	Formation,
+	UpdateFormationRequest,
 	CreateDeploymentRequest,
 	Deployment,
 	Event,
@@ -32,6 +33,7 @@ export interface Client {
 	getAppRelease: (appName: string) => Promise<Release>;
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
+	updateFormation: (formation: Formation) => Promise<Formation>;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	listReleasesStream: (
@@ -159,6 +161,21 @@ class _Client implements Client {
 		});
 		// TODO(jvatic): Handle stream error
 		return stream.cancel;
+	}
+
+	public updateFormation(formation: Formation): Promise<Formation> {
+		return new Promise<Formation>((resolve, reject) => {
+			const req = new UpdateFormationRequest();
+			req.setFormation(formation);
+			req.setParent(formation.getName());
+			this._cc.updateFormation(req, (error: ServiceError, response: Formation | null) => {
+				if (response && error === null) {
+					resolve(response);
+				} else {
+					reject(error);
+				}
+			});
+		});
 	}
 
 	public getRelease(name: string): Promise<Release> {

@@ -73,6 +73,15 @@ Controller.StreamAppRelease = {
   responseType: controller_pb.Release
 };
 
+Controller.UpdateFormation = {
+  methodName: "UpdateFormation",
+  service: Controller,
+  requestStream: false,
+  responseStream: false,
+  requestType: controller_pb.UpdateFormationRequest,
+  responseType: controller_pb.Formation
+};
+
 Controller.StreamAppFormation = {
   methodName: "StreamAppFormation",
   service: Controller,
@@ -394,6 +403,37 @@ ControllerClient.prototype.streamAppRelease = function streamAppRelease(requestM
     },
     cancel: function () {
       listeners = null;
+      client.close();
+    }
+  };
+};
+
+ControllerClient.prototype.updateFormation = function updateFormation(requestMessage, metadata, callback) {
+  if (arguments.length === 2) {
+    callback = arguments[1];
+  }
+  var client = grpc.unary(Controller.UpdateFormation, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onEnd: function (response) {
+      if (callback) {
+        if (response.status !== grpc.Code.OK) {
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
+        } else {
+          callback(null, response.message);
+        }
+      }
+    }
+  });
+  return {
+    cancel: function () {
+      callback = null;
       client.close();
     }
   };

@@ -182,6 +182,32 @@ export namespace GetAppReleaseRequest {
   }
 }
 
+export class UpdateFormationRequest extends jspb.Message {
+  getParent(): string;
+  setParent(value: string): void;
+
+  hasFormation(): boolean;
+  clearFormation(): void;
+  getFormation(): Formation | undefined;
+  setFormation(value?: Formation): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): UpdateFormationRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: UpdateFormationRequest): UpdateFormationRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: UpdateFormationRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): UpdateFormationRequest;
+  static deserializeBinaryFromReader(message: UpdateFormationRequest, reader: jspb.BinaryReader): UpdateFormationRequest;
+}
+
+export namespace UpdateFormationRequest {
+  export type AsObject = {
+    parent: string,
+    formation?: Formation.AsObject,
+  }
+}
+
 export class GetAppFormationRequest extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
