@@ -63,7 +63,7 @@ goog.exportSymbol('proto.controller.Route', null, global);
 goog.exportSymbol('proto.controller.Route.RouteType', null, global);
 goog.exportSymbol('proto.controller.RouteDeletion', null, global);
 goog.exportSymbol('proto.controller.ScaleRequest', null, global);
-goog.exportSymbol('proto.controller.ScaleRequest.ScaleRequestState', null, global);
+goog.exportSymbol('proto.controller.ScaleRequestState', null, global);
 goog.exportSymbol('proto.controller.Sink', null, global);
 goog.exportSymbol('proto.controller.SinkDeletion', null, global);
 goog.exportSymbol('proto.controller.StreamAppLogRequest', null, global);
@@ -1638,7 +1638,7 @@ proto.controller.ScaleRequest.deserializeBinaryFromReader = function(msg, reader
       msg.setParent(value);
       break;
     case 2:
-      var value = /** @type {!proto.controller.ScaleRequest.ScaleRequestState} */ (reader.readEnum());
+      var value = /** @type {!proto.controller.ScaleRequestState} */ (reader.readEnum());
       msg.setState(value);
       break;
     case 3:
@@ -1754,15 +1754,6 @@ proto.controller.ScaleRequest.serializeBinaryToWriter = function(message, writer
 
 
 /**
- * @enum {number}
- */
-proto.controller.ScaleRequest.ScaleRequestState = {
-  PENDING: 0,
-  CANCELLED: 1,
-  COMPLETE: 2
-};
-
-/**
  * optional string parent = 1;
  * @return {string}
  */
@@ -1779,14 +1770,14 @@ proto.controller.ScaleRequest.prototype.setParent = function(value) {
 
 /**
  * optional ScaleRequestState state = 2;
- * @return {!proto.controller.ScaleRequest.ScaleRequestState}
+ * @return {!proto.controller.ScaleRequestState}
  */
 proto.controller.ScaleRequest.prototype.getState = function() {
-  return /** @type {!proto.controller.ScaleRequest.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+  return /** @type {!proto.controller.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
 };
 
 
-/** @param {!proto.controller.ScaleRequest.ScaleRequestState} value */
+/** @param {!proto.controller.ScaleRequestState} value */
 proto.controller.ScaleRequest.prototype.setState = function(value) {
   jspb.Message.setProto3EnumField(this, 2, value);
 };
@@ -1972,6 +1963,7 @@ proto.controller.Formation.prototype.toObject = function(opt_includeInstance) {
 proto.controller.Formation.toObject = function(includeInstance, msg) {
   var f, obj = {
     parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    state: jspb.Message.getFieldWithDefault(msg, 2, 0),
     processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
     tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
     createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
@@ -2017,23 +2009,27 @@ proto.controller.Formation.deserializeBinaryFromReader = function(msg, reader) {
       msg.setParent(value);
       break;
     case 2:
+      var value = /** @type {!proto.controller.ScaleRequestState} */ (reader.readEnum());
+      msg.setState(value);
+      break;
+    case 3:
       var value = msg.getProcessesMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
          });
       break;
-    case 3:
+    case 4:
       var value = msg.getTagsMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
          });
       break;
-    case 4:
+    case 5:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
       break;
-    case 5:
+    case 6:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setUpdateTime(value);
@@ -2074,18 +2070,25 @@ proto.controller.Formation.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
+  f = message.getState();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      2,
+      f
+    );
+  }
   f = message.getProcessesMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(2, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
   }
   f = message.getTagsMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
   }
   f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      4,
+      5,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -2093,7 +2096,7 @@ proto.controller.Formation.serializeBinaryToWriter = function(message, writer) {
   f = message.getUpdateTime();
   if (f != null) {
     writer.writeMessage(
-      5,
+      6,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -2117,14 +2120,29 @@ proto.controller.Formation.prototype.setParent = function(value) {
 
 
 /**
- * map<string, int32> processes = 2;
+ * optional ScaleRequestState state = 2;
+ * @return {!proto.controller.ScaleRequestState}
+ */
+proto.controller.Formation.prototype.getState = function() {
+  return /** @type {!proto.controller.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+};
+
+
+/** @param {!proto.controller.ScaleRequestState} value */
+proto.controller.Formation.prototype.setState = function(value) {
+  jspb.Message.setProto3EnumField(this, 2, value);
+};
+
+
+/**
+ * map<string, int32> processes = 3;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,number>}
  */
 proto.controller.Formation.prototype.getProcessesMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,number>} */ (
-      jspb.Message.getMapField(this, 2, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
       null));
 };
 
@@ -2135,14 +2153,14 @@ proto.controller.Formation.prototype.clearProcessesMap = function() {
 
 
 /**
- * map<string, DeploymentProcessTags> tags = 3;
+ * map<string, DeploymentProcessTags> tags = 4;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
  */
 proto.controller.Formation.prototype.getTagsMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
-      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
       proto.controller.DeploymentProcessTags));
 };
 
@@ -2153,18 +2171,18 @@ proto.controller.Formation.prototype.clearTagsMap = function() {
 
 
 /**
- * optional google.protobuf.Timestamp create_time = 4;
+ * optional google.protobuf.Timestamp create_time = 5;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.Formation.prototype.getCreateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 4));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.Formation.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 4, value);
+  jspb.Message.setWrapperField(this, 5, value);
 };
 
 
@@ -2178,23 +2196,23 @@ proto.controller.Formation.prototype.clearCreateTime = function() {
  * @return {!boolean}
  */
 proto.controller.Formation.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 4) != null;
+  return jspb.Message.getField(this, 5) != null;
 };
 
 
 /**
- * optional google.protobuf.Timestamp update_time = 5;
+ * optional google.protobuf.Timestamp update_time = 6;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.Formation.prototype.getUpdateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 6));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.Formation.prototype.setUpdateTime = function(value) {
-  jspb.Message.setWrapperField(this, 5, value);
+  jspb.Message.setWrapperField(this, 6, value);
 };
 
 
@@ -2208,7 +2226,7 @@ proto.controller.Formation.prototype.clearUpdateTime = function() {
  * @return {!boolean}
  */
 proto.controller.Formation.prototype.hasUpdateTime = function() {
-  return jspb.Message.getField(this, 5) != null;
+  return jspb.Message.getField(this, 6) != null;
 };
 
 
@@ -12244,6 +12262,15 @@ proto.controller.LogAggregatorLogOpts.prototype.clearStreamTypesList = function(
   this.setStreamTypesList([]);
 };
 
+
+/**
+ * @enum {number}
+ */
+proto.controller.ScaleRequestState = {
+  SCALE_PENDING: 0,
+  SCALE_CANCELLED: 1,
+  SCALE_COMPLETE: 2
+};
 
 /**
  * @enum {number}

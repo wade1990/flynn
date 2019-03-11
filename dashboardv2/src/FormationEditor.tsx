@@ -9,7 +9,7 @@ import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
-import { Formation, ScaleRequest, CreateScaleRequest } from './generated/controller_pb';
+import { Formation, ScaleRequest, ScaleRequestState, CreateScaleRequest } from './generated/controller_pb';
 
 function buildProcessesArray(m: jspb.Map<string, number>): [string, number][] {
 	return m.toArray().sort(([ak, av]: [string, number], [bk, bv]: [string, number]) => {
@@ -25,10 +25,11 @@ interface State {
 	formation: Formation | null;
 	processes: [string, number][];
 	processesDiff: Diff<string, number>;
+	processesFullDiff: Diff<string, number>; // includes keep entries for rendering
 	hasChanges: boolean;
 	isLoading: boolean;
 	isConfirming: boolean;
-	isDeploying: boolean;
+	isCreating: boolean;
 }
 
 class FormationEditor extends React.Component<Props, State> {
@@ -39,10 +40,11 @@ class FormationEditor extends React.Component<Props, State> {
 			formation: null,
 			processes: [],
 			processesDiff: [],
+			processesFullDiff: [],
 			hasChanges: false,
 			isLoading: true,
 			isConfirming: false,
-			isDeploying: false
+			isCreating: false
 		};
 
 		this.__streamAppFormationCancel = () => {};
@@ -62,20 +64,17 @@ class FormationEditor extends React.Component<Props, State> {
 	}
 
 	public render() {
-		const { formation, processes, hasChanges, isLoading, isConfirming, isDeploying } = this.state;
+		const { formation, processes, processesFullDiff, hasChanges, isLoading, isConfirming, isCreating } = this.state;
 		if (isLoading) {
 			return <Loading />;
 		}
 		if (!formation) throw new Error('Unexpected lack of formation!');
-		let diff = [] as Diff<string, number>;
-		if (isConfirming) {
-			diff = protoMapDiff(formation.getProcessesMap(), new jspb.Map(processes), DiffOption.INCLUDE_UNCHANGED);
-		}
+		const isPending = formation.getState() === ScaleRequestState.SCALE_PENDING;
 		return (
 			<form onSubmit={isConfirming ? this._handleConfirmSubmit : this._handleSubmit}>
 				<Columns>
-					{isConfirming || isDeploying
-						? diff.reduce(
+					{isConfirming || isCreating || isPending
+						? processesFullDiff.reduce(
 								(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
 									const key = op.key;
 									let startVal = formation.getProcessesMap().get(key) || 0;
@@ -91,7 +90,12 @@ class FormationEditor extends React.Component<Props, State> {
 									if (delta < 0) {
 										sign = '-';
 									}
-									delta = Math.abs(delta);
+									if (isPending) {
+										// don't show delta
+										delta = 0;
+									} else {
+										delta = Math.abs(delta);
+									}
 									m.push(
 										<Box align="center" separator="right" key={key}>
 											<Value size="large" value={delta !== 0 ? `${val} (${sign}${delta})` : val} label={key} />
@@ -117,14 +121,14 @@ class FormationEditor extends React.Component<Props, State> {
 				</Columns>
 				<br />
 				<br />
-				{hasChanges ? (
+				{hasChanges && !isPending ? (
 					isConfirming ? (
 						<>
 							<Button type="submit" primary={true} label="Confirm and Create Scale Request" />
 							&nbsp;
 							<Button type="button" label="Cancel" onClick={this._handleCancelSubmit} />
 						</>
-					) : isDeploying ? (
+					) : isCreating ? (
 						<>
 							<Button primary={true} label="Creating Scale Request" />
 						</>
@@ -180,9 +184,15 @@ class FormationEditor extends React.Component<Props, State> {
 			return [k, v];
 		}) as [string, number][];
 		const diff = protoMapDiff((this.state.formation || new Formation()).getProcessesMap(), new jspb.Map(nextProcesses));
+		const fullDiff = protoMapDiff(
+			(this.state.formation || new Formation()).getProcessesMap(),
+			new jspb.Map(nextProcesses),
+			DiffOption.INCLUDE_UNCHANGED
+		);
 		this.setState({
 			processes: nextProcesses,
 			processesDiff: diff,
+			processesFullDiff: fullDiff,
 			hasChanges: diff.length > 0
 		});
 	}
@@ -203,7 +213,7 @@ class FormationEditor extends React.Component<Props, State> {
 
 		this.setState({
 			isConfirming: false,
-			isDeploying: true
+			isCreating: true
 		});
 
 		const { client, handleError } = this.props;
@@ -215,9 +225,10 @@ class FormationEditor extends React.Component<Props, State> {
 			.createScale(req)
 			.then((scaleReq: ScaleRequest) => {
 				this.setState({
-					isDeploying: false,
+					isCreating: false,
 					processes: buildProcessesArray(scaleReq.getNewProcessesMap()),
 					processesDiff: [],
+					processesFullDiff: [],
 					hasChanges: false
 				});
 			})
@@ -238,6 +249,7 @@ class FormationEditor extends React.Component<Props, State> {
 		this.setState({
 			hasChanges: false,
 			processesDiff: [],
+			processesFullDiff: [],
 			processes: buildProcessesArray((this.state.formation || new Formation()).getProcessesMap())
 		});
 	}

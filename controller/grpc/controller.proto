@@ -106,14 +106,15 @@ message CreateScaleRequest {
   map<string, DeploymentProcessTags> tags = 3;
 }
 
+enum ScaleRequestState {
+  SCALE_PENDING = 0;
+  SCALE_CANCELLED = 1;
+  SCALE_COMPLETE = 2;
+}
+
 message ScaleRequest {
   // parent = "apps/APP_ID/releases/RELEASE_ID"
   string parent = 1;
-  enum ScaleRequestState {
-    PENDING = 0;
-    CANCELLED = 1;
-    COMPLETE = 2;
-  }
   ScaleRequestState state = 2;
   map<string, int32> old_processes = 3;
   map<string, int32> new_processes = 4;
@@ -126,14 +127,15 @@ message ScaleRequest {
 }
 
 message Formation {
-  // name = "apps/APP_ID/releases/RELEASE_ID"
+  // parent = "apps/APP_ID/releases/RELEASE_ID"
   string parent = 1;
-  map<string, int32> processes = 2;
+  ScaleRequestState state = 2;
+  map<string, int32> processes = 3;
   // profobuf doesn't support maps within maps, so map[string]map[string]string
   // could not be reproduced
-  map<string, DeploymentProcessTags> tags = 3;
-  google.protobuf.Timestamp create_time = 4;
-  google.protobuf.Timestamp update_time = 5;
+  map<string, DeploymentProcessTags> tags = 4;
+  google.protobuf.Timestamp create_time = 5;
+  google.protobuf.Timestamp update_time = 6;
 }
 
 message GetAppFormationRequest {

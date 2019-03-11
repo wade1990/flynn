@@ -497,12 +497,12 @@ func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_S
 }
 
 func convertScaleRequest(ctScaleReq *ct.ScaleRequest) *ScaleRequest {
-	state := ScaleRequest_PENDING
+	state := ScaleRequestState_SCALE_PENDING
 	switch ctScaleReq.State {
 	case ct.ScaleRequestStateCancelled:
-		state = ScaleRequest_CANCELLED
+		state = ScaleRequestState_SCALE_CANCELLED
 	case ct.ScaleRequestStateComplete:
-		state = ScaleRequest_COMPLETE
+		state = ScaleRequestState_SCALE_COMPLETE
 	}
 
 	var newProcesses map[string]int32
@@ -554,17 +554,24 @@ func convertFormation(ctFormation *ct.Formation) *Formation {
 }
 
 func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controller_StreamAppFormationServer) error {
+	appID := parseIDFromName(req.Parent, "apps")
+
+	var releaseID string
+	var releaseIDMtx sync.RWMutex
+	ctRelease, err := s.Client.GetAppRelease(appID)
+	if err != nil {
+		return err
+	}
+	releaseID = ctRelease.ID
+
 	var formation *Formation
 	var formationMtx sync.RWMutex
-	appID := parseIDFromName(req.Parent, "apps")
 	refreshFormation := func() error {
+		releaseIDMtx.RLock()
+		defer releaseIDMtx.RUnlock()
 		formationMtx.Lock()
 		defer formationMtx.Unlock()
-		ctRelease, err := s.Client.GetAppRelease(appID)
-		if err != nil {
-			return err
-		}
-		ctFormation, err := s.Client.GetFormation(appID, ctRelease.ID)
+		ctFormation, err := s.Client.GetFormation(appID, releaseID)
 		if err != nil {
 			return err
 		}
@@ -572,8 +579,16 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 		if err != nil {
 			return err
 		}
-		fmt.Printf("StreamAppFormation: %#v\n\t%#v\n", ctEFormation.PendingScaleRequest, ctFormation.Processes)
 		formation = convertFormation(ctFormation)
+		formation.State = ScaleRequestState_SCALE_COMPLETE
+		if ctEFormation.PendingScaleRequest != nil {
+			switch ctEFormation.PendingScaleRequest.State {
+			case ct.ScaleRequestStatePending:
+				formation.State = ScaleRequestState_SCALE_PENDING
+			case ct.ScaleRequestStateCancelled:
+				formation.State = ScaleRequestState_SCALE_CANCELLED
+			}
+		}
 		return nil
 	}
 
@@ -590,7 +605,7 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 	events := make(chan *ct.Event)
 	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
 		AppID:       appID,
-		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest},
+		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest, ct.EventTypeAppRelease},
 	}, events)
 	if err != nil {
 		return err
@@ -606,8 +621,15 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 			sendResponse()
 
 			// wait for events before refreshing formation and sending respond again
-			if _, ok := <-events; !ok {
+			event, ok := <-events
+			if !ok {
 				break
+			}
+			// update releaseID whenever a new release is created
+			if event.ObjectType == ct.EventTypeAppRelease {
+				releaseIDMtx.Lock()
+				releaseID = event.ObjectID
+				releaseIDMtx.Unlock()
 			}
 		}
 	}()

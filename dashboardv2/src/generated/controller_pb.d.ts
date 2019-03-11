@@ -212,8 +212,8 @@ export class ScaleRequest extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
 
-  getState(): ScaleRequest.ScaleRequestState;
-  setState(value: ScaleRequest.ScaleRequestState): void;
+  getState(): ScaleRequestState;
+  setState(value: ScaleRequestState): void;
 
   getOldProcessesMap(): jspb.Map<string, number>;
   clearOldProcessesMap(): void;
@@ -246,7 +246,7 @@ export class ScaleRequest extends jspb.Message {
 export namespace ScaleRequest {
   export type AsObject = {
     parent: string,
-    state: ScaleRequest.ScaleRequestState,
+    state: ScaleRequestState,
     oldProcessesMap: Array<[string, number]>,
     newProcessesMap: Array<[string, number]>,
     oldTagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
@@ -254,17 +254,14 @@ export namespace ScaleRequest {
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
     updateTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
-
-  export enum ScaleRequestState {
-    PENDING = 0,
-    CANCELLED = 1,
-    COMPLETE = 2,
-  }
 }
 
 export class Formation extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
+
+  getState(): ScaleRequestState;
+  setState(value: ScaleRequestState): void;
 
   getProcessesMap(): jspb.Map<string, number>;
   clearProcessesMap(): void;
@@ -293,6 +290,7 @@ export class Formation extends jspb.Message {
 export namespace Formation {
   export type AsObject = {
     parent: string,
+    state: ScaleRequestState,
     processesMap: Array<[string, number]>,
     tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
@@ -1700,6 +1698,12 @@ export namespace LogAggregatorLogOpts {
     processType: string,
     streamTypesList: Array<LogAggregatorStreamType>,
   }
+}
+
+export enum ScaleRequestState {
+  SCALE_PENDING = 0,
+  SCALE_CANCELLED = 1,
+  SCALE_COMPLETE = 2,
 }
 
 export enum DeploymentStatus {
