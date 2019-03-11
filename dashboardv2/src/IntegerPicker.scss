@@ -1,0 +1,10 @@
+.integer-picker {
+	.grommetux-value__annotated > div {
+		display: flex;
+	}
+
+	.actions {
+		display: flex;
+		flex-direction: column;
+	}
+}
