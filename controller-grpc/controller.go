@@ -496,6 +496,78 @@ func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_S
 	return eventStream.Err()
 }
 
+func convertFormation(ctFormation *ct.Formation) *Formation {
+	return &Formation{
+		Name:       fmt.Sprintf("apps/%s/formations/%s", ctFormation.AppID, ctFormation.ReleaseID),
+		Processes:  convertDeploymentProcesses(ctFormation.Processes),
+		Tags:       convertDeploymentTags(ctFormation.Tags),
+		CreateTime: timestampProto(ctFormation.CreatedAt),
+		UpdateTime: timestampProto(ctFormation.UpdatedAt),
+	}
+}
+
+func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controller_StreamAppFormationServer) error {
+	var formation *Formation
+	var formationMtx sync.RWMutex
+	appID := parseIDFromName(req.Parent, "apps")
+	refreshFormation := func() error {
+		formationMtx.Lock()
+		defer formationMtx.Unlock()
+		ctRelease, err := s.Client.GetAppRelease(appID)
+		if err != nil {
+			return err
+		}
+		ctFormation, err := s.Client.GetFormation(appID, ctRelease.ID)
+		if err != nil {
+			return err
+		}
+		formation = convertFormation(ctFormation)
+		return nil
+	}
+
+	sendResponse := func() {
+		formationMtx.RLock()
+		if formation != nil {
+			stream.Send(formation)
+		}
+		formationMtx.RUnlock()
+	}
+
+	var wg sync.WaitGroup
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		AppID:       appID,
+		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest},
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if err := refreshFormation(); err != nil {
+				fmt.Printf("StreamAppFormation: Error refreshing formation: %s\n", err)
+			}
+			sendResponse()
+
+			// wait for events before refreshing formation and sending respond again
+			if _, ok := <-events; !ok {
+				break
+			}
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
+}
+
 func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
 	releaseID := parseIDFromName(req.Name, "releases")
 	if releaseID == "" {

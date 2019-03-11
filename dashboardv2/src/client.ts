@@ -14,6 +14,8 @@ import {
 	ListReleasesRequest,
 	ListReleasesResponse,
 	Release,
+	GetAppFormationRequest,
+	Formation,
 	CreateDeploymentRequest,
 	Deployment,
 	Event,
@@ -29,6 +31,7 @@ export interface Client {
 	updateApp: (app: App) => Promise<App>;
 	getAppRelease: (appName: string) => Promise<Release>;
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
+	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	listReleasesStream: (
@@ -45,6 +48,7 @@ export type StreamEventsCallback = (event: Event | null, error: Error | null) =>
 export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
 export type StreamAppCallback = (app: App, error: Error | null) => void;
 export type StreamAppReleaseCallback = (release: Release, error: Error | null) => void;
+export type StreamAppFormationCallback = (formation: Formation, error: Error | null) => void;
 export type ListReleasesStreamCallback = (releases: Release[], error: Error | null) => void;
 
 export interface StreamEventsOptions {}
@@ -140,6 +144,17 @@ class _Client implements Client {
 		req.setParent(appName);
 		const stream = this._cc.streamAppRelease(req);
 		stream.on('data', (response: Release) => {
+			cb(response, null);
+		});
+		// TODO(jvatic): Handle stream error
+		return stream.cancel;
+	}
+
+	public streamAppFormation(appName: string, cb: StreamAppFormationCallback): () => void {
+		const req = new GetAppFormationRequest();
+		req.setParent(appName);
+		const stream = this._cc.streamAppFormation(req);
+		stream.on('data', (response: Formation) => {
 			cb(response, null);
 		});
 		// TODO(jvatic): Handle stream error

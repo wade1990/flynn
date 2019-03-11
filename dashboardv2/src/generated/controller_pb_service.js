@@ -73,6 +73,15 @@ Controller.StreamAppRelease = {
   responseType: controller_pb.Release
 };
 
+Controller.StreamAppFormation = {
+  methodName: "StreamAppFormation",
+  service: Controller,
+  requestStream: false,
+  responseStream: true,
+  requestType: controller_pb.GetAppFormationRequest,
+  responseType: controller_pb.Formation
+};
+
 Controller.GetRelease = {
   methodName: "GetRelease",
   service: Controller,
@@ -358,6 +367,45 @@ ControllerClient.prototype.streamAppRelease = function streamAppRelease(requestM
     status: []
   };
   var client = grpc.invoke(Controller.StreamAppRelease, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onMessage: function (responseMessage) {
+      listeners.data.forEach(function (handler) {
+        handler(responseMessage);
+      });
+    },
+    onEnd: function (status, statusMessage, trailers) {
+      listeners.end.forEach(function (handler) {
+        handler();
+      });
+      listeners.status.forEach(function (handler) {
+        handler({ code: status, details: statusMessage, metadata: trailers });
+      });
+      listeners = null;
+    }
+  });
+  return {
+    on: function (type, handler) {
+      listeners[type].push(handler);
+      return this;
+    },
+    cancel: function () {
+      listeners = null;
+      client.close();
+    }
+  };
+};
+
+ControllerClient.prototype.streamAppFormation = function streamAppFormation(requestMessage, metadata) {
+  var listeners = {
+    data: [],
+    end: [],
+    status: []
+  };
+  var client = grpc.invoke(Controller.StreamAppFormation, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,

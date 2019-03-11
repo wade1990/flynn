@@ -182,6 +182,26 @@ export namespace GetAppReleaseRequest {
   }
 }
 
+export class GetAppFormationRequest extends jspb.Message {
+  getParent(): string;
+  setParent(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GetAppFormationRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: GetAppFormationRequest): GetAppFormationRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: GetAppFormationRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GetAppFormationRequest;
+  static deserializeBinaryFromReader(message: GetAppFormationRequest, reader: jspb.BinaryReader): GetAppFormationRequest;
+}
+
+export namespace GetAppFormationRequest {
+  export type AsObject = {
+    parent: string,
+  }
+}
+
 export class GetReleaseRequest extends jspb.Message {
   getName(): string;
   setName(value: string): void;
@@ -413,6 +433,44 @@ export namespace Release {
     labelsMap: Array<[string, string]>,
     processesMap: Array<[string, ProcessType.AsObject]>,
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+  }
+}
+
+export class Formation extends jspb.Message {
+  getName(): string;
+  setName(value: string): void;
+
+  getProcessesMap(): jspb.Map<string, number>;
+  clearProcessesMap(): void;
+  getTagsMap(): jspb.Map<string, DeploymentProcessTags>;
+  clearTagsMap(): void;
+  hasCreateTime(): boolean;
+  clearCreateTime(): void;
+  getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setCreateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
+
+  hasUpdateTime(): boolean;
+  clearUpdateTime(): void;
+  getUpdateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setUpdateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): Formation.AsObject;
+  static toObject(includeInstance: boolean, msg: Formation): Formation.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: Formation, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): Formation;
+  static deserializeBinaryFromReader(message: Formation, reader: jspb.BinaryReader): Formation;
+}
+
+export namespace Formation {
+  export type AsObject = {
+    name: string,
+    processesMap: Array<[string, number]>,
+    tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
+    createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+    updateTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
 }
 

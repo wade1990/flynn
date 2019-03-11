@@ -29,6 +29,9 @@ service Controller {
   rpc StreamAppRelease(GetAppReleaseRequest) returns (stream Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/release";
   };
+  rpc StreamAppFormation(GetAppFormationRequest) returns (stream Formation) {
+    option (google.api.http).get = "/v2/{{name=apps/-}/formation";
+  };
   rpc GetRelease(GetReleaseRequest) returns (Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/releases/-";
   };
@@ -93,6 +96,11 @@ message GetAppReleaseRequest {
   string parent = 1;
 }
 
+message GetAppFormationRequest {
+  // parent = "apps/APP_ID"
+  string parent = 1;
+}
+
 message GetReleaseRequest {
   // name = "apps/APP_ID/releases/RELEASE_ID"
   string name = 1;
@@ -150,6 +158,17 @@ message Release {
   map<string, string> labels = 5;
   map<string, ProcessType> processes = 6;
   google.protobuf.Timestamp create_time = 7;
+}
+
+message Formation {
+  // name = "apps/APP_ID/formations/RELEASE_ID"
+  string name = 1;
+  map<string, int32> processes = 2;
+  // profobuf doesn't support maps within maps, so map[string]map[string]string
+  // could not be reproduced
+  map<string, DeploymentProcessTags> tags = 3;
+  google.protobuf.Timestamp create_time = 4;
+  google.protobuf.Timestamp update_time = 5;
 }
 
 message AppRelease {
