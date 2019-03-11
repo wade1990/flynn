@@ -7,7 +7,8 @@ import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { App } from './generated/controller_pb';
 import Loading from './Loading';
-import ReleaseHistory from './ReleaseHistory';
+const FormationEditor = React.lazy(() => import('./FormationEditor'));
+const ReleaseHistory = React.lazy(() => import('./ReleaseHistory'));
 const EnvEditor = React.lazy(() => import('./EnvEditor'));
 
 export interface Props extends ClientProps, ErrorHandlerProps {
@@ -48,8 +49,16 @@ class AppComponent extends React.Component<Props, State> {
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
 				<Accordion openMulti={true} animate={false} active={0}>
+					<AccordionPanel heading="Scale">
+						<React.Suspense fallback={<Loading />}>
+							<FormationEditor appName={app.getName()} />
+						</React.Suspense>
+					</AccordionPanel>
+
 					<AccordionPanel heading="Release History">
-						<ReleaseHistory appName={app.getName()} currentReleaseName={app.getRelease()} />
+						<React.Suspense fallback={<Loading />}>
+							<ReleaseHistory appName={app.getName()} currentReleaseName={app.getRelease()} />
+						</React.Suspense>
 					</AccordionPanel>
 
 					<AccordionPanel heading="Environment">
