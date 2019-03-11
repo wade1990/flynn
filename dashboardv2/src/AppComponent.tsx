@@ -48,7 +48,7 @@ class AppComponent extends React.Component<Props, State> {
 		return (
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
-				<Accordion openMulti={true} animate={false} active={0}>
+				<Accordion openMulti={true} animate={false}>
 					<AccordionPanel heading="Scale">
 						<React.Suspense fallback={<Loading />}>
 							<FormationEditor appName={app.getName()} />
