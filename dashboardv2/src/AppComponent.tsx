@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { withRouter, RouteComponentProps } from 'react-router-dom';
 import Heading from 'grommet/components/Heading';
 import Accordion from 'grommet/components/Accordion';
 import AccordionPanel from 'grommet/components/AccordionPanel';
@@ -10,8 +11,9 @@ import Loading from './Loading';
 const FormationEditor = React.lazy(() => import('./FormationEditor'));
 const ReleaseHistory = React.lazy(() => import('./ReleaseHistory'));
 const EnvEditor = React.lazy(() => import('./EnvEditor'));
+import { parseURLParams, urlParamsToString } from './util/urlParams';
 
-export interface Props extends ClientProps, ErrorHandlerProps {
+export interface Props extends ClientProps, ErrorHandlerProps, RouteComponentProps {
 	name: string;
 }
 
@@ -27,6 +29,7 @@ class AppComponent extends React.Component<Props, State> {
 			app: null
 		};
 		this.__streamAppCancel = () => {};
+		this._handleSectionChange = this._handleSectionChange.bind(this);
 	}
 
 	public componentDidMount() {
@@ -40,6 +43,9 @@ class AppComponent extends React.Component<Props, State> {
 
 	public render() {
 		const { app } = this.state;
+		const { location } = this.props;
+		const urlParams = parseURLParams(location.search);
+		const activeIndices = (urlParams['s'] || ([] as string[])).map((i: string) => parseInt(i, 10));
 
 		if (!app) {
 			return <Loading />;
@@ -48,7 +54,7 @@ class AppComponent extends React.Component<Props, State> {
 		return (
 			<React.Fragment>
 				<Heading>{app.getDisplayName()}</Heading>
-				<Accordion openMulti={true} animate={false}>
+				<Accordion openMulti={true} animate={false} onActive={this._handleSectionChange} active={activeIndices}>
 					<AccordionPanel heading="Scale">
 						<React.Suspense fallback={<Loading />}>
 							<FormationEditor appName={app.getName()} />
@@ -84,5 +90,18 @@ class AppComponent extends React.Component<Props, State> {
 			});
 		});
 	}
+
+	private _handleSectionChange(activeIndices: number[]) {
+		const { history, location } = this.props;
+		const urlParams = parseURLParams(location.search);
+		history.replace(
+			location.pathname +
+				urlParamsToString(
+					Object.assign({}, urlParams, {
+						s: activeIndices.map((i: number) => String(i))
+					})
+				)
+		);
+	}
 }
-export default withErrorHandler(withClient(AppComponent));
+export default withRouter(withErrorHandler(withClient(AppComponent)));

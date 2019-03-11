@@ -23,6 +23,21 @@ it('parses URL params from search string', () => {
 	});
 });
 
+it('parses whitelist of URL params from search string', () => {
+	const search = '?foo=1&bar=2&baz=3&foo=4&bar=5';
+	const params = parseURLParams(search, 'foo', 'baz');
+	expect(params).toEqual({
+		foo: ['1', '4'],
+		baz: ['3']
+	});
+
+	const search2 = search.slice(1); // without leading ?
+	const params2 = parseURLParams(search2, 'bar');
+	expect(params2).toEqual({
+		bar: ['2', '5']
+	});
+});
+
 it('stringifies URL params', () => {
 	const params = {
 		foo: ['1', '4'],

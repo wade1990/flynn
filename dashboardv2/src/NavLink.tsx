@@ -4,6 +4,7 @@ import Anchor from 'grommet/components/Anchor';
 
 export interface Props extends Grommet.AnchorProps, RouteComponentProps<{}> {
 	path: string;
+	search?: string;
 	onClick?(e: React.MouseEvent): void;
 	onNav?(path: string): void;
 }
@@ -17,6 +18,7 @@ class NavAnchor extends React.Component<Props> {
 	public render() {
 		const {
 			path,
+			search,
 			history,
 
 			// filter out remaining Props
@@ -29,7 +31,7 @@ class NavAnchor extends React.Component<Props> {
 
 			...anchorProps
 		} = this.props;
-		const href = history.createHref({ pathname: path });
+		const href = history.createHref({ pathname: path, search });
 		return <Anchor {...anchorProps} href={href} onClick={this._onClick} />;
 	}
 
@@ -46,9 +48,10 @@ class NavAnchor extends React.Component<Props> {
 			// it's likely the user is trying to open the link in a new tab or window
 			return;
 		}
-		const { path, history } = this.props;
+		const { path, search, history } = this.props;
 		e.preventDefault();
-		history.push(path);
+		// TODO(jvatic): Handle both path and search containing query params
+		history.push(path + search);
 		if (this.props.onNav) {
 			this.props.onNav(path);
 		}

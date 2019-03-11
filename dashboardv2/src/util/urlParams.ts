@@ -7,12 +7,12 @@ function trimPrefix(str: string, prefix: string): string {
 	return str;
 }
 
-export function parseURLParams(search: string): URLParams {
+export function parseURLParams(search: string, ...whitelist: string[]): URLParams {
 	let params: URLParams = {};
 	const pairs = trimPrefix(search, '?').split('&');
 	for (let i = 0; i < pairs.length; i++) {
 		const [k, v] = pairs[i].split('=').map((str) => decodeURIComponent(str));
-		if (k && v) {
+		if (k && v && (!whitelist.length || whitelist.indexOf(k) !== -1)) {
 			params[k] = (params[k] || []).concat(v);
 		}
 	}

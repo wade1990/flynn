@@ -9,6 +9,7 @@ import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import Loading from './Loading';
 import NavLink from './NavLink';
 import { App } from './generated/controller_pb';
+import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 export interface Props extends RouteComponentProps<{}>, ClientProps, ErrorHandlerProps {
 	onNav(path: string): void;
@@ -50,10 +51,15 @@ class AppsListNav extends React.Component<Props, State> {
 			return <Loading />;
 		}
 
+		// some query params are persistent, make sure they're passed along if present
+		const params = parseURLParams(location.search, 'rhf', 's');
+		const search = urlParamsToString(params);
+
 		let selectedAppRouteIndex;
 		const appRoutes = apps.map((app, index) => {
 			const r = {
 				path: `/${app.getName()}`, // e.g. /apps/48a2d322-5cfe-4323-8823-4dad4528c090
+				search,
 				displayName: app.getDisplayName() // e.g. controller
 			};
 
@@ -68,7 +74,7 @@ class AppsListNav extends React.Component<Props, State> {
 			<List selectable={true} selected={selectedAppRouteIndex}>
 				{appRoutes.map((r) => {
 					return (
-						<NavLink path={r.path} key={r.path} onNav={this._navHandler}>
+						<NavLink path={r.path} search={search} key={r.path} onNav={this._navHandler}>
 							<ListItem justify="between" separator="horizontal">
 								{r.displayName}
 							</ListItem>
