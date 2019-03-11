@@ -16,7 +16,8 @@ import {
 	Release,
 	GetAppFormationRequest,
 	Formation,
-	UpdateFormationRequest,
+	ScaleRequest,
+	CreateScaleRequest,
 	CreateDeploymentRequest,
 	Deployment,
 	Event,
@@ -32,7 +33,7 @@ export interface Client {
 	getAppRelease: (appName: string) => Promise<Release>;
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
-	updateFormation: (formation: Formation) => Promise<Formation>;
+	createScale: (req: CreateScaleRequest) => Promise<ScaleRequest>;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	listReleasesStream: (
@@ -158,12 +159,9 @@ class _Client implements Client {
 		return stream.cancel;
 	}
 
-	public updateFormation(formation: Formation): Promise<Formation> {
-		return new Promise<Formation>((resolve, reject) => {
-			const req = new UpdateFormationRequest();
-			req.setFormation(formation);
-			req.setParent(formation.getName());
-			this._cc.updateFormation(req, (error: ServiceError, response: Formation | null) => {
+	public createScale(req: CreateScaleRequest): Promise<ScaleRequest> {
+		return new Promise<ScaleRequest>((resolve, reject) => {
+			this._cc.createScale(req, (error: ServiceError, response: ScaleRequest | null) => {
 				if (response && error === null) {
 					resolve(response);
 				} else {

@@ -73,13 +73,13 @@ Controller.StreamAppRelease = {
   responseType: controller_pb.Release
 };
 
-Controller.UpdateFormation = {
-  methodName: "UpdateFormation",
+Controller.CreateScale = {
+  methodName: "CreateScale",
   service: Controller,
   requestStream: false,
   responseStream: false,
-  requestType: controller_pb.UpdateFormationRequest,
-  responseType: controller_pb.Formation
+  requestType: controller_pb.CreateScaleRequest,
+  responseType: controller_pb.ScaleRequest
 };
 
 Controller.StreamAppFormation = {
@@ -408,11 +408,11 @@ ControllerClient.prototype.streamAppRelease = function streamAppRelease(requestM
   };
 };
 
-ControllerClient.prototype.updateFormation = function updateFormation(requestMessage, metadata, callback) {
+ControllerClient.prototype.createScale = function createScale(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  var client = grpc.unary(Controller.UpdateFormation, {
+  var client = grpc.unary(Controller.CreateScale, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,

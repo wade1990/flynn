@@ -67,13 +67,13 @@ type ControllerStreamAppRelease = {
   readonly responseType: typeof controller_pb.Release;
 };
 
-type ControllerUpdateFormation = {
+type ControllerCreateScale = {
   readonly methodName: string;
   readonly service: typeof Controller;
   readonly requestStream: false;
   readonly responseStream: false;
-  readonly requestType: typeof controller_pb.UpdateFormationRequest;
-  readonly responseType: typeof controller_pb.Formation;
+  readonly requestType: typeof controller_pb.CreateScaleRequest;
+  readonly responseType: typeof controller_pb.ScaleRequest;
 };
 
 type ControllerStreamAppFormation = {
@@ -157,7 +157,7 @@ export class Controller {
   static readonly UpdateApp: ControllerUpdateApp;
   static readonly GetAppRelease: ControllerGetAppRelease;
   static readonly StreamAppRelease: ControllerStreamAppRelease;
-  static readonly UpdateFormation: ControllerUpdateFormation;
+  static readonly CreateScale: ControllerCreateScale;
   static readonly StreamAppFormation: ControllerStreamAppFormation;
   static readonly GetRelease: ControllerGetRelease;
   static readonly ListReleases: ControllerListReleases;
@@ -239,14 +239,14 @@ export class ControllerClient {
     callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
   ): UnaryResponse;
   streamAppRelease(requestMessage: controller_pb.GetAppReleaseRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Release>;
-  updateFormation(
-    requestMessage: controller_pb.UpdateFormationRequest,
+  createScale(
+    requestMessage: controller_pb.CreateScaleRequest,
     metadata: grpc.Metadata,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.Formation|null) => void
+    callback: (error: ServiceError|null, responseMessage: controller_pb.ScaleRequest|null) => void
   ): UnaryResponse;
-  updateFormation(
-    requestMessage: controller_pb.UpdateFormationRequest,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.Formation|null) => void
+  createScale(
+    requestMessage: controller_pb.CreateScaleRequest,
+    callback: (error: ServiceError|null, responseMessage: controller_pb.ScaleRequest|null) => void
   ): UnaryResponse;
   streamAppFormation(requestMessage: controller_pb.GetAppFormationRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Formation>;
   getRelease(

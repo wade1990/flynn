@@ -29,7 +29,7 @@ service Controller {
   rpc StreamAppRelease(GetAppReleaseRequest) returns (stream Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/release";
   };
-  rpc UpdateFormation (UpdateFormationRequest) returns (Formation) {};
+  rpc CreateScale (CreateScaleRequest) returns (ScaleRequest) {};
   rpc StreamAppFormation(GetAppFormationRequest) returns (stream Formation) {
     option (google.api.http).get = "/v2/{{name=apps/-}/formation";
   };
@@ -97,10 +97,43 @@ message GetAppReleaseRequest {
   string parent = 1;
 }
 
-message UpdateFormationRequest {
-  // parent = "apps/APP_ID/formations/RELEASE_ID"
+message CreateScaleRequest {
+  // parent = "apps/APP_ID/releases/RELEASE_ID"
   string parent = 1;
-  Formation formation = 2;
+  map<string, int32> processes = 2;
+  // profobuf doesn't support maps within maps, so map[string]map[string]string
+  // could not be reproduced
+  map<string, DeploymentProcessTags> tags = 3;
+}
+
+message ScaleRequest {
+  // parent = "apps/APP_ID/releases/RELEASE_ID"
+  string parent = 1;
+  enum ScaleRequestState {
+    PENDING = 0;
+    CANCELLED = 1;
+    COMPLETE = 2;
+  }
+  ScaleRequestState state = 2;
+  map<string, int32> old_processes = 3;
+  map<string, int32> new_processes = 4;
+  // profobuf doesn't support maps within maps, so map[string]map[string]string
+  // could not be reproduced
+  map<string, DeploymentProcessTags> old_tags = 5;
+  map<string, DeploymentProcessTags> new_tags = 6;
+  google.protobuf.Timestamp create_time = 7;
+  google.protobuf.Timestamp update_time = 8;
+}
+
+message Formation {
+  // name = "apps/APP_ID/releases/RELEASE_ID"
+  string parent = 1;
+  map<string, int32> processes = 2;
+  // profobuf doesn't support maps within maps, so map[string]map[string]string
+  // could not be reproduced
+  map<string, DeploymentProcessTags> tags = 3;
+  google.protobuf.Timestamp create_time = 4;
+  google.protobuf.Timestamp update_time = 5;
 }
 
 message GetAppFormationRequest {
@@ -165,17 +198,6 @@ message Release {
   map<string, string> labels = 5;
   map<string, ProcessType> processes = 6;
   google.protobuf.Timestamp create_time = 7;
-}
-
-message Formation {
-  // name = "apps/APP_ID/formations/RELEASE_ID"
-  string name = 1;
-  map<string, int32> processes = 2;
-  // profobuf doesn't support maps within maps, so map[string]map[string]string
-  // could not be reproduced
-  map<string, DeploymentProcessTags> tags = 3;
-  google.protobuf.Timestamp create_time = 4;
-  google.protobuf.Timestamp update_time = 5;
 }
 
 message AppRelease {
@@ -333,9 +355,6 @@ message DeploymentEvent {
     FAILED = 8;
   }
   JobState job_state = 3;
-}
-
-message ScaleRequest { // TODO
 }
 
 message ReleaseDeletion { // TODO

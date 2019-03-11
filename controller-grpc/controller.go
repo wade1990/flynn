@@ -496,32 +496,61 @@ func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_S
 	return eventStream.Err()
 }
 
+func convertScaleRequest(ctScaleReq *ct.ScaleRequest) *ScaleRequest {
+	state := ScaleRequest_PENDING
+	switch ctScaleReq.State {
+	case ct.ScaleRequestStateCancelled:
+		state = ScaleRequest_CANCELLED
+	case ct.ScaleRequestStateComplete:
+		state = ScaleRequest_COMPLETE
+	}
+
+	var newProcesses map[string]int32
+	if ctScaleReq.NewProcesses != nil {
+		newProcesses = convertDeploymentProcesses(*ctScaleReq.NewProcesses)
+	}
+
+	var newTags map[string]*DeploymentProcessTags
+	if ctScaleReq.NewTags != nil {
+		newTags = convertDeploymentTags(*ctScaleReq.NewTags)
+	}
+
+	return &ScaleRequest{
+		Parent:       fmt.Sprintf("apps/%s/releases/%s", ctScaleReq.AppID, ctScaleReq.ReleaseID),
+		State:        state,
+		OldProcesses: convertDeploymentProcesses(ctScaleReq.OldProcesses),
+		NewProcesses: newProcesses,
+		OldTags:      convertDeploymentTags(ctScaleReq.OldTags),
+		NewTags:      newTags,
+		CreateTime:   timestampProto(ctScaleReq.CreatedAt),
+		UpdateTime:   timestampProto(ctScaleReq.UpdatedAt),
+	}
+}
+
+func (s *server) CreateScale(ctx context.Context, req *CreateScaleRequest) (*ScaleRequest, error) {
+	appID := parseIDFromName(req.Parent, "apps")
+	releaseID := parseIDFromName(req.Parent, "releases")
+	var scaleReq *ScaleRequest
+	if err := s.Client.ScaleAppRelease(appID, releaseID, ct.ScaleOptions{
+		Processes: parseDeploymentProcesses(req.Processes),
+		Tags:      parseDeploymentTags(req.Tags),
+		ScaleRequestCallback: func(r *ct.ScaleRequest) {
+			scaleReq = convertScaleRequest(r)
+		},
+	}); err != nil {
+		return nil, err
+	}
+	return scaleReq, nil
+}
+
 func convertFormation(ctFormation *ct.Formation) *Formation {
 	return &Formation{
-		Name:       fmt.Sprintf("apps/%s/formations/%s", ctFormation.AppID, ctFormation.ReleaseID),
+		Parent:     fmt.Sprintf("apps/%s/releases/%s", ctFormation.AppID, ctFormation.ReleaseID),
 		Processes:  convertDeploymentProcesses(ctFormation.Processes),
 		Tags:       convertDeploymentTags(ctFormation.Tags),
 		CreateTime: timestampProto(ctFormation.CreatedAt),
 		UpdateTime: timestampProto(ctFormation.UpdatedAt),
 	}
-}
-
-func (s *server) UpdateFormation(ctx context.Context, req *UpdateFormationRequest) (*Formation, error) {
-	appID := parseIDFromName(req.Parent, "apps")
-	releaseID := parseIDFromName(req.Parent, "formations")
-	formation := req.Formation
-	ctFormation := &ct.Formation{
-		AppID:     appID,
-		ReleaseID: releaseID,
-		Processes: parseDeploymentProcesses(formation.Processes),
-		Tags:      parseDeploymentTags(formation.Tags),
-		CreatedAt: timestampFromProto(formation.CreateTime),
-		UpdatedAt: timestampFromProto(formation.UpdateTime),
-	}
-	if err := s.Client.PutFormation(ctFormation); err != nil {
-		return nil, err
-	}
-	return convertFormation(ctFormation), nil
 }
 
 func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controller_StreamAppFormationServer) error {
@@ -539,6 +568,11 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 		if err != nil {
 			return err
 		}
+		ctEFormation, err := s.Client.GetExpandedFormation(appID, ctRelease.ID)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("StreamAppFormation: %#v\n\t%#v\n", ctEFormation.PendingScaleRequest, ctFormation.Processes)
 		formation = convertFormation(ctFormation)
 		return nil
 	}

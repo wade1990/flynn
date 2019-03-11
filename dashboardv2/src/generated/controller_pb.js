@@ -24,6 +24,7 @@ goog.exportSymbol('proto.controller.Certificate', null, global);
 goog.exportSymbol('proto.controller.ClusterBackup', null, global);
 goog.exportSymbol('proto.controller.CreateDeploymentRequest', null, global);
 goog.exportSymbol('proto.controller.CreateReleaseRequest', null, global);
+goog.exportSymbol('proto.controller.CreateScaleRequest', null, global);
 goog.exportSymbol('proto.controller.Deployment', null, global);
 goog.exportSymbol('proto.controller.DeploymentEvent', null, global);
 goog.exportSymbol('proto.controller.DeploymentEvent.JobState', null, global);
@@ -62,12 +63,12 @@ goog.exportSymbol('proto.controller.Route', null, global);
 goog.exportSymbol('proto.controller.Route.RouteType', null, global);
 goog.exportSymbol('proto.controller.RouteDeletion', null, global);
 goog.exportSymbol('proto.controller.ScaleRequest', null, global);
+goog.exportSymbol('proto.controller.ScaleRequest.ScaleRequestState', null, global);
 goog.exportSymbol('proto.controller.Sink', null, global);
 goog.exportSymbol('proto.controller.SinkDeletion', null, global);
 goog.exportSymbol('proto.controller.StreamAppLogRequest', null, global);
 goog.exportSymbol('proto.controller.StreamEventsRequest', null, global);
 goog.exportSymbol('proto.controller.UpdateAppRequest', null, global);
-goog.exportSymbol('proto.controller.UpdateFormationRequest', null, global);
 goog.exportSymbol('proto.controller.Volume', null, global);
 goog.exportSymbol('proto.controller.VolumeReq', null, global);
 
@@ -1352,12 +1353,12 @@ proto.controller.GetAppReleaseRequest.prototype.setParent = function(value) {
  * @extends {jspb.Message}
  * @constructor
  */
-proto.controller.UpdateFormationRequest = function(opt_data) {
+proto.controller.CreateScaleRequest = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.controller.UpdateFormationRequest, jspb.Message);
+goog.inherits(proto.controller.CreateScaleRequest, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.controller.UpdateFormationRequest.displayName = 'proto.controller.UpdateFormationRequest';
+  proto.controller.CreateScaleRequest.displayName = 'proto.controller.CreateScaleRequest';
 }
 
 
@@ -1372,8 +1373,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.controller.UpdateFormationRequest.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.UpdateFormationRequest.toObject(opt_includeInstance, this);
+proto.controller.CreateScaleRequest.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.CreateScaleRequest.toObject(opt_includeInstance, this);
 };
 
 
@@ -1382,14 +1383,15 @@ proto.controller.UpdateFormationRequest.prototype.toObject = function(opt_includ
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.controller.UpdateFormationRequest} msg The msg instance to transform.
+ * @param {!proto.controller.CreateScaleRequest} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.UpdateFormationRequest.toObject = function(includeInstance, msg) {
+proto.controller.CreateScaleRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    formation: (f = msg.getFormation()) && proto.controller.Formation.toObject(includeInstance, f)
+    processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
+    tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : []
   };
 
   if (includeInstance) {
@@ -1403,23 +1405,23 @@ proto.controller.UpdateFormationRequest.toObject = function(includeInstance, msg
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.UpdateFormationRequest}
+ * @return {!proto.controller.CreateScaleRequest}
  */
-proto.controller.UpdateFormationRequest.deserializeBinary = function(bytes) {
+proto.controller.CreateScaleRequest.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.UpdateFormationRequest;
-  return proto.controller.UpdateFormationRequest.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.controller.CreateScaleRequest;
+  return proto.controller.CreateScaleRequest.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.controller.UpdateFormationRequest} msg The message object to deserialize into.
+ * @param {!proto.controller.CreateScaleRequest} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.UpdateFormationRequest}
+ * @return {!proto.controller.CreateScaleRequest}
  */
-proto.controller.UpdateFormationRequest.deserializeBinaryFromReader = function(msg, reader) {
+proto.controller.CreateScaleRequest.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -1431,9 +1433,16 @@ proto.controller.UpdateFormationRequest.deserializeBinaryFromReader = function(m
       msg.setParent(value);
       break;
     case 2:
-      var value = new proto.controller.Formation;
-      reader.readMessage(value,proto.controller.Formation.deserializeBinaryFromReader);
-      msg.setFormation(value);
+      var value = msg.getProcessesMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
+         });
+      break;
+    case 3:
+      var value = msg.getTagsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
+         });
       break;
     default:
       reader.skipField();
@@ -1448,9 +1457,9 @@ proto.controller.UpdateFormationRequest.deserializeBinaryFromReader = function(m
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.controller.UpdateFormationRequest.prototype.serializeBinary = function() {
+proto.controller.CreateScaleRequest.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.controller.UpdateFormationRequest.serializeBinaryToWriter(this, writer);
+  proto.controller.CreateScaleRequest.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -1458,11 +1467,11 @@ proto.controller.UpdateFormationRequest.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.controller.UpdateFormationRequest} message
+ * @param {!proto.controller.CreateScaleRequest} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.controller.UpdateFormationRequest.serializeBinaryToWriter = function(message, writer) {
+proto.controller.CreateScaleRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getParent();
   if (f.length > 0) {
@@ -1471,12 +1480,622 @@ proto.controller.UpdateFormationRequest.serializeBinaryToWriter = function(messa
       f
     );
   }
-  f = message.getFormation();
+  f = message.getProcessesMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(2, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+  }
+  f = message.getTagsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+  }
+};
+
+
+/**
+ * optional string parent = 1;
+ * @return {string}
+ */
+proto.controller.CreateScaleRequest.prototype.getParent = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.CreateScaleRequest.prototype.setParent = function(value) {
+  jspb.Message.setProto3StringField(this, 1, value);
+};
+
+
+/**
+ * map<string, int32> processes = 2;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,number>}
+ */
+proto.controller.CreateScaleRequest.prototype.getProcessesMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,number>} */ (
+      jspb.Message.getMapField(this, 2, opt_noLazyCreate,
+      null));
+};
+
+
+proto.controller.CreateScaleRequest.prototype.clearProcessesMap = function() {
+  this.getProcessesMap().clear();
+};
+
+
+/**
+ * map<string, DeploymentProcessTags> tags = 3;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
+ */
+proto.controller.CreateScaleRequest.prototype.getTagsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
+      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      proto.controller.DeploymentProcessTags));
+};
+
+
+proto.controller.CreateScaleRequest.prototype.clearTagsMap = function() {
+  this.getTagsMap().clear();
+};
+
+
+
+/**
+ * Generated by JsPbCodeGenerator.
+ * @param {Array=} opt_data Optional initial data array, typically from a
+ * server response, or constructed directly in Javascript. The array is used
+ * in place and becomes part of the constructed object. It is not cloned.
+ * If no data is provided, the constructed object will be empty, but still
+ * valid.
+ * @extends {jspb.Message}
+ * @constructor
+ */
+proto.controller.ScaleRequest = function(opt_data) {
+  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+};
+goog.inherits(proto.controller.ScaleRequest, jspb.Message);
+if (goog.DEBUG && !COMPILED) {
+  proto.controller.ScaleRequest.displayName = 'proto.controller.ScaleRequest';
+}
+
+
+if (jspb.Message.GENERATE_TO_OBJECT) {
+/**
+ * Creates an object representation of this proto suitable for use in Soy templates.
+ * Field names that are reserved in JavaScript and will be renamed to pb_name.
+ * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+ * For the list of reserved names please see:
+ *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
+ * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
+ *     for transitional soy proto support: http://goto/soy-param-migration
+ * @return {!Object}
+ */
+proto.controller.ScaleRequest.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ScaleRequest.toObject(opt_includeInstance, this);
+};
+
+
+/**
+ * Static version of the {@see toObject} method.
+ * @param {boolean|undefined} includeInstance Whether to include the JSPB
+ *     instance for transitional soy proto support:
+ *     http://goto/soy-param-migration
+ * @param {!proto.controller.ScaleRequest} msg The msg instance to transform.
+ * @return {!Object}
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.ScaleRequest.toObject = function(includeInstance, msg) {
+  var f, obj = {
+    parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    state: jspb.Message.getFieldWithDefault(msg, 2, 0),
+    oldProcessesMap: (f = msg.getOldProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
+    newProcessesMap: (f = msg.getNewProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
+    oldTagsMap: (f = msg.getOldTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
+    newTagsMap: (f = msg.getNewTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
+    createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
+    updateTime: (f = msg.getUpdateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
+  };
+
+  if (includeInstance) {
+    obj.$jspbMessageInstance = msg;
+  }
+  return obj;
+};
+}
+
+
+/**
+ * Deserializes binary data (in protobuf wire format).
+ * @param {jspb.ByteSource} bytes The bytes to deserialize.
+ * @return {!proto.controller.ScaleRequest}
+ */
+proto.controller.ScaleRequest.deserializeBinary = function(bytes) {
+  var reader = new jspb.BinaryReader(bytes);
+  var msg = new proto.controller.ScaleRequest;
+  return proto.controller.ScaleRequest.deserializeBinaryFromReader(msg, reader);
+};
+
+
+/**
+ * Deserializes binary data (in protobuf wire format) from the
+ * given reader into the given message object.
+ * @param {!proto.controller.ScaleRequest} msg The message object to deserialize into.
+ * @param {!jspb.BinaryReader} reader The BinaryReader to use.
+ * @return {!proto.controller.ScaleRequest}
+ */
+proto.controller.ScaleRequest.deserializeBinaryFromReader = function(msg, reader) {
+  while (reader.nextField()) {
+    if (reader.isEndGroup()) {
+      break;
+    }
+    var field = reader.getFieldNumber();
+    switch (field) {
+    case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setParent(value);
+      break;
+    case 2:
+      var value = /** @type {!proto.controller.ScaleRequest.ScaleRequestState} */ (reader.readEnum());
+      msg.setState(value);
+      break;
+    case 3:
+      var value = msg.getOldProcessesMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
+         });
+      break;
+    case 4:
+      var value = msg.getNewProcessesMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
+         });
+      break;
+    case 5:
+      var value = msg.getOldTagsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
+         });
+      break;
+    case 6:
+      var value = msg.getNewTagsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
+         });
+      break;
+    case 7:
+      var value = new google_protobuf_timestamp_pb.Timestamp;
+      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
+      msg.setCreateTime(value);
+      break;
+    case 8:
+      var value = new google_protobuf_timestamp_pb.Timestamp;
+      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
+      msg.setUpdateTime(value);
+      break;
+    default:
+      reader.skipField();
+      break;
+    }
+  }
+  return msg;
+};
+
+
+/**
+ * Serializes the message to binary data (in protobuf wire format).
+ * @return {!Uint8Array}
+ */
+proto.controller.ScaleRequest.prototype.serializeBinary = function() {
+  var writer = new jspb.BinaryWriter();
+  proto.controller.ScaleRequest.serializeBinaryToWriter(this, writer);
+  return writer.getResultBuffer();
+};
+
+
+/**
+ * Serializes the given message to binary data (in protobuf wire
+ * format), writing to the given BinaryWriter.
+ * @param {!proto.controller.ScaleRequest} message
+ * @param {!jspb.BinaryWriter} writer
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.ScaleRequest.serializeBinaryToWriter = function(message, writer) {
+  var f = undefined;
+  f = message.getParent();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
+  f = message.getState();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      2,
+      f
+    );
+  }
+  f = message.getOldProcessesMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+  }
+  f = message.getNewProcessesMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+  }
+  f = message.getOldTagsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(5, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+  }
+  f = message.getNewTagsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(6, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+  }
+  f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      2,
+      7,
       f,
-      proto.controller.Formation.serializeBinaryToWriter
+      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
+    );
+  }
+  f = message.getUpdateTime();
+  if (f != null) {
+    writer.writeMessage(
+      8,
+      f,
+      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
+    );
+  }
+};
+
+
+/**
+ * @enum {number}
+ */
+proto.controller.ScaleRequest.ScaleRequestState = {
+  PENDING: 0,
+  CANCELLED: 1,
+  COMPLETE: 2
+};
+
+/**
+ * optional string parent = 1;
+ * @return {string}
+ */
+proto.controller.ScaleRequest.prototype.getParent = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.ScaleRequest.prototype.setParent = function(value) {
+  jspb.Message.setProto3StringField(this, 1, value);
+};
+
+
+/**
+ * optional ScaleRequestState state = 2;
+ * @return {!proto.controller.ScaleRequest.ScaleRequestState}
+ */
+proto.controller.ScaleRequest.prototype.getState = function() {
+  return /** @type {!proto.controller.ScaleRequest.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+};
+
+
+/** @param {!proto.controller.ScaleRequest.ScaleRequestState} value */
+proto.controller.ScaleRequest.prototype.setState = function(value) {
+  jspb.Message.setProto3EnumField(this, 2, value);
+};
+
+
+/**
+ * map<string, int32> old_processes = 3;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,number>}
+ */
+proto.controller.ScaleRequest.prototype.getOldProcessesMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,number>} */ (
+      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      null));
+};
+
+
+proto.controller.ScaleRequest.prototype.clearOldProcessesMap = function() {
+  this.getOldProcessesMap().clear();
+};
+
+
+/**
+ * map<string, int32> new_processes = 4;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,number>}
+ */
+proto.controller.ScaleRequest.prototype.getNewProcessesMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,number>} */ (
+      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
+      null));
+};
+
+
+proto.controller.ScaleRequest.prototype.clearNewProcessesMap = function() {
+  this.getNewProcessesMap().clear();
+};
+
+
+/**
+ * map<string, DeploymentProcessTags> old_tags = 5;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
+ */
+proto.controller.ScaleRequest.prototype.getOldTagsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
+      jspb.Message.getMapField(this, 5, opt_noLazyCreate,
+      proto.controller.DeploymentProcessTags));
+};
+
+
+proto.controller.ScaleRequest.prototype.clearOldTagsMap = function() {
+  this.getOldTagsMap().clear();
+};
+
+
+/**
+ * map<string, DeploymentProcessTags> new_tags = 6;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
+ */
+proto.controller.ScaleRequest.prototype.getNewTagsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
+      jspb.Message.getMapField(this, 6, opt_noLazyCreate,
+      proto.controller.DeploymentProcessTags));
+};
+
+
+proto.controller.ScaleRequest.prototype.clearNewTagsMap = function() {
+  this.getNewTagsMap().clear();
+};
+
+
+/**
+ * optional google.protobuf.Timestamp create_time = 7;
+ * @return {?proto.google.protobuf.Timestamp}
+ */
+proto.controller.ScaleRequest.prototype.getCreateTime = function() {
+  return /** @type{?proto.google.protobuf.Timestamp} */ (
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 7));
+};
+
+
+/** @param {?proto.google.protobuf.Timestamp|undefined} value */
+proto.controller.ScaleRequest.prototype.setCreateTime = function(value) {
+  jspb.Message.setWrapperField(this, 7, value);
+};
+
+
+proto.controller.ScaleRequest.prototype.clearCreateTime = function() {
+  this.setCreateTime(undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {!boolean}
+ */
+proto.controller.ScaleRequest.prototype.hasCreateTime = function() {
+  return jspb.Message.getField(this, 7) != null;
+};
+
+
+/**
+ * optional google.protobuf.Timestamp update_time = 8;
+ * @return {?proto.google.protobuf.Timestamp}
+ */
+proto.controller.ScaleRequest.prototype.getUpdateTime = function() {
+  return /** @type{?proto.google.protobuf.Timestamp} */ (
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 8));
+};
+
+
+/** @param {?proto.google.protobuf.Timestamp|undefined} value */
+proto.controller.ScaleRequest.prototype.setUpdateTime = function(value) {
+  jspb.Message.setWrapperField(this, 8, value);
+};
+
+
+proto.controller.ScaleRequest.prototype.clearUpdateTime = function() {
+  this.setUpdateTime(undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {!boolean}
+ */
+proto.controller.ScaleRequest.prototype.hasUpdateTime = function() {
+  return jspb.Message.getField(this, 8) != null;
+};
+
+
+
+/**
+ * Generated by JsPbCodeGenerator.
+ * @param {Array=} opt_data Optional initial data array, typically from a
+ * server response, or constructed directly in Javascript. The array is used
+ * in place and becomes part of the constructed object. It is not cloned.
+ * If no data is provided, the constructed object will be empty, but still
+ * valid.
+ * @extends {jspb.Message}
+ * @constructor
+ */
+proto.controller.Formation = function(opt_data) {
+  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+};
+goog.inherits(proto.controller.Formation, jspb.Message);
+if (goog.DEBUG && !COMPILED) {
+  proto.controller.Formation.displayName = 'proto.controller.Formation';
+}
+
+
+if (jspb.Message.GENERATE_TO_OBJECT) {
+/**
+ * Creates an object representation of this proto suitable for use in Soy templates.
+ * Field names that are reserved in JavaScript and will be renamed to pb_name.
+ * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+ * For the list of reserved names please see:
+ *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
+ * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
+ *     for transitional soy proto support: http://goto/soy-param-migration
+ * @return {!Object}
+ */
+proto.controller.Formation.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.Formation.toObject(opt_includeInstance, this);
+};
+
+
+/**
+ * Static version of the {@see toObject} method.
+ * @param {boolean|undefined} includeInstance Whether to include the JSPB
+ *     instance for transitional soy proto support:
+ *     http://goto/soy-param-migration
+ * @param {!proto.controller.Formation} msg The msg instance to transform.
+ * @return {!Object}
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.Formation.toObject = function(includeInstance, msg) {
+  var f, obj = {
+    parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
+    tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
+    createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
+    updateTime: (f = msg.getUpdateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
+  };
+
+  if (includeInstance) {
+    obj.$jspbMessageInstance = msg;
+  }
+  return obj;
+};
+}
+
+
+/**
+ * Deserializes binary data (in protobuf wire format).
+ * @param {jspb.ByteSource} bytes The bytes to deserialize.
+ * @return {!proto.controller.Formation}
+ */
+proto.controller.Formation.deserializeBinary = function(bytes) {
+  var reader = new jspb.BinaryReader(bytes);
+  var msg = new proto.controller.Formation;
+  return proto.controller.Formation.deserializeBinaryFromReader(msg, reader);
+};
+
+
+/**
+ * Deserializes binary data (in protobuf wire format) from the
+ * given reader into the given message object.
+ * @param {!proto.controller.Formation} msg The message object to deserialize into.
+ * @param {!jspb.BinaryReader} reader The BinaryReader to use.
+ * @return {!proto.controller.Formation}
+ */
+proto.controller.Formation.deserializeBinaryFromReader = function(msg, reader) {
+  while (reader.nextField()) {
+    if (reader.isEndGroup()) {
+      break;
+    }
+    var field = reader.getFieldNumber();
+    switch (field) {
+    case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setParent(value);
+      break;
+    case 2:
+      var value = msg.getProcessesMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
+         });
+      break;
+    case 3:
+      var value = msg.getTagsMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
+         });
+      break;
+    case 4:
+      var value = new google_protobuf_timestamp_pb.Timestamp;
+      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
+      msg.setCreateTime(value);
+      break;
+    case 5:
+      var value = new google_protobuf_timestamp_pb.Timestamp;
+      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
+      msg.setUpdateTime(value);
+      break;
+    default:
+      reader.skipField();
+      break;
+    }
+  }
+  return msg;
+};
+
+
+/**
+ * Serializes the message to binary data (in protobuf wire format).
+ * @return {!Uint8Array}
+ */
+proto.controller.Formation.prototype.serializeBinary = function() {
+  var writer = new jspb.BinaryWriter();
+  proto.controller.Formation.serializeBinaryToWriter(this, writer);
+  return writer.getResultBuffer();
+};
+
+
+/**
+ * Serializes the given message to binary data (in protobuf wire
+ * format), writing to the given BinaryWriter.
+ * @param {!proto.controller.Formation} message
+ * @param {!jspb.BinaryWriter} writer
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.Formation.serializeBinaryToWriter = function(message, writer) {
+  var f = undefined;
+  f = message.getParent();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
+  f = message.getProcessesMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(2, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+  }
+  f = message.getTagsMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+  }
+  f = message.getCreateTime();
+  if (f != null) {
+    writer.writeMessage(
+      4,
+      f,
+      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
+    );
+  }
+  f = message.getUpdateTime();
+  if (f != null) {
+    writer.writeMessage(
+      5,
+      f,
+      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
   }
 };
@@ -1486,35 +2105,71 @@ proto.controller.UpdateFormationRequest.serializeBinaryToWriter = function(messa
  * optional string parent = 1;
  * @return {string}
  */
-proto.controller.UpdateFormationRequest.prototype.getParent = function() {
+proto.controller.Formation.prototype.getParent = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
 };
 
 
 /** @param {string} value */
-proto.controller.UpdateFormationRequest.prototype.setParent = function(value) {
+proto.controller.Formation.prototype.setParent = function(value) {
   jspb.Message.setProto3StringField(this, 1, value);
 };
 
 
 /**
- * optional Formation formation = 2;
- * @return {?proto.controller.Formation}
+ * map<string, int32> processes = 2;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,number>}
  */
-proto.controller.UpdateFormationRequest.prototype.getFormation = function() {
-  return /** @type{?proto.controller.Formation} */ (
-    jspb.Message.getWrapperField(this, proto.controller.Formation, 2));
+proto.controller.Formation.prototype.getProcessesMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,number>} */ (
+      jspb.Message.getMapField(this, 2, opt_noLazyCreate,
+      null));
 };
 
 
-/** @param {?proto.controller.Formation|undefined} value */
-proto.controller.UpdateFormationRequest.prototype.setFormation = function(value) {
-  jspb.Message.setWrapperField(this, 2, value);
+proto.controller.Formation.prototype.clearProcessesMap = function() {
+  this.getProcessesMap().clear();
 };
 
 
-proto.controller.UpdateFormationRequest.prototype.clearFormation = function() {
-  this.setFormation(undefined);
+/**
+ * map<string, DeploymentProcessTags> tags = 3;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
+ */
+proto.controller.Formation.prototype.getTagsMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
+      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      proto.controller.DeploymentProcessTags));
+};
+
+
+proto.controller.Formation.prototype.clearTagsMap = function() {
+  this.getTagsMap().clear();
+};
+
+
+/**
+ * optional google.protobuf.Timestamp create_time = 4;
+ * @return {?proto.google.protobuf.Timestamp}
+ */
+proto.controller.Formation.prototype.getCreateTime = function() {
+  return /** @type{?proto.google.protobuf.Timestamp} */ (
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 4));
+};
+
+
+/** @param {?proto.google.protobuf.Timestamp|undefined} value */
+proto.controller.Formation.prototype.setCreateTime = function(value) {
+  jspb.Message.setWrapperField(this, 4, value);
+};
+
+
+proto.controller.Formation.prototype.clearCreateTime = function() {
+  this.setCreateTime(undefined);
 };
 
 
@@ -1522,8 +2177,38 @@ proto.controller.UpdateFormationRequest.prototype.clearFormation = function() {
  * Returns whether this field is set.
  * @return {!boolean}
  */
-proto.controller.UpdateFormationRequest.prototype.hasFormation = function() {
-  return jspb.Message.getField(this, 2) != null;
+proto.controller.Formation.prototype.hasCreateTime = function() {
+  return jspb.Message.getField(this, 4) != null;
+};
+
+
+/**
+ * optional google.protobuf.Timestamp update_time = 5;
+ * @return {?proto.google.protobuf.Timestamp}
+ */
+proto.controller.Formation.prototype.getUpdateTime = function() {
+  return /** @type{?proto.google.protobuf.Timestamp} */ (
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
+};
+
+
+/** @param {?proto.google.protobuf.Timestamp|undefined} value */
+proto.controller.Formation.prototype.setUpdateTime = function(value) {
+  jspb.Message.setWrapperField(this, 5, value);
+};
+
+
+proto.controller.Formation.prototype.clearUpdateTime = function() {
+  this.setUpdateTime(undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {!boolean}
+ */
+proto.controller.Formation.prototype.hasUpdateTime = function() {
+  return jspb.Message.getField(this, 5) != null;
 };
 
 
@@ -3364,294 +4049,6 @@ proto.controller.Release.prototype.clearCreateTime = function() {
  */
 proto.controller.Release.prototype.hasCreateTime = function() {
   return jspb.Message.getField(this, 7) != null;
-};
-
-
-
-/**
- * Generated by JsPbCodeGenerator.
- * @param {Array=} opt_data Optional initial data array, typically from a
- * server response, or constructed directly in Javascript. The array is used
- * in place and becomes part of the constructed object. It is not cloned.
- * If no data is provided, the constructed object will be empty, but still
- * valid.
- * @extends {jspb.Message}
- * @constructor
- */
-proto.controller.Formation = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
-};
-goog.inherits(proto.controller.Formation, jspb.Message);
-if (goog.DEBUG && !COMPILED) {
-  proto.controller.Formation.displayName = 'proto.controller.Formation';
-}
-
-
-if (jspb.Message.GENERATE_TO_OBJECT) {
-/**
- * Creates an object representation of this proto suitable for use in Soy templates.
- * Field names that are reserved in JavaScript and will be renamed to pb_name.
- * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
- * For the list of reserved names please see:
- *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
- * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
- *     for transitional soy proto support: http://goto/soy-param-migration
- * @return {!Object}
- */
-proto.controller.Formation.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.Formation.toObject(opt_includeInstance, this);
-};
-
-
-/**
- * Static version of the {@see toObject} method.
- * @param {boolean|undefined} includeInstance Whether to include the JSPB
- *     instance for transitional soy proto support:
- *     http://goto/soy-param-migration
- * @param {!proto.controller.Formation} msg The msg instance to transform.
- * @return {!Object}
- * @suppress {unusedLocalVariables} f is only used for nested messages
- */
-proto.controller.Formation.toObject = function(includeInstance, msg) {
-  var f, obj = {
-    name: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
-    tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
-    createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
-    updateTime: (f = msg.getUpdateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
-  };
-
-  if (includeInstance) {
-    obj.$jspbMessageInstance = msg;
-  }
-  return obj;
-};
-}
-
-
-/**
- * Deserializes binary data (in protobuf wire format).
- * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.Formation}
- */
-proto.controller.Formation.deserializeBinary = function(bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.Formation;
-  return proto.controller.Formation.deserializeBinaryFromReader(msg, reader);
-};
-
-
-/**
- * Deserializes binary data (in protobuf wire format) from the
- * given reader into the given message object.
- * @param {!proto.controller.Formation} msg The message object to deserialize into.
- * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.Formation}
- */
-proto.controller.Formation.deserializeBinaryFromReader = function(msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-    case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setName(value);
-      break;
-    case 2:
-      var value = msg.getProcessesMap();
-      reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
-         });
-      break;
-    case 3:
-      var value = msg.getTagsMap();
-      reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
-         });
-      break;
-    case 4:
-      var value = new google_protobuf_timestamp_pb.Timestamp;
-      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
-      msg.setCreateTime(value);
-      break;
-    case 5:
-      var value = new google_protobuf_timestamp_pb.Timestamp;
-      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
-      msg.setUpdateTime(value);
-      break;
-    default:
-      reader.skipField();
-      break;
-    }
-  }
-  return msg;
-};
-
-
-/**
- * Serializes the message to binary data (in protobuf wire format).
- * @return {!Uint8Array}
- */
-proto.controller.Formation.prototype.serializeBinary = function() {
-  var writer = new jspb.BinaryWriter();
-  proto.controller.Formation.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
-};
-
-
-/**
- * Serializes the given message to binary data (in protobuf wire
- * format), writing to the given BinaryWriter.
- * @param {!proto.controller.Formation} message
- * @param {!jspb.BinaryWriter} writer
- * @suppress {unusedLocalVariables} f is only used for nested messages
- */
-proto.controller.Formation.serializeBinaryToWriter = function(message, writer) {
-  var f = undefined;
-  f = message.getName();
-  if (f.length > 0) {
-    writer.writeString(
-      1,
-      f
-    );
-  }
-  f = message.getProcessesMap(true);
-  if (f && f.getLength() > 0) {
-    f.serializeBinary(2, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
-  }
-  f = message.getTagsMap(true);
-  if (f && f.getLength() > 0) {
-    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
-  }
-  f = message.getCreateTime();
-  if (f != null) {
-    writer.writeMessage(
-      4,
-      f,
-      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
-    );
-  }
-  f = message.getUpdateTime();
-  if (f != null) {
-    writer.writeMessage(
-      5,
-      f,
-      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
-    );
-  }
-};
-
-
-/**
- * optional string name = 1;
- * @return {string}
- */
-proto.controller.Formation.prototype.getName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
-};
-
-
-/** @param {string} value */
-proto.controller.Formation.prototype.setName = function(value) {
-  jspb.Message.setProto3StringField(this, 1, value);
-};
-
-
-/**
- * map<string, int32> processes = 2;
- * @param {boolean=} opt_noLazyCreate Do not create the map if
- * empty, instead returning `undefined`
- * @return {!jspb.Map<string,number>}
- */
-proto.controller.Formation.prototype.getProcessesMap = function(opt_noLazyCreate) {
-  return /** @type {!jspb.Map<string,number>} */ (
-      jspb.Message.getMapField(this, 2, opt_noLazyCreate,
-      null));
-};
-
-
-proto.controller.Formation.prototype.clearProcessesMap = function() {
-  this.getProcessesMap().clear();
-};
-
-
-/**
- * map<string, DeploymentProcessTags> tags = 3;
- * @param {boolean=} opt_noLazyCreate Do not create the map if
- * empty, instead returning `undefined`
- * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
- */
-proto.controller.Formation.prototype.getTagsMap = function(opt_noLazyCreate) {
-  return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
-      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
-      proto.controller.DeploymentProcessTags));
-};
-
-
-proto.controller.Formation.prototype.clearTagsMap = function() {
-  this.getTagsMap().clear();
-};
-
-
-/**
- * optional google.protobuf.Timestamp create_time = 4;
- * @return {?proto.google.protobuf.Timestamp}
- */
-proto.controller.Formation.prototype.getCreateTime = function() {
-  return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 4));
-};
-
-
-/** @param {?proto.google.protobuf.Timestamp|undefined} value */
-proto.controller.Formation.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 4, value);
-};
-
-
-proto.controller.Formation.prototype.clearCreateTime = function() {
-  this.setCreateTime(undefined);
-};
-
-
-/**
- * Returns whether this field is set.
- * @return {!boolean}
- */
-proto.controller.Formation.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 4) != null;
-};
-
-
-/**
- * optional google.protobuf.Timestamp update_time = 5;
- * @return {?proto.google.protobuf.Timestamp}
- */
-proto.controller.Formation.prototype.getUpdateTime = function() {
-  return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
-};
-
-
-/** @param {?proto.google.protobuf.Timestamp|undefined} value */
-proto.controller.Formation.prototype.setUpdateTime = function(value) {
-  jspb.Message.setWrapperField(this, 5, value);
-};
-
-
-proto.controller.Formation.prototype.clearUpdateTime = function() {
-  this.setUpdateTime(undefined);
-};
-
-
-/**
- * Returns whether this field is set.
- * @return {!boolean}
- */
-proto.controller.Formation.prototype.hasUpdateTime = function() {
-  return jspb.Message.getField(this, 5) != null;
 };
 
 
@@ -7440,122 +7837,6 @@ proto.controller.DeploymentEvent.prototype.getJobState = function() {
 /** @param {!proto.controller.DeploymentEvent.JobState} value */
 proto.controller.DeploymentEvent.prototype.setJobState = function(value) {
   jspb.Message.setProto3EnumField(this, 3, value);
-};
-
-
-
-/**
- * Generated by JsPbCodeGenerator.
- * @param {Array=} opt_data Optional initial data array, typically from a
- * server response, or constructed directly in Javascript. The array is used
- * in place and becomes part of the constructed object. It is not cloned.
- * If no data is provided, the constructed object will be empty, but still
- * valid.
- * @extends {jspb.Message}
- * @constructor
- */
-proto.controller.ScaleRequest = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
-};
-goog.inherits(proto.controller.ScaleRequest, jspb.Message);
-if (goog.DEBUG && !COMPILED) {
-  proto.controller.ScaleRequest.displayName = 'proto.controller.ScaleRequest';
-}
-
-
-if (jspb.Message.GENERATE_TO_OBJECT) {
-/**
- * Creates an object representation of this proto suitable for use in Soy templates.
- * Field names that are reserved in JavaScript and will be renamed to pb_name.
- * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
- * For the list of reserved names please see:
- *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
- * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
- *     for transitional soy proto support: http://goto/soy-param-migration
- * @return {!Object}
- */
-proto.controller.ScaleRequest.prototype.toObject = function(opt_includeInstance) {
-  return proto.controller.ScaleRequest.toObject(opt_includeInstance, this);
-};
-
-
-/**
- * Static version of the {@see toObject} method.
- * @param {boolean|undefined} includeInstance Whether to include the JSPB
- *     instance for transitional soy proto support:
- *     http://goto/soy-param-migration
- * @param {!proto.controller.ScaleRequest} msg The msg instance to transform.
- * @return {!Object}
- * @suppress {unusedLocalVariables} f is only used for nested messages
- */
-proto.controller.ScaleRequest.toObject = function(includeInstance, msg) {
-  var f, obj = {
-
-  };
-
-  if (includeInstance) {
-    obj.$jspbMessageInstance = msg;
-  }
-  return obj;
-};
-}
-
-
-/**
- * Deserializes binary data (in protobuf wire format).
- * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.controller.ScaleRequest}
- */
-proto.controller.ScaleRequest.deserializeBinary = function(bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.controller.ScaleRequest;
-  return proto.controller.ScaleRequest.deserializeBinaryFromReader(msg, reader);
-};
-
-
-/**
- * Deserializes binary data (in protobuf wire format) from the
- * given reader into the given message object.
- * @param {!proto.controller.ScaleRequest} msg The message object to deserialize into.
- * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.controller.ScaleRequest}
- */
-proto.controller.ScaleRequest.deserializeBinaryFromReader = function(msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-    default:
-      reader.skipField();
-      break;
-    }
-  }
-  return msg;
-};
-
-
-/**
- * Serializes the message to binary data (in protobuf wire format).
- * @return {!Uint8Array}
- */
-proto.controller.ScaleRequest.prototype.serializeBinary = function() {
-  var writer = new jspb.BinaryWriter();
-  proto.controller.ScaleRequest.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
-};
-
-
-/**
- * Serializes the given message to binary data (in protobuf wire
- * format), writing to the given BinaryWriter.
- * @param {!proto.controller.ScaleRequest} message
- * @param {!jspb.BinaryWriter} writer
- * @suppress {unusedLocalVariables} f is only used for nested messages
- */
-proto.controller.ScaleRequest.serializeBinaryToWriter = function(message, writer) {
-  var f = undefined;
 };
 
 

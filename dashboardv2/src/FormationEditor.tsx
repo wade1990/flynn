@@ -9,7 +9,7 @@ import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
-import { Formation } from './generated/controller_pb';
+import { Formation, ScaleRequest, CreateScaleRequest } from './generated/controller_pb';
 
 function buildProcessesArray(m: jspb.Map<string, number>): [string, number][] {
 	return m.toArray().sort(([ak, av]: [string, number], [bk, bv]: [string, number]) => {
@@ -200,12 +200,6 @@ class FormationEditor extends React.Component<Props, State> {
 		// build new formation object with new processes map
 		const { formation, processes } = this.state;
 		if (!formation) return; // should never be null at this point
-		const newFormation = new Formation();
-		protoMapReplace(newFormation.getProcessesMap(), new jspb.Map(processes));
-
-		// copy all other fields
-		protoMapReplace(newFormation.getTagsMap(), formation.getTagsMap());
-		newFormation.setName(formation.getName());
 
 		this.setState({
 			isConfirming: false,
@@ -213,12 +207,16 @@ class FormationEditor extends React.Component<Props, State> {
 		});
 
 		const { client, handleError } = this.props;
+		const req = new CreateScaleRequest();
+		req.setParent(formation.getParent());
+		protoMapReplace(req.getProcessesMap(), new jspb.Map(processes));
+		protoMapReplace(req.getTagsMap(), formation.getTagsMap());
 		client
-			.updateFormation(newFormation)
-			.then((formation: Formation) => {
+			.createScale(req)
+			.then((scaleReq: ScaleRequest) => {
 				this.setState({
 					isDeploying: false,
-					processes: buildProcessesArray(formation.getProcessesMap()),
+					processes: buildProcessesArray(scaleReq.getNewProcessesMap()),
 					processesDiff: [],
 					hasChanges: false
 				});
