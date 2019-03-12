@@ -76,6 +76,15 @@ type ControllerCreateScale = {
   readonly responseType: typeof controller_pb.ScaleRequest;
 };
 
+type ControllerListScaleRequestsStream = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: false;
+  readonly responseStream: true;
+  readonly requestType: typeof controller_pb.ListScaleRequestsRequest;
+  readonly responseType: typeof controller_pb.ListScaleRequestsResponse;
+};
+
 type ControllerStreamAppFormation = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -158,6 +167,7 @@ export class Controller {
   static readonly GetAppRelease: ControllerGetAppRelease;
   static readonly StreamAppRelease: ControllerStreamAppRelease;
   static readonly CreateScale: ControllerCreateScale;
+  static readonly ListScaleRequestsStream: ControllerListScaleRequestsStream;
   static readonly StreamAppFormation: ControllerStreamAppFormation;
   static readonly GetRelease: ControllerGetRelease;
   static readonly ListReleases: ControllerListReleases;
@@ -248,6 +258,7 @@ export class ControllerClient {
     requestMessage: controller_pb.CreateScaleRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.ScaleRequest|null) => void
   ): UnaryResponse;
+  listScaleRequestsStream(requestMessage: controller_pb.ListScaleRequestsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListScaleRequestsResponse>;
   streamAppFormation(requestMessage: controller_pb.GetAppFormationRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Formation>;
   getRelease(
     requestMessage: controller_pb.GetReleaseRequest,

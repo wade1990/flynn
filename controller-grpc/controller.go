@@ -517,6 +517,7 @@ func convertScaleRequest(ctScaleReq *ct.ScaleRequest) *ScaleRequest {
 
 	return &ScaleRequest{
 		Parent:       fmt.Sprintf("apps/%s/releases/%s", ctScaleReq.AppID, ctScaleReq.ReleaseID),
+		Name:         fmt.Sprintf("apps/%s/releases/%s/scale/%s", ctScaleReq.AppID, ctScaleReq.ReleaseID, ctScaleReq.ID),
 		State:        state,
 		OldProcesses: convertDeploymentProcesses(ctScaleReq.OldProcesses),
 		NewProcesses: newProcesses,
@@ -541,6 +542,91 @@ func (s *server) CreateScale(ctx context.Context, req *CreateScaleRequest) (*Sca
 		return nil, err
 	}
 	return scaleReq, nil
+}
+
+func (s *server) ListScaleRequestsStream(req *ListScaleRequestsRequest, stream Controller_ListScaleRequestsStreamServer) error {
+	appID := parseIDFromName(req.Parent, "apps")
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		AppID:       appID,
+		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest},
+		Past:        true,
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	var scaleRequests []*ScaleRequest
+	var scaleRequestsMtx sync.RWMutex
+	sendResponse := func() {
+		scaleRequestsMtx.RLock()
+		defer scaleRequestsMtx.RUnlock()
+		stream.Send(&ListScaleRequestsResponse{
+			ScaleRequests: scaleRequests,
+		})
+	}
+
+	sendResponseWithDelay := func() func() {
+		d := 10 * time.Millisecond
+		incoming := make(chan struct{})
+
+		go func() {
+			t := time.NewTimer(d)
+			t.Stop()
+
+			for {
+				select {
+				case <-incoming:
+					t.Reset(d)
+				case <-t.C:
+					go sendResponse()
+				}
+			}
+		}()
+
+		return func() {
+			go func() { incoming <- struct{}{} }()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			sendResponseWithDelay()
+
+			event, ok := <-events
+			if !ok {
+				break
+			}
+			var ctReq *ct.ScaleRequest
+			if err := json.Unmarshal(event.Data, &ctReq); err != nil {
+				fmt.Printf("ScaleRequestsStream: Error parsing data: %s\n", err)
+				continue
+			}
+			req := convertScaleRequest(ctReq)
+			// prepend
+			scaleRequestsMtx.Lock()
+			_scaleRequests := make([]*ScaleRequest, 0, len(scaleRequests)+1)
+			_scaleRequests = append(_scaleRequests, req)
+			for _, s := range scaleRequests {
+				if s.Name != req.Name {
+					_scaleRequests = append(_scaleRequests, s)
+				}
+			}
+			scaleRequests = _scaleRequests
+			scaleRequestsMtx.Unlock()
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
 }
 
 func convertFormation(ctFormation *ct.Formation) *Formation {

@@ -17,6 +17,8 @@ import {
 	GetAppFormationRequest,
 	Formation,
 	ScaleRequest,
+	ListScaleRequestsRequest,
+	ListScaleRequestsResponse,
 	CreateScaleRequest,
 	CreateDeploymentRequest,
 	Deployment,
@@ -34,6 +36,7 @@ export interface Client {
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
 	createScale: (req: CreateScaleRequest) => Promise<ScaleRequest>;
+	listScaleRequestsStream: (appName: string, cb: ListScaleRequestsStreamCallback) => () => void;
 	getRelease: (name: string) => Promise<Release>;
 	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
 	listReleasesStream: (
@@ -52,8 +55,22 @@ export type StreamAppCallback = (app: App, error: Error | null) => void;
 export type StreamAppReleaseCallback = (release: Release, error: Error | null) => void;
 export type StreamAppFormationCallback = (formation: Formation, error: Error | null) => void;
 export type ListReleasesStreamCallback = (releases: Release[], error: Error | null) => void;
+export type ListScaleRequestsStreamCallback = (scaleRequests: ScaleRequest[], error: Error | null) => void;
 
 export interface StreamEventsOptions {}
+
+interface Cancellable {
+  cancel(): void;
+}
+
+function buildCancelFunc(stream: Cancellable): () => void {
+	let cancelled = false;
+	return () => {
+		if (cancelled) return;
+		cancelled = true;
+		stream.cancel();
+	}
+}
 
 class _Client implements Client {
 	private _cc: ControllerClient;
@@ -81,7 +98,7 @@ class _Client implements Client {
 			cb(response.getAppsList(), null);
 		});
 		// TODO(jvatic): Handle stream error
-		return stream.cancel;
+		return buildCancelFunc(stream);
 	}
 
 	public getApp(name: string): Promise<App> {
@@ -106,7 +123,7 @@ class _Client implements Client {
 			cb(response, null);
 		});
 		// TODO(jvatic): Handle stream error
-		return stream.cancel;
+		return buildCancelFunc(stream);
 	}
 
 	public updateApp(app: App): Promise<App> {
@@ -145,7 +162,7 @@ class _Client implements Client {
 			cb(response, null);
 		});
 		// TODO(jvatic): Handle stream error
-		return stream.cancel;
+		return buildCancelFunc(stream);
 	}
 
 	public streamAppFormation(appName: string, cb: StreamAppFormationCallback): () => void {
@@ -156,7 +173,7 @@ class _Client implements Client {
 			cb(response, null);
 		});
 		// TODO(jvatic): Handle stream error
-		return stream.cancel;
+		return buildCancelFunc(stream);
 	}
 
 	public createScale(req: CreateScaleRequest): Promise<ScaleRequest> {
@@ -169,6 +186,17 @@ class _Client implements Client {
 				}
 			});
 		});
+	}
+
+	public listScaleRequestsStream(appName: string, cb: ListScaleRequestsStreamCallback): () => void {
+		const req = new ListScaleRequestsRequest();
+		req.setParent(appName);
+		const stream = this._cc.listScaleRequestsStream(req);
+		stream.on('data', (response: ListScaleRequestsResponse) => {
+			cb(response.getScaleRequestsList(), null);
+		});
+		// TODO(jvatic): Handle stream error
+		return buildCancelFunc(stream);
 	}
 
 	public getRelease(name: string): Promise<Release> {
@@ -223,7 +251,7 @@ class _Client implements Client {
 			cb(response.getReleasesList(), null);
 		});
 		// TODO(jvatic): Handle stream error
-		return stream.cancel;
+		return buildCancelFunc(stream);
 	}
 
 	public createRelease(parentName: string, release: Release): Promise<Release> {

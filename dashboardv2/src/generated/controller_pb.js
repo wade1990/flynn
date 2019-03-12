@@ -47,6 +47,8 @@ goog.exportSymbol('proto.controller.ListAppsRequest', null, global);
 goog.exportSymbol('proto.controller.ListAppsResponse', null, global);
 goog.exportSymbol('proto.controller.ListReleasesRequest', null, global);
 goog.exportSymbol('proto.controller.ListReleasesResponse', null, global);
+goog.exportSymbol('proto.controller.ListScaleRequestsRequest', null, global);
+goog.exportSymbol('proto.controller.ListScaleRequestsResponse', null, global);
 goog.exportSymbol('proto.controller.LogAggregatorLogOpts', null, global);
 goog.exportSymbol('proto.controller.LogAggregatorStreamSource', null, global);
 goog.exportSymbol('proto.controller.LogAggregatorStreamType', null, global);
@@ -1553,6 +1555,343 @@ proto.controller.CreateScaleRequest.prototype.clearTagsMap = function() {
  * @extends {jspb.Message}
  * @constructor
  */
+proto.controller.ListScaleRequestsRequest = function(opt_data) {
+  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+};
+goog.inherits(proto.controller.ListScaleRequestsRequest, jspb.Message);
+if (goog.DEBUG && !COMPILED) {
+  proto.controller.ListScaleRequestsRequest.displayName = 'proto.controller.ListScaleRequestsRequest';
+}
+
+
+if (jspb.Message.GENERATE_TO_OBJECT) {
+/**
+ * Creates an object representation of this proto suitable for use in Soy templates.
+ * Field names that are reserved in JavaScript and will be renamed to pb_name.
+ * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+ * For the list of reserved names please see:
+ *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
+ * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
+ *     for transitional soy proto support: http://goto/soy-param-migration
+ * @return {!Object}
+ */
+proto.controller.ListScaleRequestsRequest.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ListScaleRequestsRequest.toObject(opt_includeInstance, this);
+};
+
+
+/**
+ * Static version of the {@see toObject} method.
+ * @param {boolean|undefined} includeInstance Whether to include the JSPB
+ *     instance for transitional soy proto support:
+ *     http://goto/soy-param-migration
+ * @param {!proto.controller.ListScaleRequestsRequest} msg The msg instance to transform.
+ * @return {!Object}
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.ListScaleRequestsRequest.toObject = function(includeInstance, msg) {
+  var f, obj = {
+    parent: jspb.Message.getFieldWithDefault(msg, 1, "")
+  };
+
+  if (includeInstance) {
+    obj.$jspbMessageInstance = msg;
+  }
+  return obj;
+};
+}
+
+
+/**
+ * Deserializes binary data (in protobuf wire format).
+ * @param {jspb.ByteSource} bytes The bytes to deserialize.
+ * @return {!proto.controller.ListScaleRequestsRequest}
+ */
+proto.controller.ListScaleRequestsRequest.deserializeBinary = function(bytes) {
+  var reader = new jspb.BinaryReader(bytes);
+  var msg = new proto.controller.ListScaleRequestsRequest;
+  return proto.controller.ListScaleRequestsRequest.deserializeBinaryFromReader(msg, reader);
+};
+
+
+/**
+ * Deserializes binary data (in protobuf wire format) from the
+ * given reader into the given message object.
+ * @param {!proto.controller.ListScaleRequestsRequest} msg The message object to deserialize into.
+ * @param {!jspb.BinaryReader} reader The BinaryReader to use.
+ * @return {!proto.controller.ListScaleRequestsRequest}
+ */
+proto.controller.ListScaleRequestsRequest.deserializeBinaryFromReader = function(msg, reader) {
+  while (reader.nextField()) {
+    if (reader.isEndGroup()) {
+      break;
+    }
+    var field = reader.getFieldNumber();
+    switch (field) {
+    case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setParent(value);
+      break;
+    default:
+      reader.skipField();
+      break;
+    }
+  }
+  return msg;
+};
+
+
+/**
+ * Serializes the message to binary data (in protobuf wire format).
+ * @return {!Uint8Array}
+ */
+proto.controller.ListScaleRequestsRequest.prototype.serializeBinary = function() {
+  var writer = new jspb.BinaryWriter();
+  proto.controller.ListScaleRequestsRequest.serializeBinaryToWriter(this, writer);
+  return writer.getResultBuffer();
+};
+
+
+/**
+ * Serializes the given message to binary data (in protobuf wire
+ * format), writing to the given BinaryWriter.
+ * @param {!proto.controller.ListScaleRequestsRequest} message
+ * @param {!jspb.BinaryWriter} writer
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.ListScaleRequestsRequest.serializeBinaryToWriter = function(message, writer) {
+  var f = undefined;
+  f = message.getParent();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
+};
+
+
+/**
+ * optional string parent = 1;
+ * @return {string}
+ */
+proto.controller.ListScaleRequestsRequest.prototype.getParent = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.ListScaleRequestsRequest.prototype.setParent = function(value) {
+  jspb.Message.setProto3StringField(this, 1, value);
+};
+
+
+
+/**
+ * Generated by JsPbCodeGenerator.
+ * @param {Array=} opt_data Optional initial data array, typically from a
+ * server response, or constructed directly in Javascript. The array is used
+ * in place and becomes part of the constructed object. It is not cloned.
+ * If no data is provided, the constructed object will be empty, but still
+ * valid.
+ * @extends {jspb.Message}
+ * @constructor
+ */
+proto.controller.ListScaleRequestsResponse = function(opt_data) {
+  jspb.Message.initialize(this, opt_data, 0, -1, proto.controller.ListScaleRequestsResponse.repeatedFields_, null);
+};
+goog.inherits(proto.controller.ListScaleRequestsResponse, jspb.Message);
+if (goog.DEBUG && !COMPILED) {
+  proto.controller.ListScaleRequestsResponse.displayName = 'proto.controller.ListScaleRequestsResponse';
+}
+/**
+ * List of repeated fields within this message type.
+ * @private {!Array<number>}
+ * @const
+ */
+proto.controller.ListScaleRequestsResponse.repeatedFields_ = [1];
+
+
+
+if (jspb.Message.GENERATE_TO_OBJECT) {
+/**
+ * Creates an object representation of this proto suitable for use in Soy templates.
+ * Field names that are reserved in JavaScript and will be renamed to pb_name.
+ * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+ * For the list of reserved names please see:
+ *     com.google.apps.jspb.JsClassTemplate.JS_RESERVED_WORDS.
+ * @param {boolean=} opt_includeInstance Whether to include the JSPB instance
+ *     for transitional soy proto support: http://goto/soy-param-migration
+ * @return {!Object}
+ */
+proto.controller.ListScaleRequestsResponse.prototype.toObject = function(opt_includeInstance) {
+  return proto.controller.ListScaleRequestsResponse.toObject(opt_includeInstance, this);
+};
+
+
+/**
+ * Static version of the {@see toObject} method.
+ * @param {boolean|undefined} includeInstance Whether to include the JSPB
+ *     instance for transitional soy proto support:
+ *     http://goto/soy-param-migration
+ * @param {!proto.controller.ListScaleRequestsResponse} msg The msg instance to transform.
+ * @return {!Object}
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.ListScaleRequestsResponse.toObject = function(includeInstance, msg) {
+  var f, obj = {
+    scaleRequestsList: jspb.Message.toObjectList(msg.getScaleRequestsList(),
+    proto.controller.ScaleRequest.toObject, includeInstance),
+    nextPageToken: jspb.Message.getFieldWithDefault(msg, 2, "")
+  };
+
+  if (includeInstance) {
+    obj.$jspbMessageInstance = msg;
+  }
+  return obj;
+};
+}
+
+
+/**
+ * Deserializes binary data (in protobuf wire format).
+ * @param {jspb.ByteSource} bytes The bytes to deserialize.
+ * @return {!proto.controller.ListScaleRequestsResponse}
+ */
+proto.controller.ListScaleRequestsResponse.deserializeBinary = function(bytes) {
+  var reader = new jspb.BinaryReader(bytes);
+  var msg = new proto.controller.ListScaleRequestsResponse;
+  return proto.controller.ListScaleRequestsResponse.deserializeBinaryFromReader(msg, reader);
+};
+
+
+/**
+ * Deserializes binary data (in protobuf wire format) from the
+ * given reader into the given message object.
+ * @param {!proto.controller.ListScaleRequestsResponse} msg The message object to deserialize into.
+ * @param {!jspb.BinaryReader} reader The BinaryReader to use.
+ * @return {!proto.controller.ListScaleRequestsResponse}
+ */
+proto.controller.ListScaleRequestsResponse.deserializeBinaryFromReader = function(msg, reader) {
+  while (reader.nextField()) {
+    if (reader.isEndGroup()) {
+      break;
+    }
+    var field = reader.getFieldNumber();
+    switch (field) {
+    case 1:
+      var value = new proto.controller.ScaleRequest;
+      reader.readMessage(value,proto.controller.ScaleRequest.deserializeBinaryFromReader);
+      msg.addScaleRequests(value);
+      break;
+    case 2:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setNextPageToken(value);
+      break;
+    default:
+      reader.skipField();
+      break;
+    }
+  }
+  return msg;
+};
+
+
+/**
+ * Serializes the message to binary data (in protobuf wire format).
+ * @return {!Uint8Array}
+ */
+proto.controller.ListScaleRequestsResponse.prototype.serializeBinary = function() {
+  var writer = new jspb.BinaryWriter();
+  proto.controller.ListScaleRequestsResponse.serializeBinaryToWriter(this, writer);
+  return writer.getResultBuffer();
+};
+
+
+/**
+ * Serializes the given message to binary data (in protobuf wire
+ * format), writing to the given BinaryWriter.
+ * @param {!proto.controller.ListScaleRequestsResponse} message
+ * @param {!jspb.BinaryWriter} writer
+ * @suppress {unusedLocalVariables} f is only used for nested messages
+ */
+proto.controller.ListScaleRequestsResponse.serializeBinaryToWriter = function(message, writer) {
+  var f = undefined;
+  f = message.getScaleRequestsList();
+  if (f.length > 0) {
+    writer.writeRepeatedMessage(
+      1,
+      f,
+      proto.controller.ScaleRequest.serializeBinaryToWriter
+    );
+  }
+  f = message.getNextPageToken();
+  if (f.length > 0) {
+    writer.writeString(
+      2,
+      f
+    );
+  }
+};
+
+
+/**
+ * repeated ScaleRequest scale_requests = 1;
+ * @return {!Array<!proto.controller.ScaleRequest>}
+ */
+proto.controller.ListScaleRequestsResponse.prototype.getScaleRequestsList = function() {
+  return /** @type{!Array<!proto.controller.ScaleRequest>} */ (
+    jspb.Message.getRepeatedWrapperField(this, proto.controller.ScaleRequest, 1));
+};
+
+
+/** @param {!Array<!proto.controller.ScaleRequest>} value */
+proto.controller.ListScaleRequestsResponse.prototype.setScaleRequestsList = function(value) {
+  jspb.Message.setRepeatedWrapperField(this, 1, value);
+};
+
+
+/**
+ * @param {!proto.controller.ScaleRequest=} opt_value
+ * @param {number=} opt_index
+ * @return {!proto.controller.ScaleRequest}
+ */
+proto.controller.ListScaleRequestsResponse.prototype.addScaleRequests = function(opt_value, opt_index) {
+  return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.controller.ScaleRequest, opt_index);
+};
+
+
+proto.controller.ListScaleRequestsResponse.prototype.clearScaleRequestsList = function() {
+  this.setScaleRequestsList([]);
+};
+
+
+/**
+ * optional string next_page_token = 2;
+ * @return {string}
+ */
+proto.controller.ListScaleRequestsResponse.prototype.getNextPageToken = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.ListScaleRequestsResponse.prototype.setNextPageToken = function(value) {
+  jspb.Message.setProto3StringField(this, 2, value);
+};
+
+
+
+/**
+ * Generated by JsPbCodeGenerator.
+ * @param {Array=} opt_data Optional initial data array, typically from a
+ * server response, or constructed directly in Javascript. The array is used
+ * in place and becomes part of the constructed object. It is not cloned.
+ * If no data is provided, the constructed object will be empty, but still
+ * valid.
+ * @extends {jspb.Message}
+ * @constructor
+ */
 proto.controller.ScaleRequest = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
@@ -1590,7 +1929,8 @@ proto.controller.ScaleRequest.prototype.toObject = function(opt_includeInstance)
 proto.controller.ScaleRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    state: jspb.Message.getFieldWithDefault(msg, 2, 0),
+    name: jspb.Message.getFieldWithDefault(msg, 2, ""),
+    state: jspb.Message.getFieldWithDefault(msg, 3, 0),
     oldProcessesMap: (f = msg.getOldProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
     newProcessesMap: (f = msg.getNewProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
     oldTagsMap: (f = msg.getOldTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
@@ -1638,39 +1978,43 @@ proto.controller.ScaleRequest.deserializeBinaryFromReader = function(msg, reader
       msg.setParent(value);
       break;
     case 2:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setName(value);
+      break;
+    case 3:
       var value = /** @type {!proto.controller.ScaleRequestState} */ (reader.readEnum());
       msg.setState(value);
       break;
-    case 3:
+    case 4:
       var value = msg.getOldProcessesMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
          });
       break;
-    case 4:
+    case 5:
       var value = msg.getNewProcessesMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
          });
       break;
-    case 5:
+    case 6:
       var value = msg.getOldTagsMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
          });
       break;
-    case 6:
+    case 7:
       var value = msg.getNewTagsMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
          });
       break;
-    case 7:
+    case 8:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
       break;
-    case 8:
+    case 9:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setUpdateTime(value);
@@ -1711,33 +2055,40 @@ proto.controller.ScaleRequest.serializeBinaryToWriter = function(message, writer
       f
     );
   }
+  f = message.getName();
+  if (f.length > 0) {
+    writer.writeString(
+      2,
+      f
+    );
+  }
   f = message.getState();
   if (f !== 0.0) {
     writer.writeEnum(
-      2,
+      3,
       f
     );
   }
   f = message.getOldProcessesMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
   }
   f = message.getNewProcessesMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+    f.serializeBinary(5, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
   }
   f = message.getOldTagsMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(5, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+    f.serializeBinary(6, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
   }
   f = message.getNewTagsMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(6, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+    f.serializeBinary(7, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
   }
   f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      7,
+      8,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -1745,7 +2096,7 @@ proto.controller.ScaleRequest.serializeBinaryToWriter = function(message, writer
   f = message.getUpdateTime();
   if (f != null) {
     writer.writeMessage(
-      8,
+      9,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -1769,29 +2120,44 @@ proto.controller.ScaleRequest.prototype.setParent = function(value) {
 
 
 /**
- * optional ScaleRequestState state = 2;
+ * optional string name = 2;
+ * @return {string}
+ */
+proto.controller.ScaleRequest.prototype.getName = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.ScaleRequest.prototype.setName = function(value) {
+  jspb.Message.setProto3StringField(this, 2, value);
+};
+
+
+/**
+ * optional ScaleRequestState state = 3;
  * @return {!proto.controller.ScaleRequestState}
  */
 proto.controller.ScaleRequest.prototype.getState = function() {
-  return /** @type {!proto.controller.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+  return /** @type {!proto.controller.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
 
 /** @param {!proto.controller.ScaleRequestState} value */
 proto.controller.ScaleRequest.prototype.setState = function(value) {
-  jspb.Message.setProto3EnumField(this, 2, value);
+  jspb.Message.setProto3EnumField(this, 3, value);
 };
 
 
 /**
- * map<string, int32> old_processes = 3;
+ * map<string, int32> old_processes = 4;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,number>}
  */
 proto.controller.ScaleRequest.prototype.getOldProcessesMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,number>} */ (
-      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
       null));
 };
 
@@ -1802,14 +2168,14 @@ proto.controller.ScaleRequest.prototype.clearOldProcessesMap = function() {
 
 
 /**
- * map<string, int32> new_processes = 4;
+ * map<string, int32> new_processes = 5;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,number>}
  */
 proto.controller.ScaleRequest.prototype.getNewProcessesMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,number>} */ (
-      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 5, opt_noLazyCreate,
       null));
 };
 
@@ -1820,14 +2186,14 @@ proto.controller.ScaleRequest.prototype.clearNewProcessesMap = function() {
 
 
 /**
- * map<string, DeploymentProcessTags> old_tags = 5;
+ * map<string, DeploymentProcessTags> old_tags = 6;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
  */
 proto.controller.ScaleRequest.prototype.getOldTagsMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
-      jspb.Message.getMapField(this, 5, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 6, opt_noLazyCreate,
       proto.controller.DeploymentProcessTags));
 };
 
@@ -1838,14 +2204,14 @@ proto.controller.ScaleRequest.prototype.clearOldTagsMap = function() {
 
 
 /**
- * map<string, DeploymentProcessTags> new_tags = 6;
+ * map<string, DeploymentProcessTags> new_tags = 7;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
  */
 proto.controller.ScaleRequest.prototype.getNewTagsMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
-      jspb.Message.getMapField(this, 6, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 7, opt_noLazyCreate,
       proto.controller.DeploymentProcessTags));
 };
 
@@ -1856,18 +2222,18 @@ proto.controller.ScaleRequest.prototype.clearNewTagsMap = function() {
 
 
 /**
- * optional google.protobuf.Timestamp create_time = 7;
+ * optional google.protobuf.Timestamp create_time = 8;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.ScaleRequest.prototype.getCreateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 7));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 8));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.ScaleRequest.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 7, value);
+  jspb.Message.setWrapperField(this, 8, value);
 };
 
 
@@ -1881,23 +2247,23 @@ proto.controller.ScaleRequest.prototype.clearCreateTime = function() {
  * @return {!boolean}
  */
 proto.controller.ScaleRequest.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 7) != null;
+  return jspb.Message.getField(this, 8) != null;
 };
 
 
 /**
- * optional google.protobuf.Timestamp update_time = 8;
+ * optional google.protobuf.Timestamp update_time = 9;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.ScaleRequest.prototype.getUpdateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 8));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 9));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.ScaleRequest.prototype.setUpdateTime = function(value) {
-  jspb.Message.setWrapperField(this, 8, value);
+  jspb.Message.setWrapperField(this, 9, value);
 };
 
 
@@ -1911,7 +2277,7 @@ proto.controller.ScaleRequest.prototype.clearUpdateTime = function() {
  * @return {!boolean}
  */
 proto.controller.ScaleRequest.prototype.hasUpdateTime = function() {
-  return jspb.Message.getField(this, 8) != null;
+  return jspb.Message.getField(this, 9) != null;
 };
 
 

@@ -208,9 +208,58 @@ export namespace CreateScaleRequest {
   }
 }
 
+export class ListScaleRequestsRequest extends jspb.Message {
+  getParent(): string;
+  setParent(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListScaleRequestsRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: ListScaleRequestsRequest): ListScaleRequestsRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListScaleRequestsRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListScaleRequestsRequest;
+  static deserializeBinaryFromReader(message: ListScaleRequestsRequest, reader: jspb.BinaryReader): ListScaleRequestsRequest;
+}
+
+export namespace ListScaleRequestsRequest {
+  export type AsObject = {
+    parent: string,
+  }
+}
+
+export class ListScaleRequestsResponse extends jspb.Message {
+  clearScaleRequestsList(): void;
+  getScaleRequestsList(): Array<ScaleRequest>;
+  setScaleRequestsList(value: Array<ScaleRequest>): void;
+  addScaleRequests(value?: ScaleRequest, index?: number): ScaleRequest;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListScaleRequestsResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: ListScaleRequestsResponse): ListScaleRequestsResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListScaleRequestsResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListScaleRequestsResponse;
+  static deserializeBinaryFromReader(message: ListScaleRequestsResponse, reader: jspb.BinaryReader): ListScaleRequestsResponse;
+}
+
+export namespace ListScaleRequestsResponse {
+  export type AsObject = {
+    scaleRequestsList: Array<ScaleRequest.AsObject>,
+    nextPageToken: string,
+  }
+}
+
 export class ScaleRequest extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
+
+  getName(): string;
+  setName(value: string): void;
 
   getState(): ScaleRequestState;
   setState(value: ScaleRequestState): void;
@@ -246,6 +295,7 @@ export class ScaleRequest extends jspb.Message {
 export namespace ScaleRequest {
   export type AsObject = {
     parent: string,
+    name: string,
     state: ScaleRequestState,
     oldProcessesMap: Array<[string, number]>,
     newProcessesMap: Array<[string, number]>,
