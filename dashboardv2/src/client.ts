@@ -60,7 +60,7 @@ export type ListScaleRequestsStreamCallback = (scaleRequests: ScaleRequest[], er
 export interface StreamEventsOptions {}
 
 interface Cancellable {
-  cancel(): void;
+	cancel(): void;
 }
 
 function buildCancelFunc(stream: Cancellable): () => void {
@@ -69,13 +69,19 @@ function buildCancelFunc(stream: Cancellable): () => void {
 		if (cancelled) return;
 		cancelled = true;
 		stream.cancel();
-	}
+	};
 }
 
 class _Client implements Client {
 	private _cc: ControllerClient;
+	private __streamAppFormationRequests: { [appName: string]: Set<StreamAppFormationCallback> };
+	private __streamAppFormationResponses: { [appName: string]: Formation };
+	private __streamAppFormationRequestCancellers: { [appName: string]: () => void };
 	constructor(cc: ControllerClient) {
 		this._cc = cc;
+		this.__streamAppFormationRequests = {};
+		this.__streamAppFormationResponses = {};
+		this.__streamAppFormationRequestCancellers = {};
 	}
 
 	public listApps(): Promise<App[]> {
@@ -166,14 +172,42 @@ class _Client implements Client {
 	}
 
 	public streamAppFormation(appName: string, cb: StreamAppFormationCallback): () => void {
+		let cbs = this.__streamAppFormationRequests[appName];
+		let formation = this.__streamAppFormationResponses[appName];
+		const cancelFn = () => {
+			cbs.delete(cb);
+			if (cbs.size === 0) {
+				const cancel = this.__streamAppFormationRequestCancellers[appName];
+				if (cancel) {
+					cancel();
+				}
+				delete this.__streamAppFormationRequests[appName];
+				delete this.__streamAppFormationResponses[appName];
+				delete this.__streamAppFormationRequestCancellers[appName];
+			}
+		};
+
+		if (cbs && cbs.size) {
+			cbs.add(cb);
+			if (formation) {
+				cb(formation, null);
+			}
+			return cancelFn;
+		}
+		cbs = this.__streamAppFormationRequests[appName] = new Set([cb]);
+
 		const req = new GetAppFormationRequest();
 		req.setParent(appName);
 		const stream = this._cc.streamAppFormation(req);
+		this.__streamAppFormationRequestCancellers[appName] = buildCancelFunc(stream);
 		stream.on('data', (response: Formation) => {
-			cb(response, null);
+			this.__streamAppFormationResponses[appName] = response;
+			for (let fn of cbs.values()) {
+				fn(response, null);
+			}
 		});
 		// TODO(jvatic): Handle stream error
-		return buildCancelFunc(stream);
+		return cancelFn;
 	}
 
 	public createScale(req: CreateScaleRequest): Promise<ScaleRequest> {
