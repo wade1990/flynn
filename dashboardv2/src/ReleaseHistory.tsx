@@ -7,12 +7,12 @@ import { CheckmarkIcon, CheckBox, Button, Columns, Box, Value } from 'grommet';
 
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
-import { Release, Deployment, ScaleRequest } from './generated/controller_pb';
+import { Release, Deployment, ScaleRequest, Formation } from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
 import { renderRelease } from './Release';
 import { parseURLParams, urlParamsToString } from './util/urlParams';
-import protoMapDiff, { DiffOp, DiffOption } from './util/protoMapDiff';
+import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 
 import './ReleaseHistory.scss';
 
@@ -108,18 +108,28 @@ export interface Props extends RouteComponentProps<{}> {
 	scaleRequests: ScaleRequest[];
 	currentReleaseName: string;
 	selectedItemName: string;
+	currentFormation: Formation;
 	onSubmit: (releaseName: string) => void;
+}
+
+enum SelectedResourceType {
+	Release = 1,
+	ScaleRequest
 }
 
 interface State {
 	selectedItemName: string;
+	selectedResourceType: SelectedResourceType;
+	selectedScaleRequestDiff: Diff<string, number> | null;
 }
 
 export class ReleaseHistory extends React.Component<Props, State> {
 	constructor(props: Props) {
 		super(props);
 		this.state = {
-			selectedItemName: props.selectedItemName || props.currentReleaseName
+			selectedItemName: props.selectedItemName || props.currentReleaseName,
+			selectedResourceType: SelectedResourceType.Release,
+			selectedScaleRequestDiff: null
 		};
 		this._submitHandler = this._submitHandler.bind(this);
 	}
@@ -129,22 +139,22 @@ export class ReleaseHistory extends React.Component<Props, State> {
 		const { selectedItemName } = this.state;
 		if (selectedItemName === prevProps.currentReleaseName && currentReleaseName !== prevState.selectedItemName) {
 			this.setState({
-				selectedItemName: currentReleaseName
+				selectedItemName: currentReleaseName,
+				selectedResourceType: SelectedResourceType.Release,
+				selectedScaleRequestDiff: null
 			});
 		}
 	}
 
 	public render() {
-		const { releases, scaleRequests, currentReleaseName, location, history } = this.props;
-		const { selectedItemName } = this.state;
+		const { releases, scaleRequests, currentReleaseName, currentFormation, location, history } = this.props;
+		const { selectedItemName, selectedResourceType, selectedScaleRequestDiff } = this.state;
 
 		const urlParams = parseURLParams(location.search);
 		const releasesListFilters = urlParams['rhf'] || ['code'];
 
-		let selectedItem = null as Release | ScaleRequest | null;
 		const getListItemClassName = (item: Release | ScaleRequest): string => {
 			if (item.getName() === selectedItemName) {
-				selectedItem = item;
 				return 'selected';
 			}
 			return '';
@@ -228,11 +238,15 @@ export class ReleaseHistory extends React.Component<Props, State> {
 											onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 												if (e.target.checked) {
 													this.setState({
-														selectedItemName: r.getName()
+														selectedItemName: r.getName(),
+														selectedResourceType: SelectedResourceType.Release,
+														selectedScaleRequestDiff: null
 													});
 												} else {
 													this.setState({
-														selectedItemName: currentReleaseName
+														selectedItemName: currentReleaseName,
+														selectedResourceType: SelectedResourceType.Release,
+														selectedScaleRequestDiff: null
 													});
 												}
 											}}
@@ -250,12 +264,17 @@ export class ReleaseHistory extends React.Component<Props, State> {
 											checked={selectedItemName === s.getName()}
 											onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 												if (e.target.checked) {
+													const diff = protoMapDiff(currentFormation.getProcessesMap(), s.getNewProcessesMap());
 													this.setState({
-														selectedItemName: s.getName()
+														selectedItemName: s.getName(),
+														selectedResourceType: SelectedResourceType.ScaleRequest,
+														selectedScaleRequestDiff: diff
 													});
 												} else {
 													this.setState({
-														selectedItemName: currentReleaseName
+														selectedItemName: currentReleaseName,
+														selectedResourceType: SelectedResourceType.Release,
+														selectedScaleRequestDiff: null
 													});
 												}
 											}}
@@ -272,8 +291,26 @@ export class ReleaseHistory extends React.Component<Props, State> {
 				{selectedItemName === currentReleaseName ? (
 					// disabled button
 					<Button primary icon={<CheckmarkIcon />} label="Deploy Release" />
-				) : selectedItem instanceof ScaleRequest ? (
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Scale Release" />
+				) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
+					selectedItemName.startsWith(currentReleaseName) ? (
+						(selectedScaleRequestDiff as Diff<string, number>).length > 0 ? (
+							// TODO(jvatic): support scaling release
+							<>
+								<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
+								&nbsp; TODO
+							</>
+						) : (
+							// disabled button (no diff)
+							<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
+						)
+					) : (
+						// disabled button
+						<>
+							<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
+							<br />
+							(Can only scale the current release).
+						</>
+					)
 				) : (
 					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
 				)}
@@ -301,6 +338,8 @@ interface WrappedState {
 	releasesLoading: boolean;
 	scaleRequests: ScaleRequest[];
 	scaleRequestsLoading: boolean;
+	currentFormation: Formation | null;
+	currentFormationLoading: boolean;
 	isDeploying: boolean;
 	releaseName: string;
 }
@@ -308,6 +347,7 @@ interface WrappedState {
 class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> {
 	private __streamReleasesCancel: () => void;
 	private __streamScaleRequestsCancel: () => void;
+	private __streamAppFormationCancel: () => void;
 	private __isScaleEnabled: boolean;
 	private __isReleaseEnabled: boolean;
 	constructor(props: WrappedProps) {
@@ -317,12 +357,15 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			releasesLoading: false,
 			scaleRequests: [],
 			scaleRequestsLoading: false,
+			currentFormation: null,
+			currentFormationLoading: false,
 			isDeploying: false,
 			releaseName: ''
 		};
 		this._checkToggles(false);
 		this.__streamReleasesCancel = () => {};
 		this.__streamScaleRequestsCancel = () => {};
+		this.__streamAppFormationCancel = () => {};
 		this._handleSubmit = this._handleSubmit.bind(this);
 		this._handleDeployCancel = this._handleDeployCancel.bind(this);
 		this._handleDeploymentCreate = this._handleDeploymentCreate.bind(this);
@@ -344,6 +387,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	public componentWillUnmount() {
 		this.__streamReleasesCancel();
 		this.__streamScaleRequestsCancel();
+		this.__streamAppFormationCancel();
 	}
 
 	private _checkToggles(toggleFetch: boolean) {
@@ -356,6 +400,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 				this._fetchScaleRequests();
 			} else if (prevIsScaleEnabled && !this.__isScaleEnabled) {
 				this.__streamScaleRequestsCancel();
+				this.__streamAppFormationCancel();
 			}
 		}
 
@@ -391,7 +436,8 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	private _fetchScaleRequests() {
 		const { client, appName, handleError } = this.props;
 		this.setState({
-			scaleRequestsLoading: true
+			scaleRequestsLoading: true,
+			currentFormationLoading: true
 		});
 		this.__streamScaleRequestsCancel();
 		this.__streamScaleRequestsCancel = client.listScaleRequestsStream(
@@ -407,12 +453,36 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 				});
 			}
 		);
+
+		this.__streamAppFormationCancel();
+		this.__streamAppFormationCancel = client.streamAppFormation(
+			appName,
+			(formation: Formation, error: Error | null) => {
+				if (error) {
+					return handleError(error);
+				}
+
+				this.setState({
+					currentFormation: formation,
+					currentFormationLoading: false
+				});
+			}
+		);
 	}
 
 	public render() {
 		const { appName, client, handleError, ...props } = this.props;
-		const { releasesLoading, releases, scaleRequestsLoading, scaleRequests, isDeploying, releaseName } = this.state;
-		if (releasesLoading || scaleRequestsLoading) {
+		const {
+			releasesLoading,
+			releases,
+			scaleRequestsLoading,
+			scaleRequests,
+			currentFormation,
+			currentFormationLoading,
+			isDeploying,
+			releaseName
+		} = this.state;
+		if (releasesLoading || scaleRequestsLoading || currentFormationLoading) {
 			return <Loading />;
 		}
 		if (isDeploying) {
@@ -431,6 +501,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 				selectedItemName={releaseName}
 				releases={releases}
 				scaleRequests={scaleRequests}
+				currentFormation={currentFormation as Formation}
 				onSubmit={this._handleSubmit}
 			/>
 		);
