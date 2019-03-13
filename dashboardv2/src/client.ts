@@ -93,7 +93,12 @@ function buildCancelFunc(stream: Cancellable): () => void {
 const __memoizedStreams = {} as { [key: string]: ResponseStream<any> };
 const __memoizedStreamUsers = {} as { [key: string]: number };
 const __memoizedStreamResponses = {} as { [key: string]: any };
-function memoizedStream<T>(key: string, initStream: () => ResponseStream<T>): [ResponseStream<T>, T | undefined] {
+function memoizedStream<T>(
+	contextKey: string,
+	streamKey: string,
+	initStream: () => ResponseStream<T>
+): [ResponseStream<T>, T | undefined] {
+	const key = contextKey + streamKey;
 	function cleanup() {
 		const n = (__memoizedStreamUsers[key] = (__memoizedStreamUsers[key] || 0) - 1);
 		if (n === 0) {
@@ -169,7 +174,7 @@ class _Client implements Client {
 	}
 
 	public streamApp(name: string, cb: StreamAppCallback): () => void {
-		const [stream, lastResponse] = memoizedStream(name, () => {
+		const [stream, lastResponse] = memoizedStream('streamApp', name, () => {
 			const getAppRequest = new GetAppRequest();
 			getAppRequest.setName(name);
 			const stream = this._cc.streamApp(getAppRequest);
