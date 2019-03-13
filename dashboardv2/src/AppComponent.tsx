@@ -11,6 +11,7 @@ import Loading from './Loading';
 const FormationEditor = React.lazy(() => import('./FormationEditor'));
 const ReleaseHistory = React.lazy(() => import('./ReleaseHistory'));
 const EnvEditor = React.lazy(() => import('./EnvEditor'));
+const MetadataEditor = React.lazy(() => import('./MetadataEditor'));
 import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 export interface Props extends ClientProps, ErrorHandlerProps, RouteComponentProps {
@@ -70,6 +71,12 @@ class AppComponent extends React.Component<Props, State> {
 					<AccordionPanel heading="Environment">
 						<React.Suspense fallback={<Loading />}>
 							<EnvEditor appName={app.getName()} />
+						</React.Suspense>
+					</AccordionPanel>
+
+					<AccordionPanel heading="Metadata">
+						<React.Suspense fallback={<Loading />}>
+							<MetadataEditor appName={app.getName()} />
 						</React.Suspense>
 					</AccordionPanel>
 				</Accordion>

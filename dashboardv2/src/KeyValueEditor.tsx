@@ -4,7 +4,7 @@ import fz from 'fz';
 
 import Button from 'grommet/components/Button';
 import { CheckmarkIcon, SearchInput } from 'grommet';
-import { Diff, DiffOp } from './util/protoMapDiff';
+import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 
 import './KeyValueEditor.scss';
 
@@ -354,4 +354,40 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		e.preventDefault();
 		this.props.onSubmit(this.props.data);
 	}
+}
+
+type StringMap = jspb.Map<string, string>;
+
+export function renderKeyValueDiff(prev: StringMap, next: StringMap) {
+	const diff = protoMapDiff(prev, next, DiffOption.INCLUDE_UNCHANGED).sort((a, b) => {
+		return a.key.localeCompare(b.key);
+	});
+
+	return (
+		<pre>
+			{diff.map((item) => {
+				let value;
+				let prefix = ' ';
+				switch (item.op) {
+					case 'keep':
+						value = next.get(item.key);
+						break;
+					case 'remove':
+						prefix = '-';
+						value = prev.get(item.key);
+						break;
+					case 'add':
+						prefix = '+';
+						value = next.get(item.key);
+						break;
+				}
+				return (
+					<span key={item.op + item.key} className={'next-diff-' + item.op}>
+						{prefix} {item.key} = {value}
+						<br />
+					</span>
+				);
+			})}
+		</pre>
+	);
 }
