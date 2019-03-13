@@ -90,6 +90,41 @@ function buildCancelFunc(stream: Cancellable): () => void {
 	};
 }
 
+const __memoizedStreams = {} as { [key: string]: ResponseStream<any> };
+const __memoizedStreamUsers = {} as { [key: string]: number };
+const __memoizedStreamResponses = {} as { [key: string]: any };
+function memoizedStream<T>(key: string, initStream: () => ResponseStream<T>): [ResponseStream<T>, T | undefined] {
+	function cleanup() {
+		const n = (__memoizedStreamUsers[key] = (__memoizedStreamUsers[key] || 0) - 1);
+		if (n === 0) {
+			delete __memoizedStreams[key];
+			delete __memoizedStreamUsers[key];
+			delete __memoizedStreamResponses[key];
+		}
+		return n;
+	}
+
+	__memoizedStreamUsers[key] = (__memoizedStreamUsers[key] || 0) + 1;
+
+	let stream = __memoizedStreams[key];
+	if (stream) {
+		return [stream as ResponseStream<T>, __memoizedStreamResponses[key] as T | undefined];
+	}
+	stream = initStream();
+	stream.on('data', (data: T) => {
+		__memoizedStreamResponses[key] = data;
+	});
+	stream.on('end', cleanup);
+	const cancel = stream.cancel;
+	stream.cancel = () => {
+		if (cleanup() === 0) {
+			cancel();
+		}
+	};
+	__memoizedStreams[key] = stream;
+	return [stream, undefined];
+}
+
 class _Client implements Client {
 	private _cc: ControllerClient;
 	private __streamAppFormationRequests: { [appName: string]: Set<StreamAppFormationCallback> };
@@ -140,12 +175,18 @@ class _Client implements Client {
 	}
 
 	public streamApp(name: string, cb: StreamAppCallback): () => void {
-		const getAppRequest = new GetAppRequest();
-		getAppRequest.setName(name);
-		const stream = this._cc.streamApp(getAppRequest);
+		const [stream, lastResponse] = memoizedStream(name, () => {
+			const getAppRequest = new GetAppRequest();
+			getAppRequest.setName(name);
+			const stream = this._cc.streamApp(getAppRequest);
+			return stream;
+		});
 		stream.on('data', (response: App) => {
 			cb(response, null);
 		});
+		if (lastResponse) {
+			cb(lastResponse, null);
+		}
 		// TODO(jvatic): Handle stream error
 		return buildCancelFunc(stream);
 	}
