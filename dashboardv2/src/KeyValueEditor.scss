@@ -1,4 +1,4 @@
-.env-editor {
+.kv-editor {
 	> .grommetux-search-input,
 	.grommetux-search-input > input {
 		width: 100%;
@@ -9,7 +9,7 @@
 		margin-bottom: 0.25rem;
 	}
 
-	> .env-row {
+	> .kv-row {
 		display: flex;
 		> input[type='text'],
 		textarea {
@@ -30,13 +30,13 @@
 		}
 	}
 
-	> .env-row + .env-row {
+	> .kv-row + .kv-row {
 		> input[type='text'] {
 			margin-top: 0.25rem;
 		}
 	}
 
-	> .env-row:last-of-type {
+	> .kv-row:last-of-type {
 		margin-bottom: 1rem;
 	}
 }
