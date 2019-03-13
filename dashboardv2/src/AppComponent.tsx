@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import Heading from 'grommet/components/Heading';
-import Accordion from 'grommet/components/Accordion';
-import AccordionPanel from 'grommet/components/AccordionPanel';
+import { Heading, Accordion, AccordionPanel, SocialGithubIcon } from 'grommet';
 
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { App } from './generated/controller_pb';
 import Loading from './Loading';
+import ExternalAnchor from './ExternalAnchor';
 const FormationEditor = React.lazy(() => import('./FormationEditor'));
 const ReleaseHistory = React.lazy(() => import('./ReleaseHistory'));
 const EnvEditor = React.lazy(() => import('./EnvEditor'));
@@ -52,9 +51,23 @@ class AppComponent extends React.Component<Props, State> {
 			return <Loading />;
 		}
 
+		const githubURL = app.getLabelsMap().get('github.url') || null;
+
 		return (
-			<React.Fragment>
-				<Heading>{app.getDisplayName()}</Heading>
+			<>
+				<Heading>
+					<>
+						{app.getDisplayName()}
+						{githubURL ? (
+							<>
+								&nbsp;
+								<ExternalAnchor href={githubURL}>
+									<SocialGithubIcon />
+								</ExternalAnchor>
+							</>
+						) : null}
+					</>
+				</Heading>
 				<Accordion openMulti={true} animate={false} onActive={this._handleSectionChange} active={activeIndices}>
 					<AccordionPanel heading="Scale">
 						<React.Suspense fallback={<Loading />}>
@@ -80,7 +93,7 @@ class AppComponent extends React.Component<Props, State> {
 						</React.Suspense>
 					</AccordionPanel>
 				</Accordion>
-			</React.Fragment>
+			</>
 		);
 	}
 
