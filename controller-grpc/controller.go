@@ -297,6 +297,14 @@ func (s *server) UpdateApp(ctx context.Context, req *UpdateAppRequest) (*App, er
 	return convertApp(ctApp), nil
 }
 
+func (s *server) UpdateAppMeta(ctx context.Context, req *UpdateAppRequest) (*App, error) {
+	ctApp := backConvertApp(req.App)
+	if err := s.Client.UpdateAppMeta(ctApp); err != nil {
+		return nil, err
+	}
+	return convertApp(ctApp), nil
+}
+
 func convertPorts(from []ct.Port) []*Port {
 	to := make([]*Port, len(from))
 	for i, p := range from {

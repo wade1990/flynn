@@ -49,6 +49,15 @@ type ControllerUpdateApp = {
   readonly responseType: typeof controller_pb.App;
 };
 
+type ControllerUpdateAppMeta = {
+  readonly methodName: string;
+  readonly service: typeof Controller;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof controller_pb.UpdateAppRequest;
+  readonly responseType: typeof controller_pb.App;
+};
+
 type ControllerGetAppRelease = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -164,6 +173,7 @@ export class Controller {
   static readonly GetApp: ControllerGetApp;
   static readonly StreamApp: ControllerStreamApp;
   static readonly UpdateApp: ControllerUpdateApp;
+  static readonly UpdateAppMeta: ControllerUpdateAppMeta;
   static readonly GetAppRelease: ControllerGetAppRelease;
   static readonly StreamAppRelease: ControllerStreamAppRelease;
   static readonly CreateScale: ControllerCreateScale;
@@ -236,6 +246,15 @@ export class ControllerClient {
     callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
   ): UnaryResponse;
   updateApp(
+    requestMessage: controller_pb.UpdateAppRequest,
+    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
+  ): UnaryResponse;
+  updateAppMeta(
+    requestMessage: controller_pb.UpdateAppRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
+  ): UnaryResponse;
+  updateAppMeta(
     requestMessage: controller_pb.UpdateAppRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
   ): UnaryResponse;

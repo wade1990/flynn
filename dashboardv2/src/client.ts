@@ -33,6 +33,7 @@ export interface Client {
 	getApp: (name: string) => Promise<App>;
 	streamApp: (name: string, cb: StreamAppCallback) => () => void;
 	updateApp: (app: App) => Promise<App>;
+	updateAppMeta: (app: App) => Promise<App>;
 	getAppRelease: (appName: string) => Promise<Release>;
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
@@ -195,6 +196,20 @@ class _Client implements Client {
 			const req = new UpdateAppRequest();
 			req.setApp(app);
 			this._cc.updateApp(req, (error: ServiceError, response: App | null) => {
+				if (response && error === null) {
+					resolve(response);
+				} else {
+					reject(error);
+				}
+			});
+		});
+	}
+
+	public updateAppMeta(app: App): Promise<App> {
+		return new Promise<App>((resolve, reject) => {
+			const req = new UpdateAppRequest();
+			req.setApp(app);
+			this._cc.updateAppMeta(req, (error: ServiceError, response: App | null) => {
 				if (response && error === null) {
 					resolve(response);
 				} else {

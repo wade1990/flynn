@@ -23,6 +23,7 @@ service Controller {
   rpc UpdateApp (UpdateAppRequest) returns (App) {
     option (google.api.http).post = "/v2/{app.name=apps/-}";
   };
+  rpc UpdateAppMeta (UpdateAppRequest) returns (App) {};
   rpc GetAppRelease(GetAppReleaseRequest) returns (Release) {
     option (google.api.http).get = "/v2/{{name=apps/-}/release";
   };
