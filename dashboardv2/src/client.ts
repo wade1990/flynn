@@ -230,7 +230,7 @@ class _Client implements Client {
 	}
 
 	public streamAppFormation(appName: string, cb: StreamAppFormationCallback): () => void {
-		const [stream, lastResponse] = memoizedStream(appName, () => {
+		const [stream, lastResponse] = memoizedStream('streamAppFormation', appName, () => {
 			const req = new GetAppFormationRequest();
 			req.setParent(appName);
 			return this._cc.streamAppFormation(req);
