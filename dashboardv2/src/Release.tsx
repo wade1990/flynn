@@ -3,6 +3,7 @@ import * as jspb from 'google-protobuf';
 
 import { Release } from './generated/controller_pb';
 import protoMapDiff, { DiffOption } from './util/protoMapDiff';
+import ExternalAnchor from './ExternalAnchor';
 
 import './Release.scss';
 
@@ -44,7 +45,22 @@ export function renderEnvDiff(prevEnv: StringMap, env: StringMap) {
 
 export function renderRelease(release: Release, prev: Release | null) {
 	const labels = release.getLabelsMap();
-	const gitCommit = labels.get('git.commit');
+
+	const gitCommit =
+		labels.get('git.commit') ||
+		(() => {
+			const rev = labels.get('rev');
+			if (labels.get('git') === 'true' && rev) {
+				return rev;
+			}
+			return null;
+		})();
+
+	let githubURL = null as string | null;
+	if (labels.get('github') === 'true') {
+		githubURL = `https://github.com/${labels.get('github_user')}/${labels.get('github_repo')}/tree/${gitCommit}`;
+	}
+
 	const releaseID = release
 		.getName()
 		.split('/')
@@ -57,7 +73,12 @@ export function renderRelease(release: Release, prev: Release | null) {
 					<br />
 				</>
 			) : null}
-			{gitCommit ? <>git.commit {gitCommit}</> : null}
+			{gitCommit ? (
+				<>
+					git.commit {githubURL ? <ExternalAnchor href={githubURL}>{gitCommit}</ExternalAnchor> : gitCommit}
+					<br />
+				</>
+			) : null}
 			{renderEnvDiff(prev ? prev.getEnvMap() : new jspb.Map([]), release.getEnvMap())}
 		</div>
 	);
