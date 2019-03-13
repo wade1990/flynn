@@ -58,6 +58,7 @@ goog.exportSymbol('proto.controller.ProcessType', null, global);
 goog.exportSymbol('proto.controller.Provider', null, global);
 goog.exportSymbol('proto.controller.Release', null, global);
 goog.exportSymbol('proto.controller.ReleaseDeletion', null, global);
+goog.exportSymbol('proto.controller.ReleaseType', null, global);
 goog.exportSymbol('proto.controller.Resource', null, global);
 goog.exportSymbol('proto.controller.ResourceAppDeletion', null, global);
 goog.exportSymbol('proto.controller.ResourceDeletion', null, global);
@@ -832,7 +833,8 @@ proto.controller.ListReleasesRequest.toObject = function(includeInstance, msg) {
     pageSize: jspb.Message.getFieldWithDefault(msg, 1, 0),
     pageToken: jspb.Message.getFieldWithDefault(msg, 2, ""),
     parent: jspb.Message.getFieldWithDefault(msg, 3, ""),
-    filterLabelsMap: (f = msg.getFilterLabelsMap()) ? f.toObject(includeInstance, undefined) : []
+    filterLabelsMap: (f = msg.getFilterLabelsMap()) ? f.toObject(includeInstance, undefined) : [],
+    filterType: jspb.Message.getFieldWithDefault(msg, 5, 0)
   };
 
   if (includeInstance) {
@@ -887,6 +889,10 @@ proto.controller.ListReleasesRequest.deserializeBinaryFromReader = function(msg,
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "");
          });
       break;
+    case 5:
+      var value = /** @type {!proto.controller.ReleaseType} */ (reader.readEnum());
+      msg.setFilterType(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -940,6 +946,13 @@ proto.controller.ListReleasesRequest.serializeBinaryToWriter = function(message,
   f = message.getFilterLabelsMap(true);
   if (f && f.getLength() > 0) {
     f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
+  }
+  f = message.getFilterType();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      5,
+      f
+    );
   }
 };
 
@@ -1004,6 +1017,21 @@ proto.controller.ListReleasesRequest.prototype.getFilterLabelsMap = function(opt
 
 proto.controller.ListReleasesRequest.prototype.clearFilterLabelsMap = function() {
   this.getFilterLabelsMap().clear();
+};
+
+
+/**
+ * optional ReleaseType filter_type = 5;
+ * @return {!proto.controller.ReleaseType}
+ */
+proto.controller.ListReleasesRequest.prototype.getFilterType = function() {
+  return /** @type {!proto.controller.ReleaseType} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
+};
+
+
+/** @param {!proto.controller.ReleaseType} value */
+proto.controller.ListReleasesRequest.prototype.setFilterType = function(value) {
+  jspb.Message.setProto3EnumField(this, 5, value);
 };
 
 
@@ -4174,6 +4202,7 @@ proto.controller.Release.toObject = function(includeInstance, msg) {
     envMap: (f = msg.getEnvMap()) ? f.toObject(includeInstance, undefined) : [],
     labelsMap: (f = msg.getLabelsMap()) ? f.toObject(includeInstance, undefined) : [],
     processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, proto.controller.ProcessType.toObject) : [],
+    type: jspb.Message.getFieldWithDefault(msg, 7, 0),
     createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
   };
 
@@ -4238,6 +4267,10 @@ proto.controller.Release.deserializeBinaryFromReader = function(msg, reader) {
          });
       break;
     case 7:
+      var value = /** @type {!proto.controller.ReleaseType} */ (reader.readEnum());
+      msg.setType(value);
+      break;
+    case 8:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
@@ -4297,10 +4330,17 @@ proto.controller.Release.serializeBinaryToWriter = function(message, writer) {
   if (f && f.getLength() > 0) {
     f.serializeBinary(6, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.ProcessType.serializeBinaryToWriter);
   }
+  f = message.getType();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      7,
+      f
+    );
+  }
   f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      7,
+      8,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -4407,18 +4447,33 @@ proto.controller.Release.prototype.clearProcessesMap = function() {
 
 
 /**
- * optional google.protobuf.Timestamp create_time = 7;
+ * optional ReleaseType type = 7;
+ * @return {!proto.controller.ReleaseType}
+ */
+proto.controller.Release.prototype.getType = function() {
+  return /** @type {!proto.controller.ReleaseType} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
+};
+
+
+/** @param {!proto.controller.ReleaseType} value */
+proto.controller.Release.prototype.setType = function(value) {
+  jspb.Message.setProto3EnumField(this, 7, value);
+};
+
+
+/**
+ * optional google.protobuf.Timestamp create_time = 8;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.Release.prototype.getCreateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 7));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 8));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.Release.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 7, value);
+  jspb.Message.setWrapperField(this, 8, value);
 };
 
 
@@ -4432,7 +4487,7 @@ proto.controller.Release.prototype.clearCreateTime = function() {
  * @return {!boolean}
  */
 proto.controller.Release.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 7) != null;
+  return jspb.Message.getField(this, 8) != null;
 };
 
 
@@ -12636,6 +12691,15 @@ proto.controller.ScaleRequestState = {
   SCALE_PENDING: 0,
   SCALE_CANCELLED: 1,
   SCALE_COMPLETE: 2
+};
+
+/**
+ * @enum {number}
+ */
+proto.controller.ReleaseType = {
+  ANY: 0,
+  CODE: 1,
+  CONFIG: 2
 };
 
 /**

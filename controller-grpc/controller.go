@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -758,22 +759,44 @@ func (s *server) listReleases(req *ListReleasesRequest) ([]*Release, error) {
 	}
 
 	releases := make([]*Release, len(ctReleases))
-	for i, r := range ctReleases {
-		releases[i] = convertRelease(r)
+	for i, ctr := range ctReleases {
+		r := convertRelease(ctr)
+
+		// Determine the type of release
+		r.Type = ReleaseType_CODE
+		if i+1 < len(ctReleases) {
+			prev := ctReleases[i+1]
+			if reflect.DeepEqual(prev.ArtifactIDs, ctr.ArtifactIDs) {
+				r.Type = ReleaseType_CONFIG
+			}
+		} else if len(r.Artifacts) == 0 {
+			r.Type = ReleaseType_CONFIG
+		}
+
+		releases[i] = r
 	}
 
 	var filtered []*Release
-	if len(req.FilterLabels) == 0 {
+	if len(req.FilterLabels) == 0 && req.FilterType == ReleaseType_ANY {
 		filtered = releases
 	} else {
 		filtered = make([]*Release, 0, len(releases))
 		for _, r := range releases {
-			for fk, fv := range req.FilterLabels {
-				rv, ok := r.Labels[fk]
-				if rv == fv || (ok && fv == "*") {
-					filtered = append(filtered, r)
-					break
+			// filter by type of release
+			if req.FilterType != ReleaseType_ANY && r.Type != req.FilterType {
+				continue
+			}
+			// filter by labels
+			if len(req.FilterLabels) > 0 {
+				for fk, fv := range req.FilterLabels {
+					rv, ok := r.Labels[fk]
+					if rv == fv || (ok && fv == "*") {
+						filtered = append(filtered, r)
+						break
+					}
 				}
+			} else {
+				filtered = append(filtered, r)
 			}
 		}
 	}

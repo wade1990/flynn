@@ -14,6 +14,7 @@ import {
 	ListReleasesRequest,
 	ListReleasesResponse,
 	Release,
+	ReleaseType,
 	GetAppFormationRequest,
 	Formation,
 	ScaleRequest,
@@ -38,11 +39,11 @@ export interface Client {
 	createScale: (req: CreateScaleRequest) => Promise<ScaleRequest>;
 	listScaleRequestsStream: (appName: string, cb: ListScaleRequestsStreamCallback) => () => void;
 	getRelease: (name: string) => Promise<Release>;
-	listReleases: (parentName: string, filterLabels?: { [key: string]: string }) => Promise<Release[]>;
+	listReleases: (parentName: string, ...reqModifiers: ListReleasesRequestModifier[]) => Promise<Release[]>;
 	listReleasesStream: (
 		parentName: string,
 		cb: ListReleasesStreamCallback,
-		filterLabels?: { [key: string]: string }
+		...reqModifiers: ListReleasesRequestModifier[]
 	) => () => void;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
@@ -56,6 +57,23 @@ export type StreamAppReleaseCallback = (release: Release, error: Error | null) =
 export type StreamAppFormationCallback = (formation: Formation, error: Error | null) => void;
 export type ListReleasesStreamCallback = (releases: Release[], error: Error | null) => void;
 export type ListScaleRequestsStreamCallback = (scaleRequests: ScaleRequest[], error: Error | null) => void;
+
+export type ListReleasesRequestModifier = (req: ListReleasesRequest) => void;
+
+export function listReleasesRequestFilterLabels(filterLabels: { [key: string]: string }): ListReleasesRequestModifier {
+	return (req: ListReleasesRequest) => {
+		const fl = req.getFilterLabelsMap();
+		for (const [k, v] of Object.entries(filterLabels)) {
+			fl.set(k, v);
+		}
+	};
+}
+
+export function listReleasesRequestFilterType(filterType: ReleaseType): ListReleasesRequestModifier {
+	return (req: ListReleasesRequest) => {
+		req.setFilterType(filterType);
+	};
+}
 
 export interface StreamEventsOptions {}
 
@@ -247,21 +265,11 @@ class _Client implements Client {
 		});
 	}
 
-	private _buildReleasesReqest(parentName: string, filterLabels?: { [key: string]: string }): ListReleasesRequest {
-		const req = new ListReleasesRequest();
-		req.setParent(parentName);
-		if (filterLabels) {
-			const fl = req.getFilterLabelsMap();
-			for (const [k, v] of Object.entries(filterLabels)) {
-				fl.set(k, v);
-			}
-		}
-		return req;
-	}
-
-	public listReleases(parentName: string, filterLabels?: { [key: string]: string }): Promise<Release[]> {
+	public listReleases(parentName: string, ...reqModifiers: ListReleasesRequestModifier[]): Promise<Release[]> {
 		return new Promise<Release[]>((resolve, reject) => {
-			const req = this._buildReleasesReqest(parentName, filterLabels);
+			const req = new ListReleasesRequest();
+			req.setParent(parentName);
+			reqModifiers.forEach((m) => m(req));
 			this._cc.listReleases(req, (error: ServiceError, response: ListReleasesResponse) => {
 				if (response && error === null) {
 					const releases = response.getReleasesList();
@@ -276,10 +284,12 @@ class _Client implements Client {
 	public listReleasesStream(
 		parentName: string,
 		cb: ListReleasesStreamCallback,
-		filterLabels?: { [key: string]: string }
+		...reqModifiers: ListReleasesRequestModifier[]
 	): () => void {
 		const stream = this._cc.listReleasesStream();
-		const req = this._buildReleasesReqest(parentName, filterLabels);
+		const req = new ListReleasesRequest();
+		req.setParent(parentName);
+		reqModifiers.forEach((m) => m(req));
 		stream.write(req);
 		stream.on('data', (response: ListReleasesResponse) => {
 			cb(response.getReleasesList(), null);

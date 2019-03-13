@@ -117,6 +117,9 @@ export class ListReleasesRequest extends jspb.Message {
 
   getFilterLabelsMap(): jspb.Map<string, string>;
   clearFilterLabelsMap(): void;
+  getFilterType(): ReleaseType;
+  setFilterType(value: ReleaseType): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ListReleasesRequest.AsObject;
   static toObject(includeInstance: boolean, msg: ListReleasesRequest): ListReleasesRequest.AsObject;
@@ -133,6 +136,7 @@ export namespace ListReleasesRequest {
     pageToken: string,
     parent: string,
     filterLabelsMap: Array<[string, string]>,
+    filterType: ReleaseType,
   }
 }
 
@@ -576,6 +580,9 @@ export class Release extends jspb.Message {
   clearLabelsMap(): void;
   getProcessesMap(): jspb.Map<string, ProcessType>;
   clearProcessesMap(): void;
+  getType(): ReleaseType;
+  setType(value: ReleaseType): void;
+
   hasCreateTime(): boolean;
   clearCreateTime(): void;
   getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
@@ -598,6 +605,7 @@ export namespace Release {
     envMap: Array<[string, string]>,
     labelsMap: Array<[string, string]>,
     processesMap: Array<[string, ProcessType.AsObject]>,
+    type: ReleaseType,
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
 }
@@ -1754,6 +1762,12 @@ export enum ScaleRequestState {
   SCALE_PENDING = 0,
   SCALE_CANCELLED = 1,
   SCALE_COMPLETE = 2,
+}
+
+export enum ReleaseType {
+  ANY = 0,
+  CODE = 1,
+  CONFIG = 2,
 }
 
 export enum DeploymentStatus {

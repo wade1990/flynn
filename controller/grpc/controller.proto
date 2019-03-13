@@ -86,6 +86,7 @@ message ListReleasesRequest {
   string page_token = 2;
   string parent = 3;
   map<string, string> filter_labels = 4;
+  ReleaseType filter_type = 5;
 }
 
 message ListReleasesResponse {
@@ -205,6 +206,12 @@ message App {
   string release = 8;
 }
 
+enum ReleaseType {
+  ANY = 0;
+  CODE = 1;
+  CONFIG = 2;
+}
+
 message Release {
   // name = "apps/APP_ID/releases/RELEASE_ID"
   string name = 1;
@@ -212,7 +219,8 @@ message Release {
   map<string, string> env = 4;
   map<string, string> labels = 5;
   map<string, ProcessType> processes = 6;
-  google.protobuf.Timestamp create_time = 7;
+  ReleaseType type = 7;
+  google.protobuf.Timestamp create_time = 8;
 }
 
 message AppRelease {

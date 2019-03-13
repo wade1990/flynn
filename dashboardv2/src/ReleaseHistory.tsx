@@ -1,13 +1,13 @@
 import * as React from 'react';
 import * as timestamp_pb from 'google-protobuf/google/protobuf/timestamp_pb';
-import { isEqual } from 'lodash';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
 import { CheckmarkIcon, CheckBox, Button, Columns, Box, Value } from 'grommet';
 
+import { listReleasesRequestFilterType } from './client';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
-import { Release, Deployment, ScaleRequest, Formation } from './generated/controller_pb';
+import { Release, ReleaseType, Deployment, ScaleRequest, Formation } from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
 import { renderRelease } from './Release';
@@ -16,31 +16,11 @@ import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 
 import './ReleaseHistory.scss';
 
-function isCodeRelease(release: Release, prevRelease: Release | null): boolean {
-	const artifacts = release.getArtifactsList();
-	if (prevRelease) {
-		const prevArtifacts = prevRelease.getArtifactsList();
-		if (isEqual(prevArtifacts, artifacts)) {
-			return false;
-		}
-	} else if (artifacts.length === 0) {
-		return false;
-	}
-	return true;
-}
-
-function isEnvRelease(release: Release, prevRelease: Release | null): boolean {
-	return !isCodeRelease(release, prevRelease);
-}
-
-type ReleasesFilterFunc = (release: Release, prevRelease: Release | null) => boolean;
-
 function mapHistory<T>(
 	releases: Release[],
 	scaleRequests: ScaleRequest[],
 	rfn: (releases: [Release, Release | null], index: number) => T,
-	sfn: (scaleRequest: ScaleRequest, index: number) => T,
-	...filters: ReleasesFilterFunc[]
+	sfn: (scaleRequest: ScaleRequest, index: number) => T
 ): T[] {
 	const res = [] as T[];
 	const rlen = releases.length;
@@ -51,10 +31,6 @@ function mapHistory<T>(
 	while (ri < rlen || si < slen) {
 		let r = releases[ri];
 		let pr = releases[ri + 1] || null;
-		if (r && !filters.find((fn) => fn(r, pr))) {
-			ri++;
-			continue;
-		}
 		const rt = r ? (r.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
 		const s = scaleRequests[si];
 		const st = s ? (s.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
@@ -159,18 +135,6 @@ export class ReleaseHistory extends React.Component<Props, State> {
 			}
 			return '';
 		};
-
-		let mapFilters: ReleasesFilterFunc[] = [];
-		releasesListFilters.forEach((v) => {
-			switch (v) {
-				case 'code':
-					mapFilters.push(isCodeRelease);
-					break;
-				case 'env':
-					mapFilters.push(isEnvRelease);
-					break;
-			}
-		});
 
 		const isScaleEnabled = releasesListFilters.indexOf('scale') !== -1;
 
@@ -283,8 +247,7 @@ export class ReleaseHistory extends React.Component<Props, State> {
 									</label>
 								</li>
 							);
-						},
-						...mapFilters
+						}
 					)}
 				</ul>
 
@@ -349,7 +312,8 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	private __streamScaleRequestsCancel: () => void;
 	private __streamAppFormationCancel: () => void;
 	private __isScaleEnabled: boolean;
-	private __isReleaseEnabled: boolean;
+	private __isCodeReleaseEnabled: boolean;
+	private __isConfigReleaseEnabled: boolean;
 	constructor(props: WrappedProps) {
 		super(props);
 		this.state = {
@@ -372,7 +336,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	}
 
 	public componentDidMount() {
-		if (this.__isReleaseEnabled) {
+		if (this.__isCodeReleaseEnabled || this.__isConfigReleaseEnabled) {
 			this._fetchReleases();
 		}
 		if (this.__isScaleEnabled) {
@@ -401,16 +365,35 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			} else if (prevIsScaleEnabled && !this.__isScaleEnabled) {
 				this.__streamScaleRequestsCancel();
 				this.__streamAppFormationCancel();
+				if (this.state.scaleRequestsLoading || this.state.currentFormationLoading) {
+					this.setState({
+						scaleRequestsLoading: false,
+						currentFormationLoading: false
+					});
+				}
 			}
 		}
 
-		const prevIsReleaseEnabled = this.__isReleaseEnabled;
-		this.__isReleaseEnabled = rhf.length === 0 || (!this.__isScaleEnabled || rhf.length > 1);
+		const prevIsCodeReleaseEnabled = this.__isCodeReleaseEnabled;
+		this.__isCodeReleaseEnabled = rhf.length === 0 || rhf.indexOf('code') !== -1;
+
+		const prevIsConfigReleaseEnabled = this.__isConfigReleaseEnabled;
+		this.__isConfigReleaseEnabled = rhf.indexOf('env') !== -1;
+
 		if (toggleFetch) {
-			if (!prevIsReleaseEnabled && this.__isReleaseEnabled) {
+			const isReleaseEnabled = this.__isCodeReleaseEnabled || this.__isConfigReleaseEnabled;
+			if (
+				prevIsCodeReleaseEnabled !== this.__isCodeReleaseEnabled ||
+				prevIsConfigReleaseEnabled !== this.__isConfigReleaseEnabled
+			) {
 				this._fetchReleases();
-			} else if (prevIsScaleEnabled && !this.__isReleaseEnabled) {
+			} else if (prevIsScaleEnabled && !isReleaseEnabled) {
 				this.__streamReleasesCancel();
+				if (this.state.releasesLoading) {
+					this.setState({
+						releasesLoading: false
+					});
+				}
 			}
 		}
 	}
@@ -418,24 +401,38 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 	private _fetchReleases() {
 		const { client, appName, handleError } = this.props;
 		this.setState({
+			releases: [],
 			releasesLoading: true
 		});
-		this.__streamReleasesCancel();
-		this.__streamReleasesCancel = client.listReleasesStream(appName, (releases: Release[], error: Error | null) => {
-			if (error) {
-				return handleError(error);
-			}
 
-			this.setState({
-				releasesLoading: false,
-				releases
-			});
-		});
+		let filterType = ReleaseType.ANY;
+		if (this.__isCodeReleaseEnabled && !this.__isConfigReleaseEnabled) {
+			filterType = ReleaseType.CODE;
+		} else if (this.__isConfigReleaseEnabled && !this.__isCodeReleaseEnabled) {
+			filterType = ReleaseType.CONFIG;
+		}
+
+		this.__streamReleasesCancel();
+		this.__streamReleasesCancel = client.listReleasesStream(
+			appName,
+			(releases: Release[], error: Error | null) => {
+				if (error) {
+					return handleError(error);
+				}
+
+				this.setState({
+					releasesLoading: false,
+					releases
+				});
+			},
+			listReleasesRequestFilterType(filterType)
+		);
 	}
 
 	private _fetchScaleRequests() {
 		const { client, appName, handleError } = this.props;
 		this.setState({
+			scaleRequests: [],
 			scaleRequestsLoading: true,
 			currentFormationLoading: true
 		});
