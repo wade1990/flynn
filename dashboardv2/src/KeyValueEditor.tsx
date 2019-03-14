@@ -3,8 +3,9 @@ import * as jspb from 'google-protobuf';
 import fz from 'fz';
 
 import Button from 'grommet/components/Button';
-import { CheckmarkIcon, SearchInput } from 'grommet';
+import { CheckmarkIcon, CopyIcon, SearchInput } from 'grommet';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
+import copyToClipboard from './util/copyToClipboard';
 
 import './KeyValueEditor.scss';
 
@@ -188,6 +189,8 @@ interface KeyValueInputProps {
 	value: string;
 	onChange: (value: string) => void;
 	disabled?: boolean;
+
+	onPaste?: React.ClipboardEventHandler<HTMLInputElement | HTMLTextAreaElement>;
 }
 
 interface KeyValueInputState {
@@ -218,7 +221,7 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 	}
 
 	public render() {
-		const { placeholder, value, disabled } = this.props;
+		const { placeholder, value, disabled, onChange, ...rest } = this.props;
 		const { expanded } = this.state;
 		if (expanded) {
 			return (
@@ -229,6 +232,7 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 					ref={(el) => {
 						this._textarea = el;
 					}}
+					{...rest}
 				/>
 			);
 		}
@@ -240,6 +244,7 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 				value={value}
 				onChange={this._inputChangeHandler}
 				onFocus={this._inputFocusHandler}
+				{...rest}
 			/>
 		);
 	}
@@ -294,6 +299,8 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		this.state = {};
 		this._searchInputHandler = this._searchInputHandler.bind(this);
 		this._submitHandler = this._submitHandler.bind(this);
+		this._handlePaste = this._handlePaste.bind(this);
+		this._handleCopyButtonClick = this._handleCopyButtonClick.bind(this);
 	}
 
 	public render() {
@@ -309,11 +316,13 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 								placeholder={keyPlaceholder}
 								value={key}
 								onChange={this._keyChangeHandler.bind(this, index)}
+								onPaste={this._handlePaste}
 							/>
 							<KeyValueInput
 								placeholder={valuePlaceholder}
 								value={value}
 								onChange={this._valueChangeHandler.bind(this, index)}
+								onPaste={this._handlePaste}
 							/>
 						</div>
 					);
@@ -325,6 +334,8 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 					// Disable save button
 					<Button type="button" primary icon={<CheckmarkIcon />} label={submitLabel} />
 				)}
+				&nbsp;
+				<Button type="button" icon={<CopyIcon />} onClick={this._handleCopyButtonClick} />
 			</form>
 		);
 	}
@@ -343,6 +354,39 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		let nextEntries = this.props.data.dup();
 		nextEntries.setValueAtIndex(index, value);
 		this.props.onChange(nextEntries);
+	}
+
+	private _handlePaste(event: React.ClipboardEvent) {
+		// Detect key=value paste
+		const text = event.clipboardData.getData('text/plain');
+		if (text.match(/^(\S+=\S+\n?)+$/)) {
+			const nextEntries = this.props.data.dup();
+			event.preventDefault();
+			text
+				.trim()
+				.split('\n')
+				.forEach((line) => {
+					const [key, val] = line.split('=');
+					const index = nextEntries.length;
+					nextEntries.setKeyAtIndex(index, key);
+					nextEntries.setValueAtIndex(index, val);
+				});
+			this.props.onChange(nextEntries);
+		}
+	}
+
+	private _handleCopyButtonClick(event: React.SyntheticEvent) {
+		event.preventDefault();
+
+		const text = this.props.data
+			.entries()
+			.toArray()
+			.map(([key, val]: [string, string]) => {
+				return `${key}=${val}`;
+			})
+			.join('\n');
+
+		copyToClipboard(text);
 	}
 
 	private _searchInputHandler(e: React.ChangeEvent<HTMLInputElement>) {
