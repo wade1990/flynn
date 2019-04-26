@@ -12,6 +12,8 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	field_mask "google.golang.org/genproto/protobuf/field_mask"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -4281,6 +4283,65 @@ type ControllerServer interface {
 	CreateRelease(context.Context, *CreateReleaseRequest) (*Release, error)
 	CreateDeployment(*CreateDeploymentRequest, Controller_CreateDeploymentServer) error
 	StreamEvents(*StreamEventsRequest, Controller_StreamEventsServer) error
+}
+
+// UnimplementedControllerServer can be embedded to have forward compatible implementations.
+type UnimplementedControllerServer struct {
+}
+
+func (*UnimplementedControllerServer) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListApps not implemented")
+}
+func (*UnimplementedControllerServer) ListAppsStream(srv Controller_ListAppsStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListAppsStream not implemented")
+}
+func (*UnimplementedControllerServer) GetApp(ctx context.Context, req *GetAppRequest) (*App, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetApp not implemented")
+}
+func (*UnimplementedControllerServer) StreamApp(req *GetAppRequest, srv Controller_StreamAppServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamApp not implemented")
+}
+func (*UnimplementedControllerServer) UpdateApp(ctx context.Context, req *UpdateAppRequest) (*App, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateApp not implemented")
+}
+func (*UnimplementedControllerServer) UpdateAppMeta(ctx context.Context, req *UpdateAppRequest) (*App, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAppMeta not implemented")
+}
+func (*UnimplementedControllerServer) GetAppRelease(ctx context.Context, req *GetAppReleaseRequest) (*Release, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAppRelease not implemented")
+}
+func (*UnimplementedControllerServer) StreamAppRelease(req *GetAppReleaseRequest, srv Controller_StreamAppReleaseServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamAppRelease not implemented")
+}
+func (*UnimplementedControllerServer) CreateScale(ctx context.Context, req *CreateScaleRequest) (*ScaleRequest, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateScale not implemented")
+}
+func (*UnimplementedControllerServer) ListScaleRequestsStream(req *ListScaleRequestsRequest, srv Controller_ListScaleRequestsStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListScaleRequestsStream not implemented")
+}
+func (*UnimplementedControllerServer) StreamAppFormation(req *GetAppFormationRequest, srv Controller_StreamAppFormationServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamAppFormation not implemented")
+}
+func (*UnimplementedControllerServer) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRelease not implemented")
+}
+func (*UnimplementedControllerServer) ListReleases(ctx context.Context, req *ListReleasesRequest) (*ListReleasesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListReleases not implemented")
+}
+func (*UnimplementedControllerServer) ListReleasesStream(srv Controller_ListReleasesStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListReleasesStream not implemented")
+}
+func (*UnimplementedControllerServer) StreamAppLog(req *StreamAppLogRequest, srv Controller_StreamAppLogServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamAppLog not implemented")
+}
+func (*UnimplementedControllerServer) CreateRelease(ctx context.Context, req *CreateReleaseRequest) (*Release, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateRelease not implemented")
+}
+func (*UnimplementedControllerServer) CreateDeployment(req *CreateDeploymentRequest, srv Controller_CreateDeploymentServer) error {
+	return status.Errorf(codes.Unimplemented, "method CreateDeployment not implemented")
+}
+func (*UnimplementedControllerServer) StreamEvents(req *StreamEventsRequest, srv Controller_StreamEventsServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamEvents not implemented")
 }
 
 func RegisterControllerServer(s *grpc.Server, srv ControllerServer) {

@@ -1,4 +1,4 @@
-import { grpc } from 'grpc-web-client';
+import { grpc } from '@improbable-eng/grpc-web';
 
 import Config from './config';
 import { ControllerClient, ServiceError, Status, ResponseStream } from './generated/controller_pb_service';

@@ -7,7 +7,7 @@ apt-get install --yes unzip
 apt-get clean
 
 # install protobuf compiler
-pbversion="3.6.1"
+pbversion="3.7.1"
 tmpdir=$(mktemp --directory)
 trap "rm -rf ${tmpdir}" EXIT
 curl -sL https://github.com/google/protobuf/releases/download/v${pbversion}/protoc-${pbversion}-linux-x86_64.zip > "${tmpdir}/protoc.zip"

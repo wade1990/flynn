@@ -2,7 +2,7 @@
 // file: controller.proto
 
 import * as controller_pb from "./controller_pb";
-import {grpc} from "grpc-web-client";
+import {grpc} from "@improbable-eng/grpc-web";
 
 type ControllerListApps = {
   readonly methodName: string;

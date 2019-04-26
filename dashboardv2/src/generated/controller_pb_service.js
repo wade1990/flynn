@@ -2,7 +2,7 @@
 // file: controller.proto
 
 var controller_pb = require("./controller_pb");
-var grpc = require("grpc-web-client").grpc;
+var grpc = require("@improbable-eng/grpc-web").grpc;
 
 var Controller = (function () {
   function Controller() {}
