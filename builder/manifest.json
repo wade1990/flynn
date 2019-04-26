@@ -188,6 +188,21 @@
       }
     },
     {
+      "id": "controller-grpc",
+      "base": "busybox",
+      "layers": [{
+        "gobuild": {
+          "controller-grpc": "/bin/flynn-controller-grpc"
+        },
+        "limits": { "temp_disk": "1G" }
+      }],
+      "entrypoint": {
+        "args": [
+          "/bin/flynn-controller-grpc"
+        ]
+      }
+    },
+    {
       "id": "controller-examples",
       "base": "busybox",
       "layers": [{
