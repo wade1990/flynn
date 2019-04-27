@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	controller "github.com/flynn/flynn/controller/client"
@@ -41,6 +42,17 @@ func mustEnv(key string) string {
 }
 
 func main() {
+	// Increase resources limitations
+	// See https://github.com/eranyanay/1m-go-websockets/blob/master/2_ws_ulimit/server.go
+	var rLimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
+	}
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
+	}
+
 	client, err := controller.NewClient(mustEnv("CONTROLLER_DOMAIN"), mustEnv("CONTROLLER_AUTH_KEY"))
 	if err != nil {
 		shutdown.Fatal(fmt.Errorf("error initializing controller client: %s", err))
