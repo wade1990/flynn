@@ -1017,7 +1017,7 @@ func convertDeploymentEventJobState(from ct.JobState) DeploymentEvent_JobState {
 }
 
 func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_CreateDeploymentServer) error {
-	d, err := s.Client.CreateDeployment(parseIDFromName(req.Parent, "apps"), parseIDFromName(req.Release, "releases"))
+	d, err := s.createDeploymentWithFormation(req, ds)
 	if err != nil {
 		return err
 	}

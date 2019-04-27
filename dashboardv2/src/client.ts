@@ -27,6 +27,8 @@ import {
 	StreamEventsRequest
 } from './generated/controller_pb';
 
+import protoMapReplace from './util/protoMapReplace';
+
 export interface Client {
 	listApps: () => Promise<App[]>;
 	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
@@ -48,6 +50,7 @@ export interface Client {
 	) => () => void;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
+	createDeploymentWithFormation: (parentName: string, releaseName: string, f: Formation) => Promise<Deployment>;
 	streamEvents: (options: StreamEventsOptions, callback: StreamEventsCallback) => ResponseStream<Event>;
 }
 
@@ -349,6 +352,38 @@ class _Client implements Client {
 		const req = new CreateDeploymentRequest();
 		req.setParent(parentName);
 		req.setRelease(releaseName);
+		req.setUsePrevFormation(true);
+		let deployment = null as Deployment | null;
+		return new Promise<Deployment>((resolve, reject) => {
+			const stream = this._cc.createDeployment(req);
+			stream.on('data', (event: Event) => {
+				if (event.hasDeploymentEvent()) {
+					const de = event.getDeploymentEvent();
+					const d = de && de.getDeployment();
+					if (d) {
+						deployment = d;
+					}
+				}
+			});
+			stream.on('status', (s: Status) => {
+				console.log('status', s);
+				if (s.code === grpc.Code.OK && deployment) {
+					resolve(deployment);
+				} else {
+					reject(new Error(s.details));
+				}
+			});
+			stream.on('end', () => {});
+		});
+	}
+
+	public createDeploymentWithFormation(parentName: string, releaseName: string, f: Formation): Promise<Deployment> {
+		const req = new CreateDeploymentRequest();
+		req.setParent(parentName);
+		req.setRelease(releaseName);
+		req.setUsePrevFormation(false);
+		protoMapReplace(req.getProcessesMap(), f.getProcessesMap());
+		protoMapReplace(req.getTagsMap(), f.getTagsMap());
 		let deployment = null as Deployment | null;
 		return new Promise<Deployment>((resolve, reject) => {
 			const stream = this._cc.createDeployment(req);
