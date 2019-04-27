@@ -694,7 +694,13 @@
     "release": {
       "env": {
         "CONTROLLER_DOMAIN": "http://controller.{{ getenv \"CLUSTER_DOMAIN\" }}",
-        "CONTROLLER_AUTH_KEY": "{{ (index .StepData \"controller-key\").Data }}"
+        "CONTROLLER_AUTH_KEY": "{{ (index .StepData \"controller-key\").Data }}",
+        "DATABASE_URL": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"DATABASE_URL\") }}",
+        "FLYNN_POSTGRES": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"FLYNN_POSTGRES\") }}",
+        "PGDATABASE": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"PGDATABASE\") }}",
+        "PGHOST": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"PGHOST\") }}",
+        "PGPASSWORD": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"PGPASSWORD\") }}",
+        "PGUSER": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"PGUSER\") }}"
       },
       "processes": {
         "web": {

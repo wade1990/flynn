@@ -14,12 +14,15 @@ import (
 	"time"
 
 	controller "github.com/flynn/flynn/controller/client"
+	controllerschema "github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/host/resource"
 	"github.com/flynn/flynn/host/types"
 	"github.com/flynn/flynn/pkg/cors"
 	"github.com/flynn/flynn/pkg/httphelper"
+	"github.com/flynn/flynn/pkg/postgres"
 	"github.com/flynn/flynn/pkg/shutdown"
+	que "github.com/flynn/que-go"
 	"github.com/golang/protobuf/ptypes"
 	durpb "github.com/golang/protobuf/ptypes/duration"
 	tspb "github.com/golang/protobuf/ptypes/timestamp"
@@ -42,8 +45,16 @@ func main() {
 	if err != nil {
 		shutdown.Fatal(fmt.Errorf("error initializing controller client: %s", err))
 	}
+
+	// Open connection to main controller database
+	db := postgres.Wait(nil, controllerschema.PrepareStatements)
+	shutdown.BeforeExit(func() { db.Close() })
+	q := que.NewClient(db.ConnPool)
+
 	s := NewServer(&Config{
 		Client: client,
+		DB:     db,
+		q:      q,
 	})
 
 	wrappedServer := grpcweb.WrapServer(s)
@@ -72,6 +83,8 @@ func main() {
 
 type Config struct {
 	Client controller.Client
+	DB     *postgres.DB
+	q      *que.Client
 }
 
 func corsHandler(main http.Handler) http.Handler {
