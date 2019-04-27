@@ -458,6 +458,13 @@ export class CreateDeploymentRequest extends jspb.Message {
   getRequestId(): string;
   setRequestId(value: string): void;
 
+  getUsePrevFormation(): boolean;
+  setUsePrevFormation(value: boolean): void;
+
+  getProcessesMap(): jspb.Map<string, number>;
+  clearProcessesMap(): void;
+  getTagsMap(): jspb.Map<string, DeploymentProcessTags>;
+  clearTagsMap(): void;
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): CreateDeploymentRequest.AsObject;
   static toObject(includeInstance: boolean, msg: CreateDeploymentRequest): CreateDeploymentRequest.AsObject;
@@ -473,6 +480,9 @@ export namespace CreateDeploymentRequest {
     parent: string,
     release: string,
     requestId: string,
+    usePrevFormation: boolean,
+    processesMap: Array<[string, number]>,
+    tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
   }
 }
 
