@@ -1,8 +1,8 @@
 import * as React from 'react';
 import Button from 'grommet/components/Button';
-import { CheckmarkIcon } from 'grommet';
+import { CheckmarkIcon, Columns, Box, Value } from 'grommet';
 
-import { Release, Deployment } from './generated/controller_pb';
+import { Release, Formation, Deployment } from './generated/controller_pb';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import withClient, { ClientProps } from './withClient';
 import Loading from './Loading';
@@ -12,6 +12,7 @@ interface Props extends ErrorHandlerProps, ClientProps {
 	appName: string;
 	releaseName?: string;
 	newRelease?: Release;
+	newFormation?: Formation;
 	onCancel: () => void;
 	onCreate: (deployment: Deployment) => void;
 }
@@ -67,22 +68,24 @@ class CreateDeployment extends React.Component<Props, State> {
 
 	public render() {
 		const { isLoading, currentRelease, nextRelease, newRelease } = this.state;
+		const { newFormation } = this.props;
 		if (isLoading) return <Loading />;
 		if (nextRelease) {
-			return this._renderNextRelease(currentRelease, nextRelease);
+			return this._renderNextRelease(currentRelease, nextRelease, newFormation);
 		}
 		if (newRelease) {
-			return this._renderNextRelease(currentRelease, newRelease);
+			return this._renderNextRelease(currentRelease, newRelease, newFormation);
 		}
 		throw new Error('<CreateDeployment> Invalid state!');
 	}
 
-	private _renderNextRelease(currentRelease: Release | null, nextRelease: Release) {
+	private _renderNextRelease(currentRelease: Release | null, nextRelease: Release, newFormation?: Formation) {
 		const { isCreating } = this.state;
 		return (
 			<form onSubmit={this._handleNextReleaseSubmit}>
 				<h3>Review Changes</h3>
 				{renderRelease(nextRelease, currentRelease)}
+				{newFormation ? renderFormation(newFormation) : null}
 				{isCreating ? (
 					// Disabled button
 					<Button type="button" primary icon={<CheckmarkIcon />} label="Deploying..." />
@@ -108,6 +111,7 @@ class CreateDeployment extends React.Component<Props, State> {
 			this.__streamAppReleaseCancel = client.streamAppRelease(
 				appName,
 				(currentRelease: Release, error: Error | null) => {
+					console.log({ currentRelease, error });
 					const { newRelease } = this.state;
 					const nextState = {
 						isLoading: false,
@@ -134,7 +138,7 @@ class CreateDeployment extends React.Component<Props, State> {
 	private _handleNextReleaseSubmit(e: React.SyntheticEvent) {
 		e.preventDefault();
 		if (!this._isMounted) return;
-		const { handleError, onCreate } = this.props;
+		const { handleError, onCreate, newFormation } = this.props;
 		const { nextRelease, newRelease } = this.state;
 		this.setState({
 			isCreating: true
@@ -142,10 +146,10 @@ class CreateDeployment extends React.Component<Props, State> {
 		let p = Promise.resolve(null) as Promise<any>;
 		if (newRelease) {
 			p = this._createRelease(newRelease).then((release: Release) => {
-				return this._createDeployment(release);
+				return this._createDeployment(release, newFormation);
 			});
 		} else if (nextRelease) {
-			p = this._createDeployment(nextRelease);
+			p = this._createDeployment(nextRelease, newFormation);
 		}
 		p.then((deployment) => {
 			onCreate(deployment);
@@ -169,10 +173,17 @@ class CreateDeployment extends React.Component<Props, State> {
 		return client.createRelease(appName, newRelease);
 	}
 
-	private _createDeployment(release: Release) {
+	private _createDeployment(release: Release, formation?: Formation) {
 		const { client, appName } = this.props;
 		const { currentRelease } = this.state;
-		return client.createDeployment(appName, release.getName()).then((deployment: Deployment) => {
+		const createDeployment = formation
+			? () => {
+					return client.createDeploymentWithFormation(appName, release.getName(), formation);
+			  }
+			: () => {
+					return client.createDeployment(appName, release.getName());
+			  };
+		return createDeployment().then((deployment: Deployment) => {
 			if (currentRelease) {
 				return client.getApp(appName).then(() => {
 					return deployment;
@@ -181,6 +192,23 @@ class CreateDeployment extends React.Component<Props, State> {
 			return deployment;
 		});
 	}
+}
+
+function renderFormation(f: Formation): React.ReactNode {
+	return (
+		<Columns>
+			{f
+				.getProcessesMap()
+				.toArray()
+				.map(([k, v]: [string, number]) => {
+					return (
+						<Box key={k} align="center" separator="right">
+							<Value value={v} label={k} size="small" />
+						</Box>
+					);
+				})}
+		</Columns>
+	);
 }
 
 export default withErrorHandler(withClient(CreateDeployment));

@@ -41,6 +41,9 @@ func (s *server) createDeploymentWithFormation(req *CreateDeploymentRequest, ds 
 		}
 		processes = oldFormation.Processes
 		tags = oldFormation.Tags
+	} else {
+		// TODO(jvatic): Create a new formation for NewReleaseID so the deployer
+		// job uses the specified configuration
 	}
 
 	procCount := 0

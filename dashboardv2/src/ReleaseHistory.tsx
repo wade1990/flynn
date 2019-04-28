@@ -13,6 +13,7 @@ import CreateDeployment from './CreateDeployment';
 import { renderRelease } from './Release';
 import { parseURLParams, urlParamsToString } from './util/urlParams';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
+import protoMapReplace from './util/protoMapReplace';
 
 import './ReleaseHistory.scss';
 
@@ -257,22 +258,13 @@ export class ReleaseHistory extends React.Component<Props, State> {
 				) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
 					selectedItemName.startsWith(currentReleaseName) ? (
 						(selectedScaleRequestDiff as Diff<string, number>).length > 0 ? (
-							// TODO(jvatic): support scaling release
-							<>
-								<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
-								&nbsp; TODO
-							</>
+							<Button type="submit" primary icon={<CheckmarkIcon />} label="Scale Release" />
 						) : (
 							// disabled button (no diff)
 							<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
 						)
 					) : (
-						// disabled button
-						<>
-							<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
-							<br />
-							(Can only scale the current release).
-						</>
+						<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release / Scale" />
 					)
 				) : (
 					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
@@ -305,6 +297,7 @@ interface WrappedState {
 	currentFormationLoading: boolean;
 	isDeploying: boolean;
 	releaseName: string;
+	newFormation: Formation | null;
 }
 
 class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> {
@@ -324,7 +317,8 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			currentFormation: null,
 			currentFormationLoading: false,
 			isDeploying: false,
-			releaseName: ''
+			releaseName: '',
+			newFormation: null
 		};
 		this._checkToggles(false);
 		this.__streamReleasesCancel = () => {};
@@ -477,7 +471,8 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			currentFormation,
 			currentFormationLoading,
 			isDeploying,
-			releaseName
+			releaseName,
+			newFormation
 		} = this.state;
 		if (releasesLoading || scaleRequestsLoading || currentFormationLoading) {
 			return <Loading />;
@@ -487,6 +482,7 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 				<CreateDeployment
 					appName={appName}
 					releaseName={releaseName}
+					newFormation={newFormation || undefined}
 					onCancel={this._handleDeployCancel}
 					onCreate={this._handleDeploymentCreate}
 				/>
@@ -504,24 +500,43 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		);
 	}
 
-	// TODO(jvatic): this should handle both release and scale request
-	private _handleSubmit(releaseName: string) {
-		this.setState({
-			isDeploying: true,
-			releaseName
-		});
+	private _handleSubmit(itemName: string) {
+		if (itemName.includes('/scale/')) {
+			const sr = this.state.scaleRequests.find((sr) => sr.getName() === itemName);
+			const newFormation = new Formation();
+			if (!sr) {
+				return;
+			}
+			protoMapReplace(newFormation.getProcessesMap(), sr.getNewProcessesMap());
+			protoMapReplace(newFormation.getTagsMap(), sr.getNewTagsMap());
+			console.log('deploy release scale', { newFormation: newFormation.toObject(), releaseName: sr.getParent() });
+			this.setState({
+				isDeploying: true,
+				releaseName: sr.getParent(),
+				newFormation
+			});
+		} else {
+			this.setState({
+				isDeploying: true,
+				releaseName: itemName,
+				newFormation: null
+			});
+		}
 	}
 
 	private _handleDeployCancel() {
 		this.setState({
-			isDeploying: false
+			isDeploying: false,
+			releaseName: '',
+			newFormation: null
 		});
 	}
 
 	private _handleDeploymentCreate(deployment: Deployment) {
 		this.setState({
 			isDeploying: false,
-			releaseName: ''
+			releaseName: '',
+			newFormation: null
 		});
 	}
 }

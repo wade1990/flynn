@@ -384,6 +384,7 @@ class _Client implements Client {
 		req.setUsePrevFormation(false);
 		protoMapReplace(req.getProcessesMap(), f.getProcessesMap());
 		protoMapReplace(req.getTagsMap(), f.getTagsMap());
+		console.log(req.toObject());
 		let deployment = null as Deployment | null;
 		return new Promise<Deployment>((resolve, reject) => {
 			const stream = this._cc.createDeployment(req);
