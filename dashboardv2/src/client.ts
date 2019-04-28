@@ -23,26 +23,22 @@ import {
 	CreateScaleRequest,
 	CreateDeploymentRequest,
 	Deployment,
-	Event,
-	StreamEventsRequest
+	Event
 } from './generated/controller_pb';
 
 import protoMapReplace from './util/protoMapReplace';
 
 export interface Client {
-	listApps: () => Promise<App[]>;
 	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
 	getApp: (name: string) => Promise<App>;
 	streamApp: (name: string, cb: StreamAppCallback) => () => void;
 	updateApp: (app: App) => Promise<App>;
 	updateAppMeta: (app: App) => Promise<App>;
-	getAppRelease: (appName: string) => Promise<Release>;
 	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
 	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
 	createScale: (req: CreateScaleRequest) => Promise<ScaleRequest>;
 	listScaleRequestsStream: (appName: string, cb: ListScaleRequestsStreamCallback) => () => void;
 	getRelease: (name: string) => Promise<Release>;
-	listReleases: (parentName: string, ...reqModifiers: ListReleasesRequestModifier[]) => Promise<Release[]>;
 	listReleasesStream: (
 		parentName: string,
 		cb: ListReleasesStreamCallback,
@@ -51,7 +47,6 @@ export interface Client {
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
 	createDeploymentWithFormation: (parentName: string, releaseName: string, f: Formation) => Promise<Deployment>;
-	streamEvents: (options: StreamEventsOptions, callback: StreamEventsCallback) => ResponseStream<Event>;
 }
 
 export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
@@ -140,19 +135,6 @@ class _Client implements Client {
 		this._cc = cc;
 	}
 
-	public listApps(): Promise<App[]> {
-		return new Promise<App[]>((resolve, reject) => {
-			this._cc.listApps(new ListAppsRequest(), (error: ServiceError, response: ListAppsResponse | null) => {
-				if (error === null) {
-					const apps = response ? response.getAppsList() : [];
-					resolve(apps);
-				} else {
-					reject(error);
-				}
-			});
-		});
-	}
-
 	public listAppsStream(cb: ListAppsStreamCallback): () => void {
 		const stream = this._cc.listAppsStream();
 		stream.write(new ListAppsRequest());
@@ -222,20 +204,6 @@ class _Client implements Client {
 		});
 	}
 
-	public getAppRelease(appName: string): Promise<Release> {
-		const req = new GetAppReleaseRequest();
-		req.setParent(appName);
-		return new Promise<Release>((resolve, reject) => {
-			this._cc.getAppRelease(req, (error: ServiceError, response: Release | null) => {
-				if (response && error === null) {
-					resolve(response);
-				} else {
-					reject(error);
-				}
-			});
-		});
-	}
-
 	public streamAppRelease(appName: string, cb: StreamAppReleaseCallback): () => void {
 		const req = new GetAppReleaseRequest();
 		req.setParent(appName);
@@ -293,22 +261,6 @@ class _Client implements Client {
 			this._cc.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
 					resolve(response);
-				} else {
-					reject(error);
-				}
-			});
-		});
-	}
-
-	public listReleases(parentName: string, ...reqModifiers: ListReleasesRequestModifier[]): Promise<Release[]> {
-		return new Promise<Release[]>((resolve, reject) => {
-			const req = new ListReleasesRequest();
-			req.setParent(parentName);
-			reqModifiers.forEach((m) => m(req));
-			this._cc.listReleases(req, (error: ServiceError, response: ListReleasesResponse) => {
-				if (response && error === null) {
-					const releases = response.getReleasesList();
-					resolve(releases);
 				} else {
 					reject(error);
 				}
@@ -407,16 +359,6 @@ class _Client implements Client {
 			});
 			stream.on('end', () => {});
 		});
-	}
-
-	public streamEvents(options: StreamEventsOptions, callback: StreamEventsCallback): ResponseStream<Event> {
-		const req = new StreamEventsRequest();
-		const stream = this._cc.streamEvents(req);
-		stream.on('data', (event: Event) => {
-			console.log('streamEvents data: ', event);
-		});
-		// TODO(jvatic): Handle stream error
-		return stream;
 	}
 }
 
