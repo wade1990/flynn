@@ -2,11 +2,12 @@ import * as React from 'react';
 import Button from 'grommet/components/Button';
 import { CheckmarkIcon, Columns, Box, Value } from 'grommet';
 
-import { Release, Formation, Deployment } from './generated/controller_pb';
+import { Release, Formation, Deployment, CreateScaleRequest } from './generated/controller_pb';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import withClient, { ClientProps } from './withClient';
 import Loading from './Loading';
 import { renderRelease } from './Release';
+import protoMapReplace from './util/protoMapReplace';
 
 interface Props extends ErrorHandlerProps, ClientProps {
 	appName: string;
@@ -176,9 +177,15 @@ class CreateDeployment extends React.Component<Props, State> {
 	private _createDeployment(release: Release, formation?: Formation) {
 		const { client, appName } = this.props;
 		const { currentRelease } = this.state;
-		const createDeployment = formation
+		let scaleRequest = null as CreateScaleRequest | null;
+		if (formation) {
+			scaleRequest = new CreateScaleRequest();
+			protoMapReplace(scaleRequest.getProcessesMap(), formation.getProcessesMap());
+			protoMapReplace(scaleRequest.getTagsMap(), formation.getTagsMap());
+		}
+		const createDeployment = scaleRequest
 			? () => {
-					return client.createDeploymentWithFormation(appName, release.getName(), formation);
+					return client.createDeploymentWithScale(appName, release.getName(), scaleRequest as CreateScaleRequest);
 			  }
 			: () => {
 					return client.createDeployment(appName, release.getName());

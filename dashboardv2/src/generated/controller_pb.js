@@ -4224,9 +4224,7 @@ proto.controller.CreateDeploymentRequest.toObject = function(includeInstance, ms
     parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
     release: jspb.Message.getFieldWithDefault(msg, 2, ""),
     requestId: jspb.Message.getFieldWithDefault(msg, 3, ""),
-    usePrevFormation: jspb.Message.getFieldWithDefault(msg, 4, false),
-    processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
-    tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : []
+    scaleRequest: (f = msg.getScaleRequest()) && proto.controller.CreateScaleRequest.toObject(includeInstance, f)
   };
 
   if (includeInstance) {
@@ -4276,20 +4274,9 @@ proto.controller.CreateDeploymentRequest.deserializeBinaryFromReader = function(
       msg.setRequestId(value);
       break;
     case 4:
-      var value = /** @type {boolean} */ (reader.readBool());
-      msg.setUsePrevFormation(value);
-      break;
-    case 5:
-      var value = msg.getProcessesMap();
-      reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
-         });
-      break;
-    case 6:
-      var value = msg.getTagsMap();
-      reader.readMessage(value, function(message, reader) {
-        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
-         });
+      var value = new proto.controller.CreateScaleRequest;
+      reader.readMessage(value,proto.controller.CreateScaleRequest.deserializeBinaryFromReader);
+      msg.setScaleRequest(value);
       break;
     default:
       reader.skipField();
@@ -4341,20 +4328,13 @@ proto.controller.CreateDeploymentRequest.serializeBinaryToWriter = function(mess
       f
     );
   }
-  f = message.getUsePrevFormation();
-  if (f) {
-    writer.writeBool(
+  f = message.getScaleRequest();
+  if (f != null) {
+    writer.writeMessage(
       4,
-      f
+      f,
+      proto.controller.CreateScaleRequest.serializeBinaryToWriter
     );
-  }
-  f = message.getProcessesMap(true);
-  if (f && f.getLength() > 0) {
-    f.serializeBinary(5, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
-  }
-  f = message.getTagsMap(true);
-  if (f && f.getLength() > 0) {
-    f.serializeBinary(6, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
   }
 };
 
@@ -4405,61 +4385,35 @@ proto.controller.CreateDeploymentRequest.prototype.setRequestId = function(value
 
 
 /**
- * optional bool use_prev_formation = 4;
- * Note that Boolean fields may be set to 0/1 when serialized from a Java server.
- * You should avoid comparisons like {@code val === true/false} in those cases.
+ * optional CreateScaleRequest scale_request = 4;
+ * @return {?proto.controller.CreateScaleRequest}
+ */
+proto.controller.CreateDeploymentRequest.prototype.getScaleRequest = function() {
+  return /** @type{?proto.controller.CreateScaleRequest} */ (
+    jspb.Message.getWrapperField(this, proto.controller.CreateScaleRequest, 4));
+};
+
+
+/** @param {?proto.controller.CreateScaleRequest|undefined} value */
+proto.controller.CreateDeploymentRequest.prototype.setScaleRequest = function(value) {
+  jspb.Message.setWrapperField(this, 4, value);
+};
+
+
+/**
+ * Clears the message field making it undefined.
+ */
+proto.controller.CreateDeploymentRequest.prototype.clearScaleRequest = function() {
+  this.setScaleRequest(undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
  * @return {boolean}
  */
-proto.controller.CreateDeploymentRequest.prototype.getUsePrevFormation = function() {
-  return /** @type {boolean} */ (jspb.Message.getFieldWithDefault(this, 4, false));
-};
-
-
-/** @param {boolean} value */
-proto.controller.CreateDeploymentRequest.prototype.setUsePrevFormation = function(value) {
-  jspb.Message.setProto3BooleanField(this, 4, value);
-};
-
-
-/**
- * map<string, int32> processes = 5;
- * @param {boolean=} opt_noLazyCreate Do not create the map if
- * empty, instead returning `undefined`
- * @return {!jspb.Map<string,number>}
- */
-proto.controller.CreateDeploymentRequest.prototype.getProcessesMap = function(opt_noLazyCreate) {
-  return /** @type {!jspb.Map<string,number>} */ (
-      jspb.Message.getMapField(this, 5, opt_noLazyCreate,
-      null));
-};
-
-
-/**
- * Clears values from the map. The map will be non-null.
- */
-proto.controller.CreateDeploymentRequest.prototype.clearProcessesMap = function() {
-  this.getProcessesMap().clear();
-};
-
-
-/**
- * map<string, DeploymentProcessTags> tags = 6;
- * @param {boolean=} opt_noLazyCreate Do not create the map if
- * empty, instead returning `undefined`
- * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
- */
-proto.controller.CreateDeploymentRequest.prototype.getTagsMap = function(opt_noLazyCreate) {
-  return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
-      jspb.Message.getMapField(this, 6, opt_noLazyCreate,
-      proto.controller.DeploymentProcessTags));
-};
-
-
-/**
- * Clears values from the map. The map will be non-null.
- */
-proto.controller.CreateDeploymentRequest.prototype.clearTagsMap = function() {
-  this.getTagsMap().clear();
+proto.controller.CreateDeploymentRequest.prototype.hasScaleRequest = function() {
+  return jspb.Message.getField(this, 4) != null;
 };
 
 

@@ -182,13 +182,8 @@ message CreateDeploymentRequest {
   // release = Release.name
   string release = 2;
   string request_id = 3;
-  // if use_prev_formation is true, processes and tags are overriden with data
-  // from previous formation
-  bool use_prev_formation = 4;
-  map<string, int32> processes = 5;
-  // profobuf doesn't support maps within maps, so map[string]map[string]string
-  // could not be reproduced
-  map<string, DeploymentProcessTags> tags = 6;
+  // optional scale request
+  CreateScaleRequest scale_request = 4;
 }
 
 message StreamEventsRequest {

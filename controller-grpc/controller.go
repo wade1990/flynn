@@ -1029,7 +1029,7 @@ func convertDeploymentEventJobState(from ct.JobState) DeploymentEvent_JobState {
 }
 
 func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_CreateDeploymentServer) error {
-	d, err := s.createDeploymentWithFormation(req, ds)
+	d, err := s.Client.CreateDeployment(parseIDFromName(req.Parent, "apps"), parseIDFromName(req.Release, "releases"))
 	if err != nil {
 		return err
 	}
@@ -1063,6 +1063,17 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 			fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
 			continue
 		}
+
+		// Scale release to requested processes/tags once deployment is complete
+		if d.Status == "complete" {
+			if req.ScaleRequest != nil {
+				s.Client.ScaleAppRelease(d.AppID, d.NewReleaseID, ct.ScaleOptions{
+					Processes: parseDeploymentProcesses(req.ScaleRequest.Processes),
+					Tags:      parseDeploymentTags(req.ScaleRequest.Tags),
+				})
+			}
+		}
+
 		ds.Send(&Event{
 			Name:   fmt.Sprintf("events/%d", ctEvent.ID),
 			Parent: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),

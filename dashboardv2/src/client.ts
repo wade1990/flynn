@@ -26,8 +26,6 @@ import {
 	Event
 } from './generated/controller_pb';
 
-import protoMapReplace from './util/protoMapReplace';
-
 export interface Client {
 	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
 	getApp: (name: string) => Promise<App>;
@@ -46,7 +44,7 @@ export interface Client {
 	) => () => void;
 	createRelease: (parentName: string, release: Release) => Promise<Release>;
 	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
-	createDeploymentWithFormation: (parentName: string, releaseName: string, f: Formation) => Promise<Deployment>;
+	createDeploymentWithScale: (parentName: string, releaseName: string, sr: CreateScaleRequest) => Promise<Deployment>;
 }
 
 export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
@@ -304,7 +302,6 @@ class _Client implements Client {
 		const req = new CreateDeploymentRequest();
 		req.setParent(parentName);
 		req.setRelease(releaseName);
-		req.setUsePrevFormation(true);
 		let deployment = null as Deployment | null;
 		return new Promise<Deployment>((resolve, reject) => {
 			const stream = this._cc.createDeployment(req);
@@ -329,13 +326,15 @@ class _Client implements Client {
 		});
 	}
 
-	public createDeploymentWithFormation(parentName: string, releaseName: string, f: Formation): Promise<Deployment> {
+	public createDeploymentWithScale(
+		parentName: string,
+		releaseName: string,
+		sr: CreateScaleRequest
+	): Promise<Deployment> {
 		const req = new CreateDeploymentRequest();
 		req.setParent(parentName);
 		req.setRelease(releaseName);
-		req.setUsePrevFormation(false);
-		protoMapReplace(req.getProcessesMap(), f.getProcessesMap());
-		protoMapReplace(req.getTagsMap(), f.getTagsMap());
+		req.setScaleRequest(sr);
 		console.log(req.toObject());
 		let deployment = null as Deployment | null;
 		return new Promise<Deployment>((resolve, reject) => {
