@@ -176,7 +176,6 @@ class CreateDeployment extends React.Component<Props, State> {
 
 	private _createDeployment(release: Release, formation?: Formation) {
 		const { client, appName } = this.props;
-		const { currentRelease } = this.state;
 		let scaleRequest = null as CreateScaleRequest | null;
 		if (formation) {
 			scaleRequest = new CreateScaleRequest();
@@ -191,11 +190,6 @@ class CreateDeployment extends React.Component<Props, State> {
 					return client.createDeployment(appName, release.getName());
 			  };
 		return createDeployment().then((deployment: Deployment) => {
-			if (currentRelease) {
-				return client.getApp(appName).then(() => {
-					return deployment;
-				});
-			}
 			return deployment;
 		});
 	}

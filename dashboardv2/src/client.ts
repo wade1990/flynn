@@ -28,7 +28,6 @@ import {
 
 export interface Client {
 	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
-	getApp: (name: string) => Promise<App>;
 	streamApp: (name: string, cb: StreamAppCallback) => () => void;
 	updateApp: (app: App) => Promise<App>;
 	updateAppMeta: (app: App) => Promise<App>;
@@ -141,20 +140,6 @@ class _Client implements Client {
 		});
 		// TODO(jvatic): Handle stream error
 		return buildCancelFunc(stream);
-	}
-
-	public getApp(name: string): Promise<App> {
-		const getAppRequest = new GetAppRequest();
-		getAppRequest.setName(name);
-		return new Promise<App>((resolve, reject) => {
-			this._cc.getApp(getAppRequest, (error: ServiceError, response: App | null) => {
-				if (response && error === null) {
-					resolve(response);
-				} else {
-					reject(error);
-				}
-			});
-		});
 	}
 
 	public streamApp(name: string, cb: StreamAppCallback): () => void {
