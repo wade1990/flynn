@@ -95,6 +95,14 @@ function buildCancelFunc(req: Cancellable): CancelFunc {
 	};
 }
 
+function buildStreamErrorHandler<T>(stream: ResponseStream<T>, cb: (error: Error) => void) {
+	stream.on('status', (s: Status) => {
+		if (s.code !== grpc.Code.OK) {
+			cb(new Error(s.details));
+		}
+	});
+}
+
 const __memoizedStreams = {} as { [key: string]: ResponseStream<any> };
 const __memoizedStreamUsers = {} as { [key: string]: number };
 const __memoizedStreamResponses = {} as { [key: string]: any };
@@ -147,7 +155,9 @@ class _Client implements Client {
 		stream.on('data', (response: ListAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
-		// TODO(jvatic): Handle stream error
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb([], error);
+		});
 		return buildCancelFunc(stream);
 	}
 
@@ -161,10 +171,12 @@ class _Client implements Client {
 		stream.on('data', (response: App) => {
 			cb(response, null);
 		});
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb(new App(), error);
+		});
 		if (lastResponse) {
 			cb(lastResponse, null);
 		}
-		// TODO(jvatic): Handle stream error
 		return buildCancelFunc(stream);
 	}
 
@@ -191,7 +203,9 @@ class _Client implements Client {
 		stream.on('data', (response: Release) => {
 			cb(response, null);
 		});
-		// TODO(jvatic): Handle stream error
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb(new Release(), error);
+		});
 		return buildCancelFunc(stream);
 	}
 
@@ -207,7 +221,9 @@ class _Client implements Client {
 		if (lastResponse) {
 			cb(lastResponse, null);
 		}
-		// TODO(jvatic): Handle stream error
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb(new Formation(), error);
+		});
 		return buildCancelFunc(stream);
 	}
 
@@ -232,7 +248,9 @@ class _Client implements Client {
 		stream.on('data', (response: ListScaleRequestsResponse) => {
 			cb(response.getScaleRequestsList(), null);
 		});
-		// TODO(jvatic): Handle stream error
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb([], error);
+		});
 		return buildCancelFunc(stream);
 	}
 
@@ -265,7 +283,9 @@ class _Client implements Client {
 		stream.on('data', (response: ListReleasesResponse) => {
 			cb(response.getReleasesList(), null);
 		});
-		// TODO(jvatic): Handle stream error
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb([], error);
+		});
 		return buildCancelFunc(stream);
 	}
 
