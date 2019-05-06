@@ -221,20 +221,21 @@ class FormationEditor extends React.Component<Props, State> {
 		req.setParent(formation.getParent());
 		protoMapReplace(req.getProcessesMap(), new jspb.Map(processes));
 		protoMapReplace(req.getTagsMap(), formation.getTagsMap());
-		client
-			.createScale(req)
-			.then((scaleReq: ScaleRequest) => {
+		client.createScale(req, (scaleReq: ScaleRequest, error: Error | null) => {
+			if (error) {
 				this.setState({
-					isCreating: false,
-					processes: buildProcessesArray(scaleReq.getNewProcessesMap()),
-					processesDiff: [],
-					processesFullDiff: [],
-					hasChanges: false
+					isCreating: false
 				});
-			})
-			.catch((error: Error) => {
-				handleError(error);
+				return handleError(error);
+			}
+			this.setState({
+				isCreating: false,
+				processes: buildProcessesArray(scaleReq.getNewProcessesMap()),
+				processesDiff: [],
+				processesFullDiff: [],
+				hasChanges: false
 			});
+		});
 	}
 
 	private _handleCancelSubmit(e: React.SyntheticEvent) {

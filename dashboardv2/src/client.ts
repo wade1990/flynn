@@ -27,34 +27,43 @@ import {
 } from './generated/controller_pb';
 
 export interface Client {
-	listAppsStream: (cb: ListAppsStreamCallback) => () => void;
-	streamApp: (name: string, cb: StreamAppCallback) => () => void;
-	updateApp: (app: App) => Promise<App>;
-	updateAppMeta: (app: App) => Promise<App>;
-	streamAppRelease: (appName: string, cb: StreamAppReleaseCallback) => () => void;
-	streamAppFormation: (appName: string, cb: StreamAppFormationCallback) => () => void;
-	createScale: (req: CreateScaleRequest) => Promise<ScaleRequest>;
-	listScaleRequestsStream: (appName: string, cb: ListScaleRequestsStreamCallback) => () => void;
-	getRelease: (name: string) => Promise<Release>;
+	listAppsStream: (cb: ListAppsStreamCallback) => CancelFunc;
+	streamApp: (name: string, cb: StreamAppCallback) => CancelFunc;
+	updateAppMeta: (app: App, cb: UpdateAppCallback) => CancelFunc;
+	streamAppRelease: (appName: string, cb: ReleaseCallback) => CancelFunc;
+	streamAppFormation: (appName: string, cb: FormationCallback) => CancelFunc;
+	createScale: (req: CreateScaleRequest, cb: CreateScaleCallback) => CancelFunc;
+	listScaleRequestsStream: (appName: string, cb: ScaleRequestListCallback) => CancelFunc;
+	getRelease: (name: string, cb: ReleaseCallback) => CancelFunc;
 	listReleasesStream: (
 		parentName: string,
-		cb: ListReleasesStreamCallback,
+		cb: ReleaseListCallback,
 		...reqModifiers: ListReleasesRequestModifier[]
-	) => () => void;
-	createRelease: (parentName: string, release: Release) => Promise<Release>;
-	createDeployment: (parentName: string, releaseName: string) => Promise<Deployment>;
-	createDeploymentWithScale: (parentName: string, releaseName: string, sr: CreateScaleRequest) => Promise<Deployment>;
+	) => CancelFunc;
+	createRelease: (parentName: string, release: Release, cb: ReleaseCallback) => CancelFunc;
+	createDeployment: (parentName: string, releaseName: string, cb: DeploymentCallback) => CancelFunc;
+	createDeploymentWithScale: (
+		parentName: string,
+		releaseName: string,
+		sr: CreateScaleRequest,
+		cb: DeploymentCallback
+	) => CancelFunc;
 }
 
-export type StreamEventsCallback = (event: Event | null, error: Error | null) => void;
+export type CancelFunc = () => void;
 export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
 export type StreamAppCallback = (app: App, error: Error | null) => void;
-export type StreamAppReleaseCallback = (release: Release, error: Error | null) => void;
-export type StreamAppFormationCallback = (formation: Formation, error: Error | null) => void;
-export type ListReleasesStreamCallback = (releases: Release[], error: Error | null) => void;
-export type ListScaleRequestsStreamCallback = (scaleRequests: ScaleRequest[], error: Error | null) => void;
+export type UpdateAppCallback = (app: App, error: Error | null) => void;
+export type CreateScaleCallback = (sr: ScaleRequest, error: Error | null) => void;
+export type ReleaseCallback = (release: Release, error: Error | null) => void;
+export type DeploymentCallback = (deployment: Deployment, error: Error | null) => void;
+export type FormationCallback = (formation: Formation, error: Error | null) => void;
+export type ReleaseListCallback = (releases: Release[], error: Error | null) => void;
+export type ScaleRequestListCallback = (scaleRequests: ScaleRequest[], error: Error | null) => void;
 
 export type ListReleasesRequestModifier = (req: ListReleasesRequest) => void;
+
+const UnknownError = new Error('Unknown error');
 
 export function listReleasesRequestFilterLabels(filterLabels: { [key: string]: string }): ListReleasesRequestModifier {
 	return (req: ListReleasesRequest) => {
@@ -77,12 +86,12 @@ interface Cancellable {
 	cancel(): void;
 }
 
-function buildCancelFunc(stream: Cancellable): () => void {
+function buildCancelFunc(req: Cancellable): CancelFunc {
 	let cancelled = false;
 	return () => {
 		if (cancelled) return;
 		cancelled = true;
-		stream.cancel();
+		req.cancel();
 	};
 }
 
@@ -132,7 +141,7 @@ class _Client implements Client {
 		this._cc = cc;
 	}
 
-	public listAppsStream(cb: ListAppsStreamCallback): () => void {
+	public listAppsStream(cb: ListAppsStreamCallback): CancelFunc {
 		const stream = this._cc.listAppsStream();
 		stream.write(new ListAppsRequest());
 		stream.on('data', (response: ListAppsResponse) => {
@@ -142,7 +151,7 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public streamApp(name: string, cb: StreamAppCallback): () => void {
+	public streamApp(name: string, cb: StreamAppCallback): CancelFunc {
 		const [stream, lastResponse] = memoizedStream('streamApp', name, () => {
 			const getAppRequest = new GetAppRequest();
 			getAppRequest.setName(name);
@@ -159,35 +168,23 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public updateApp(app: App): Promise<App> {
-		return new Promise<App>((resolve, reject) => {
-			const req = new UpdateAppRequest();
-			req.setApp(app);
-			this._cc.updateApp(req, (error: ServiceError, response: App | null) => {
-				if (response && error === null) {
-					resolve(response);
-				} else {
-					reject(error);
-				}
-			});
-		});
-	}
-
-	public updateAppMeta(app: App): Promise<App> {
-		return new Promise<App>((resolve, reject) => {
-			const req = new UpdateAppRequest();
-			req.setApp(app);
+	public updateAppMeta(app: App, cb: UpdateAppCallback): CancelFunc {
+		const req = new UpdateAppRequest();
+		req.setApp(app);
+		return buildCancelFunc(
 			this._cc.updateAppMeta(req, (error: ServiceError, response: App | null) => {
 				if (response && error === null) {
-					resolve(response);
+					cb(response, null);
+				} else if (error) {
+					cb(new App(), new Error(error.message));
 				} else {
-					reject(error);
+					cb(new App(), UnknownError);
 				}
-			});
-		});
+			})
+		);
 	}
 
-	public streamAppRelease(appName: string, cb: StreamAppReleaseCallback): () => void {
+	public streamAppRelease(appName: string, cb: ReleaseCallback): CancelFunc {
 		const req = new GetAppReleaseRequest();
 		req.setParent(appName);
 		const stream = this._cc.streamAppRelease(req);
@@ -198,7 +195,7 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public streamAppFormation(appName: string, cb: StreamAppFormationCallback): () => void {
+	public streamAppFormation(appName: string, cb: FormationCallback): CancelFunc {
 		const [stream, lastResponse] = memoizedStream('streamAppFormation', appName, () => {
 			const req = new GetAppFormationRequest();
 			req.setParent(appName);
@@ -214,19 +211,21 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public createScale(req: CreateScaleRequest): Promise<ScaleRequest> {
-		return new Promise<ScaleRequest>((resolve, reject) => {
+	public createScale(req: CreateScaleRequest, cb: CreateScaleCallback): CancelFunc {
+		return buildCancelFunc(
 			this._cc.createScale(req, (error: ServiceError, response: ScaleRequest | null) => {
 				if (response && error === null) {
-					resolve(response);
+					cb(response, null);
+				} else if (error) {
+					cb(new ScaleRequest(), new Error(error.message));
 				} else {
-					reject(error);
+					cb(new ScaleRequest(), UnknownError);
 				}
-			});
-		});
+			})
+		);
 	}
 
-	public listScaleRequestsStream(appName: string, cb: ListScaleRequestsStreamCallback): () => void {
+	public listScaleRequestsStream(appName: string, cb: ScaleRequestListCallback): CancelFunc {
 		const req = new ListScaleRequestsRequest();
 		req.setParent(appName);
 		const stream = this._cc.listScaleRequestsStream(req);
@@ -237,25 +236,27 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public getRelease(name: string): Promise<Release> {
+	public getRelease(name: string, cb: ReleaseCallback): CancelFunc {
 		const getReleaseRequest = new GetReleaseRequest();
 		getReleaseRequest.setName(name);
-		return new Promise<Release>((resolve, reject) => {
+		return buildCancelFunc(
 			this._cc.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
-					resolve(response);
+					cb(response, null);
+				} else if (error) {
+					cb(new Release(), new Error(error.message));
 				} else {
-					reject(error);
+					cb(new Release(), UnknownError);
 				}
-			});
-		});
+			})
+		);
 	}
 
 	public listReleasesStream(
 		parentName: string,
-		cb: ListReleasesStreamCallback,
+		cb: ReleaseListCallback,
 		...reqModifiers: ListReleasesRequestModifier[]
-	): () => void {
+	): CancelFunc {
 		const stream = this._cc.listReleasesStream();
 		const req = new ListReleasesRequest();
 		req.setParent(parentName);
@@ -268,81 +269,65 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public createRelease(parentName: string, release: Release): Promise<Release> {
+	public createRelease(parentName: string, release: Release, cb: ReleaseCallback): CancelFunc {
 		const req = new CreateReleaseRequest();
 		req.setParent(parentName);
 		req.setRelease(release);
-		return new Promise<Release>((resolve, reject) => {
+		return buildCancelFunc(
 			this._cc.createRelease(req, (error: ServiceError, response: Release | null) => {
 				if (response && error === null) {
-					resolve(response);
+					cb(response, null);
+				} else if (error) {
+					cb(new Release(), new Error(error.message));
 				} else {
-					reject(error);
+					cb(new Release(), UnknownError);
 				}
-			});
-		});
+			})
+		);
 	}
 
-	public createDeployment(parentName: string, releaseName: string): Promise<Deployment> {
+	public createDeployment(parentName: string, releaseName: string, cb: DeploymentCallback): CancelFunc {
 		const req = new CreateDeploymentRequest();
 		req.setParent(parentName);
 		req.setRelease(releaseName);
-		let deployment = null as Deployment | null;
-		return new Promise<Deployment>((resolve, reject) => {
-			const stream = this._cc.createDeployment(req);
-			stream.on('data', (event: Event) => {
-				if (event.hasDeploymentEvent()) {
-					const de = event.getDeploymentEvent();
-					const d = de && de.getDeployment();
-					if (d) {
-						deployment = d;
-					}
-				}
-			});
-			stream.on('status', (s: Status) => {
-				console.log('status', s);
-				if (s.code === grpc.Code.OK && deployment) {
-					resolve(deployment);
-				} else {
-					reject(new Error(s.details));
-				}
-			});
-			stream.on('end', () => {});
-		});
+		return this._createDeployment(req, cb);
 	}
 
 	public createDeploymentWithScale(
 		parentName: string,
 		releaseName: string,
-		sr: CreateScaleRequest
-	): Promise<Deployment> {
+		sr: CreateScaleRequest,
+		cb: DeploymentCallback
+	): CancelFunc {
 		const req = new CreateDeploymentRequest();
 		req.setParent(parentName);
 		req.setRelease(releaseName);
 		req.setScaleRequest(sr);
-		console.log(req.toObject());
+		return this._createDeployment(req, cb);
+	}
+
+	private _createDeployment(req: CreateDeploymentRequest, cb: DeploymentCallback): CancelFunc {
 		let deployment = null as Deployment | null;
-		return new Promise<Deployment>((resolve, reject) => {
-			const stream = this._cc.createDeployment(req);
-			stream.on('data', (event: Event) => {
-				if (event.hasDeploymentEvent()) {
-					const de = event.getDeploymentEvent();
-					const d = de && de.getDeployment();
-					if (d) {
-						deployment = d;
-					}
+		const stream = this._cc.createDeployment(req);
+		stream.on('data', (event: Event) => {
+			if (event.hasDeploymentEvent()) {
+				const de = event.getDeploymentEvent();
+				const d = de && de.getDeployment();
+				if (d) {
+					deployment = d;
 				}
-			});
-			stream.on('status', (s: Status) => {
-				console.log('status', s);
-				if (s.code === grpc.Code.OK && deployment) {
-					resolve(deployment);
-				} else {
-					reject(new Error(s.details));
-				}
-			});
-			stream.on('end', () => {});
+			}
 		});
+		stream.on('status', (s: Status) => {
+			console.log('status', s);
+			if (s.code === grpc.Code.OK && deployment) {
+				cb(deployment, null);
+			} else {
+				cb(new Deployment(), new Error(s.details));
+			}
+		});
+		stream.on('end', () => {});
+		return buildCancelFunc(stream);
 	}
 }
 

@@ -107,7 +107,17 @@ class CreateDeployment extends React.Component<Props, State> {
 		});
 
 		this.__streamAppReleaseCancel();
-		const p = releaseName ? client.getRelease(releaseName) : Promise.resolve(new Release());
+		const p = releaseName
+			? new Promise((resolve, reject) => {
+					client.getRelease(releaseName, (r: Release, error: Error | null) => {
+						if (r && error == null) {
+							resolve(r);
+						} else {
+							reject(error);
+						}
+					});
+			  })
+			: Promise.resolve(new Release());
 		p.then((nextRelease: Release) => {
 			this.__streamAppReleaseCancel = client.streamAppRelease(
 				appName,
@@ -171,7 +181,15 @@ class CreateDeployment extends React.Component<Props, State> {
 
 	private _createRelease(newRelease: Release) {
 		const { client, appName } = this.props;
-		return client.createRelease(appName, newRelease);
+		return new Promise((resolve, reject) => {
+			client.createRelease(appName, newRelease, (release: Release, error: Error | null) => {
+				if (release && error === null) {
+					resolve(release);
+				} else {
+					reject(error);
+				}
+			});
+		});
 	}
 
 	private _createDeployment(release: Release, formation?: Formation) {
@@ -182,16 +200,26 @@ class CreateDeployment extends React.Component<Props, State> {
 			protoMapReplace(scaleRequest.getProcessesMap(), formation.getProcessesMap());
 			protoMapReplace(scaleRequest.getTagsMap(), formation.getTagsMap());
 		}
+		let resolve: (deployment: Deployment) => void, reject: (error: Error) => void;
+		const p = new Promise((rs, rj) => {
+			resolve = rs;
+			reject = rj;
+		});
+		const cb = (deployment: Deployment, error: Error | null) => {
+			if (error) {
+				reject(error);
+			}
+			resolve(deployment);
+		};
 		const createDeployment = scaleRequest
 			? () => {
-					return client.createDeploymentWithScale(appName, release.getName(), scaleRequest as CreateScaleRequest);
+					return client.createDeploymentWithScale(appName, release.getName(), scaleRequest as CreateScaleRequest, cb);
 			  }
 			: () => {
-					return client.createDeployment(appName, release.getName());
+					return client.createDeployment(appName, release.getName(), cb);
 			  };
-		return createDeployment().then((deployment: Deployment) => {
-			return deployment;
-		});
+		createDeployment();
+		return p;
 	}
 }
 

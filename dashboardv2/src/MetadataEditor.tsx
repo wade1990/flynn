@@ -138,17 +138,21 @@ class MetadataEditor extends React.Component<Props, State> {
 		this.setState({
 			isDeploying: true
 		});
-		client
-			.updateAppMeta(app)
-			.then((app) => {
-				const data = new KeyValueData(app.getLabelsMap());
+		client.updateAppMeta(app, (app: App, error: Error | null) => {
+			if (error) {
 				this.setState({
-					data,
 					isDeploying: false,
 					isConfirming: false
 				});
-			})
-			.catch(handleError);
+				return handleError(error);
+			}
+			const data = new KeyValueData(app.getLabelsMap());
+			this.setState({
+				data,
+				isDeploying: false,
+				isConfirming: false
+			});
+		});
 	}
 
 	private _handleCancelBtnClick(event: React.SyntheticEvent) {
