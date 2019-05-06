@@ -339,7 +339,6 @@ class _Client implements Client {
 			}
 		});
 		stream.on('status', (s: Status) => {
-			console.log('status', s);
 			if (s.code === grpc.Code.OK && deployment) {
 				cb(deployment, null);
 			} else {

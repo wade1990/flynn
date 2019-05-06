@@ -509,7 +509,6 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			}
 			protoMapReplace(newFormation.getProcessesMap(), sr.getNewProcessesMap());
 			protoMapReplace(newFormation.getTagsMap(), sr.getNewTagsMap());
-			console.log('deploy release scale', { newFormation: newFormation.toObject(), releaseName: sr.getParent() });
 			this.setState({
 				isDeploying: true,
 				releaseName: sr.getParent(),

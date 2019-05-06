@@ -122,7 +122,6 @@ class CreateDeployment extends React.Component<Props, State> {
 			this.__streamAppReleaseCancel = client.streamAppRelease(
 				appName,
 				(currentRelease: Release, error: Error | null) => {
-					console.log({ currentRelease, error });
 					const { newRelease } = this.state;
 					const nextState = {
 						isLoading: false,
