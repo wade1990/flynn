@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as timestamp_pb from 'google-protobuf/google/protobuf/timestamp_pb';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
-import { CheckmarkIcon, CheckBox, Button, Columns, Box, Value } from 'grommet';
+import { Layer, CheckmarkIcon, CheckBox, Button, Columns, Box, Value } from 'grommet';
 
 import { listReleasesRequestFilterType } from './client';
 import withClient, { ClientProps } from './withClient';
@@ -477,26 +477,30 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		if (releasesLoading || scaleRequestsLoading || currentFormationLoading) {
 			return <Loading />;
 		}
-		if (isDeploying) {
-			return (
-				<CreateDeployment
-					appName={appName}
-					releaseName={releaseName}
-					newFormation={newFormation || undefined}
-					onCancel={this._handleDeployCancel}
-					onCreate={this._handleDeploymentCreate}
-				/>
-			);
-		}
 		return (
-			<ReleaseHistory
-				{...props as Props}
-				selectedItemName={releaseName}
-				releases={releases}
-				scaleRequests={scaleRequests}
-				currentFormation={currentFormation as Formation}
-				onSubmit={this._handleSubmit}
-			/>
+			<>
+				{isDeploying ? (
+					<Layer closer overlayClose align="right" onClose={this._handleDeployCancel}>
+						<Box full="vertical" justify="center" pad="small">
+							<CreateDeployment
+								appName={appName}
+								releaseName={releaseName}
+								newFormation={newFormation || undefined}
+								onCancel={this._handleDeployCancel}
+								onCreate={this._handleDeploymentCreate}
+							/>
+						</Box>
+					</Layer>
+				) : null}
+				<ReleaseHistory
+					{...props as Props}
+					selectedItemName={releaseName}
+					releases={releases}
+					scaleRequests={scaleRequests}
+					currentFormation={currentFormation as Formation}
+					onSubmit={this._handleSubmit}
+				/>
+			</>
 		);
 	}
 

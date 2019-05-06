@@ -1275,6 +1275,7 @@ declare namespace Grommet {
 		closer?: React.ReactNode | boolean;
 		flush?: boolean;
 		hidden?: boolean;
+		overlayClose: boolean;
 		peek?: boolean;
 		onClose?: Function;
 	}

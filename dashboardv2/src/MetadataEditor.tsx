@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
-import { CheckmarkIcon, Button } from 'grommet';
+import { CheckmarkIcon, Button, Layer, Box } from 'grommet';
 import Loading from './Loading';
 import KeyValueEditor, { KeyValueData, renderKeyValueDiff } from './KeyValueEditor';
 import protoMapReplace from './util/protoMapReplace';
@@ -54,15 +54,21 @@ class MetadataEditor extends React.Component<Props, State> {
 		if (isLoading) {
 			return <Loading />;
 		}
-		if (isConfirming) {
-			return this._renderDeployMetadata();
-		}
 		return (
-			<KeyValueEditor
-				data={data || new KeyValueData(new jspb.Map<string, string>([]))}
-				onChange={this._handleChange}
-				onSubmit={this._handleSubmit}
-			/>
+			<>
+				{isConfirming ? (
+					<Layer closer overlayClose align="right" onClose={this._handleCancelBtnClick}>
+						<Box full="vertical" justify="center" pad="small">
+							{this._renderDeployMetadata()}
+						</Box>
+					</Layer>
+				) : null}
+				<KeyValueEditor
+					data={data || new KeyValueData(new jspb.Map<string, string>([]))}
+					onChange={this._handleChange}
+					onSubmit={this._handleSubmit}
+				/>
+			</>
 		);
 	}
 
@@ -155,8 +161,10 @@ class MetadataEditor extends React.Component<Props, State> {
 		});
 	}
 
-	private _handleCancelBtnClick(event: React.SyntheticEvent) {
-		event.preventDefault();
+	private _handleCancelBtnClick(event?: React.SyntheticEvent) {
+		if (event) {
+			event.preventDefault();
+		}
 		this.setState({
 			isConfirming: false
 		});

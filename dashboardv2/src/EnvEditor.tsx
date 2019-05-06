@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
+import { Layer, Box } from 'grommet';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
 import KeyValueEditor, { KeyValueData } from './KeyValueEditor';
@@ -56,25 +57,29 @@ class EnvEditor extends React.Component<Props, State> {
 		if (isLoading) {
 			return <Loading />;
 		}
-		if (isDeploying) {
-			return (
-				<CreateDeployment
-					appName={appName}
-					newRelease={newRelease || undefined}
-					onCancel={this._handleDeployCancel}
-					onCreate={this._handleDeploymentCreate}
-				/>
-			);
-		}
 		if (!release) throw new Error('Unexpected lack of release!');
 		return (
-			<KeyValueEditor
-				data={envState || new KeyValueData(release.getEnvMap())}
-				keyPlaceholder="ENV key"
-				valuePlaceholder="ENV value"
-				onChange={this._handleChange}
-				onSubmit={this._handleSubmit}
-			/>
+			<>
+				{isDeploying ? (
+					<Layer closer overlayClose align="right" onClose={this._handleDeployCancel}>
+						<Box full="vertical" justify="center" pad="small">
+							<CreateDeployment
+								appName={appName}
+								newRelease={newRelease || undefined}
+								onCancel={this._handleDeployCancel}
+								onCreate={this._handleDeploymentCreate}
+							/>
+						</Box>
+					</Layer>
+				) : null}
+				<KeyValueEditor
+					data={envState || new KeyValueData(release.getEnvMap())}
+					keyPlaceholder="ENV key"
+					valuePlaceholder="ENV value"
+					onChange={this._handleChange}
+					onSubmit={this._handleSubmit}
+				/>
+			</>
 		);
 	}
 
