@@ -2,7 +2,11 @@ import * as React from 'react';
 import * as timestamp_pb from 'google-protobuf/google/protobuf/timestamp_pb';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
 
-import { Layer, CheckmarkIcon, CheckBox, Button, Columns, Box, Value } from 'grommet';
+import { Checkmark as CheckmarkIcon } from 'grommet-icons';
+import { CheckBox, Button, Box, BoxProps } from 'grommet';
+import { Omit } from 'grommet/utils';
+import ProcessScale from './ProcessScale';
+import RightOverlay from './RightOverlay';
 
 import { listReleasesRequestFilterType } from './client';
 import withClient, { ClientProps } from './withClient';
@@ -11,11 +15,9 @@ import { Release, ReleaseType, Deployment, ScaleRequest, Formation } from './gen
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
 import { renderRelease } from './Release';
-import { parseURLParams, urlParamsToString } from './util/urlParams';
+import { parseURLParams, urlParamsToString, URLParams } from './util/urlParams';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
-
-import './ReleaseHistory.scss';
 
 function mapHistory<T>(
 	releases: Release[],
@@ -50,33 +52,138 @@ function mapHistory<T>(
 	return res;
 }
 
-function renderScaleRequest(s: ScaleRequest): React.ReactNode {
+interface ReleaseHistoryFiltersProps extends Omit<RouteComponentProps<{}>, 'match'>, BoxProps {
+	urlParams: URLParams;
+	filters: string[];
+}
+
+function ReleaseHistoryFilters({ location, history, urlParams, filters, ...boxProps }: ReleaseHistoryFiltersProps) {
+	const isScaleEnabled = filters.indexOf('scale') !== -1;
+
+	const rhfToggleChangeHanlder = (filterName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+		const rhf = new Set(urlParams.rhf || filters);
+		if (e.target.checked) {
+			rhf.add(filterName);
+		} else {
+			rhf.delete(filterName);
+			if (filterName === 'code' && (urlParams.rhf || []).indexOf(filterName) === -1) {
+				// turning off 'code' will turn on 'env'
+				rhf.add('env');
+			}
+		}
+		if (rhf.has('code') && rhf.size === 1) {
+			// 'code' is the default so remove it when it's the only one
+			rhf.delete('code');
+		}
+		history.replace(
+			location.pathname +
+				urlParamsToString(
+					Object.assign({}, urlParams, {
+						rhf: [...rhf]
+					})
+				)
+		);
+	};
+
+	return (
+		<Box direction="row" gap="medium" margin={{ bottom: 'medium' }} {...boxProps}>
+			<CheckBox
+				toggle
+				checked={filters.indexOf('code') > -1}
+				label="Code"
+				onChange={(e: React.ChangeEvent<HTMLInputElement>) => rhfToggleChangeHanlder('code', e)}
+			/>
+
+			<CheckBox
+				toggle
+				checked={filters.indexOf('env') > -1}
+				label="Env"
+				onChange={(e: React.ChangeEvent<HTMLInputElement>) => rhfToggleChangeHanlder('env', e)}
+			/>
+
+			<CheckBox
+				toggle
+				checked={isScaleEnabled}
+				label="Scale"
+				onChange={(e: React.ChangeEvent<HTMLInputElement>) => rhfToggleChangeHanlder('scale', e)}
+			/>
+		</Box>
+	);
+}
+
+interface ReleaseHistoryReleaseProps extends BoxProps {
+	selected: boolean;
+	release: Release;
+	prevRelease: Release | null;
+	onChange: (isSelected: boolean) => void;
+}
+
+function ReleaseHistoryRelease({
+	release: r,
+	prevRelease: p,
+	selected,
+	onChange,
+	...boxProps
+}: ReleaseHistoryReleaseProps) {
+	return (
+		<Box {...boxProps}>
+			<label>
+				<CheckBox
+					checked={selected}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
+				/>
+				{renderRelease(r, p)}
+			</label>
+		</Box>
+	);
+}
+
+interface ReleaseHistoryScaleProps extends BoxProps {
+	selected: boolean;
+	scaleRequest: ScaleRequest;
+	onChange: (isSelected: boolean) => void;
+}
+
+function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps }: ReleaseHistoryScaleProps) {
 	const releaseID = s.getParent().split('/')[3];
 	const diff = protoMapDiff(s.getOldProcessesMap(), s.getNewProcessesMap(), DiffOption.INCLUDE_UNCHANGED);
 	return (
-		<Columns>
-			{diff.reduce(
-				(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
-					if (op.op === 'remove') {
-						return m;
-					}
-					let val = op.value;
-					if (op.op === 'keep') {
-						val = s.getOldProcessesMap().get(op.key);
-					}
-					m.push(
-						<div key={op.key}>
-							<div>Release {releaseID}</div>
-							<Box align="center" separator="right">
-								<Value value={val} label={op.key} size="small" />
-							</Box>
-						</div>
-					);
-					return m;
-				},
-				[] as React.ReactNodeArray
-			)}
-		</Columns>
+		<Box {...boxProps}>
+			<label>
+				<CheckBox
+					checked={selected}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
+				/>
+				<div>
+					<div>Release {releaseID}</div>
+					<Box direction="row">
+						{diff.reduce(
+							(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
+								if (op.op === 'remove') {
+									return m;
+								}
+								let val = op.value;
+								if (op.op === 'keep') {
+									val = s.getOldProcessesMap().get(op.key);
+								}
+								m.push(
+									<ProcessScale
+										key={op.key}
+										direction="row"
+										margin="small"
+										size="small"
+										value={val as number}
+										label={op.key}
+									/>
+								);
+								return m;
+							},
+							[] as React.ReactNodeArray
+						)}
+					</Box>
+				</div>
+			</label>
+		</Box>
 	);
 }
 
@@ -94,193 +201,106 @@ enum SelectedResourceType {
 	ScaleRequest
 }
 
-interface State {
-	selectedItemName: string;
-	selectedResourceType: SelectedResourceType;
-	selectedScaleRequestDiff: Diff<string, number> | null;
-}
+function ReleaseHistory(props: Props) {
+	const [selectedItemName, setSelectedItemName] = React.useState<string>(
+		props.selectedItemName || props.currentReleaseName
+	);
+	const [selectedResourceType, setSelectedResourceType] = React.useState<SelectedResourceType>(
+		SelectedResourceType.Release
+	);
+	const [selectedScaleRequestDiff, setSelectedScaleRequestDiff] = React.useState<Diff<string, number> | null>(null);
 
-export class ReleaseHistory extends React.Component<Props, State> {
-	constructor(props: Props) {
-		super(props);
-		this.state = {
-			selectedItemName: props.selectedItemName || props.currentReleaseName,
-			selectedResourceType: SelectedResourceType.Release,
-			selectedScaleRequestDiff: null
-		};
-		this._submitHandler = this._submitHandler.bind(this);
-	}
-
-	public componentDidUpdate(prevProps: Props, prevState: State) {
-		const { currentReleaseName } = this.props;
-		const { selectedItemName } = this.state;
-		if (selectedItemName === prevProps.currentReleaseName && currentReleaseName !== prevState.selectedItemName) {
-			this.setState({
-				selectedItemName: currentReleaseName,
-				selectedResourceType: SelectedResourceType.Release,
-				selectedScaleRequestDiff: null
-			});
-		}
-	}
-
-	public render() {
-		const { releases, scaleRequests, currentReleaseName, currentFormation, location, history } = this.props;
-		const { selectedItemName, selectedResourceType, selectedScaleRequestDiff } = this.state;
-
-		const urlParams = parseURLParams(location.search);
-		const releasesListFilters = urlParams['rhf'] || ['code'];
-
-		const getListItemClassName = (item: Release | ScaleRequest): string => {
-			if (item.getName() === selectedItemName) {
-				return 'selected';
-			}
-			return '';
-		};
-
-		const isScaleEnabled = releasesListFilters.indexOf('scale') !== -1;
-
-		const rhfToggleChangeHanlder = (filterName: string, e: React.ChangeEvent<HTMLInputElement>) => {
-			const rhf = new Set(urlParams.rhf || releasesListFilters);
-			if (e.target.checked) {
-				rhf.add(filterName);
-			} else {
-				rhf.delete(filterName);
-				if (filterName === 'code' && (urlParams.rhf || []).indexOf(filterName) === -1) {
-					// turning off 'code' will turn on 'env'
-					rhf.add('env');
-				}
-			}
-			if (rhf.has('code') && rhf.size === 1) {
-				// 'code' is the default so remove it when it's the only one
-				rhf.delete('code');
-			}
-			history.replace(
-				location.pathname +
-					urlParamsToString(
-						Object.assign({}, urlParams, {
-							rhf: [...rhf]
-						})
-					)
-			);
-		};
-
-		return (
-			<form onSubmit={this._submitHandler}>
-				<ul className="releases-list">
-					<CheckBox
-						toggle
-						checked={releasesListFilters.indexOf('code') > -1}
-						label="Code"
-						onChange={rhfToggleChangeHanlder.bind(this, 'code')}
-					/>
-
-					<CheckBox
-						toggle
-						checked={releasesListFilters.indexOf('env') > -1}
-						label="Env"
-						onChange={rhfToggleChangeHanlder.bind(this, 'env')}
-					/>
-
-					<CheckBox
-						toggle
-						checked={isScaleEnabled}
-						label="Scale"
-						onChange={rhfToggleChangeHanlder.bind(this, 'scale')}
-					/>
-
-					<br />
-					<br />
-
-					{mapHistory(
-						releases,
-						isScaleEnabled ? scaleRequests : [],
-						([r, p]) => {
-							return (
-								<li className={getListItemClassName(r)} key={r.getName()}>
-									<label>
-										<CheckBox
-											checked={selectedItemName === r.getName()}
-											onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-												if (e.target.checked) {
-													this.setState({
-														selectedItemName: r.getName(),
-														selectedResourceType: SelectedResourceType.Release,
-														selectedScaleRequestDiff: null
-													});
-												} else {
-													this.setState({
-														selectedItemName: currentReleaseName,
-														selectedResourceType: SelectedResourceType.Release,
-														selectedScaleRequestDiff: null
-													});
-												}
-											}}
-										/>
-										{renderRelease(r, p)}
-									</label>
-								</li>
-							);
-						},
-						(s) => {
-							return (
-								<li className={getListItemClassName(s)} key={s.getName()}>
-									<label>
-										<CheckBox
-											checked={selectedItemName === s.getName()}
-											onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-												if (e.target.checked) {
-													const diff = protoMapDiff(currentFormation.getProcessesMap(), s.getNewProcessesMap());
-													this.setState({
-														selectedItemName: s.getName(),
-														selectedResourceType: SelectedResourceType.ScaleRequest,
-														selectedScaleRequestDiff: diff
-													});
-												} else {
-													this.setState({
-														selectedItemName: currentReleaseName,
-														selectedResourceType: SelectedResourceType.Release,
-														selectedScaleRequestDiff: null
-													});
-												}
-											}}
-										/>
-										{renderScaleRequest(s)}
-									</label>
-								</li>
-							);
-						}
-					)}
-				</ul>
-
-				{selectedItemName === currentReleaseName ? (
-					// disabled button
-					<Button primary icon={<CheckmarkIcon />} label="Deploy Release" />
-				) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
-					selectedItemName.startsWith(currentReleaseName) ? (
-						(selectedScaleRequestDiff as Diff<string, number>).length > 0 ? (
-							<Button type="submit" primary icon={<CheckmarkIcon />} label="Scale Release" />
-						) : (
-							// disabled button (no diff)
-							<Button primary icon={<CheckmarkIcon />} label="Scale Release" />
-						)
-					) : (
-						<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release / Scale" />
-					)
-				) : (
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
-				)}
-			</form>
-		);
-	}
-
-	private _submitHandler(e: React.SyntheticEvent) {
+	const submitHandler = (e: React.SyntheticEvent) => {
 		e.preventDefault();
-		const { selectedItemName } = this.state;
-		if (selectedItemName == '') {
+		if (selectedItemName === '') {
 			return;
 		}
-		this.props.onSubmit(selectedItemName);
-	}
+		props.onSubmit(selectedItemName);
+	};
+
+	const { releases, scaleRequests, currentReleaseName, currentFormation, location, history } = props;
+
+	const urlParams = parseURLParams(location.search);
+	const releasesListFilters = urlParams['rhf'] || ['code'];
+
+	const isScaleEnabled = releasesListFilters.indexOf('scale') !== -1;
+
+	return (
+		<form onSubmit={submitHandler}>
+			<ReleaseHistoryFilters
+				location={location}
+				history={history}
+				filters={releasesListFilters}
+				urlParams={urlParams}
+			/>
+
+			<Box tag="ul">
+				{mapHistory(
+					releases,
+					isScaleEnabled ? scaleRequests : [],
+					([r, p]) => (
+						<ReleaseHistoryRelease
+							key={r.getName()}
+							tag="li"
+							margin={{ bottom: 'small' }}
+							release={r}
+							prevRelease={p}
+							selected={selectedItemName === r.getName()}
+							onChange={(isSelected) => {
+								if (isSelected) {
+									setSelectedItemName(r.getName());
+									setSelectedResourceType(SelectedResourceType.Release);
+									setSelectedScaleRequestDiff(null);
+								} else {
+									setSelectedItemName(currentReleaseName);
+									setSelectedResourceType(SelectedResourceType.Release);
+									setSelectedScaleRequestDiff(null);
+								}
+							}}
+						/>
+					),
+					(s) => (
+						<ReleaseHistoryScale
+							key={s.getName()}
+							tag="li"
+							margin={{ bottom: 'small' }}
+							scaleRequest={s}
+							selected={selectedItemName === s.getName()}
+							onChange={(isSelected) => {
+								if (isSelected) {
+									const diff = protoMapDiff(currentFormation.getProcessesMap(), s.getNewProcessesMap());
+									setSelectedItemName(s.getName());
+									setSelectedResourceType(SelectedResourceType.ScaleRequest);
+									setSelectedScaleRequestDiff(diff);
+								} else {
+									setSelectedItemName(currentReleaseName);
+									setSelectedResourceType(SelectedResourceType.Release);
+									setSelectedScaleRequestDiff(null);
+								}
+							}}
+						/>
+					)
+				)}
+			</Box>
+
+			{selectedItemName === currentReleaseName ? (
+				<Button disabled primary icon={<CheckmarkIcon />} label="Deploy Release" />
+			) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
+				selectedItemName.startsWith(currentReleaseName) ? (
+					(selectedScaleRequestDiff as Diff<string, number>).length > 0 ? (
+						<Button type="submit" primary icon={<CheckmarkIcon />} label="Scale Release" />
+					) : (
+						// disabled button (no diff)
+						<Button disabled primary icon={<CheckmarkIcon />} label="Scale Release" />
+					)
+				) : (
+					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release / Scale" />
+				)
+			) : (
+				<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
+			)}
+		</form>
+	);
 }
 
 export interface WrappedProps extends ClientProps, ErrorHandlerProps, RouteComponentProps<{}> {
@@ -320,6 +340,9 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 			releaseName: '',
 			newFormation: null
 		};
+		this.__isScaleEnabled = false;
+		this.__isCodeReleaseEnabled = false;
+		this.__isConfigReleaseEnabled = false;
 		this._checkToggles(false);
 		this.__streamReleasesCancel = () => {};
 		this.__streamScaleRequestsCancel = () => {};
@@ -480,17 +503,15 @@ class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> 
 		return (
 			<>
 				{isDeploying ? (
-					<Layer closer overlayClose align="right" onClose={this._handleDeployCancel}>
-						<Box full="vertical" justify="center" pad="small">
-							<CreateDeployment
-								appName={appName}
-								releaseName={releaseName}
-								newFormation={newFormation || undefined}
-								onCancel={this._handleDeployCancel}
-								onCreate={this._handleDeploymentCreate}
-							/>
-						</Box>
-					</Layer>
+					<RightOverlay onClose={this._handleDeployCancel}>
+						<CreateDeployment
+							appName={appName}
+							releaseName={releaseName}
+							newFormation={newFormation || undefined}
+							onCancel={this._handleDeployCancel}
+							onCreate={this._handleDeploymentCreate}
+						/>
+					</RightOverlay>
 				) : null}
 				<ReleaseHistory
 					{...props as Props}

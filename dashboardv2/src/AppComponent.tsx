@@ -1,17 +1,18 @@
 import * as React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { Heading, Accordion, AccordionPanel, SocialGithubIcon } from 'grommet';
+import { Github as GithubIcon } from 'grommet-icons';
+import { Box, Heading, Accordion, AccordionPanel } from 'grommet';
 
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { App } from './generated/controller_pb';
 import Loading from './Loading';
 import ExternalAnchor from './ExternalAnchor';
+import { parseURLParams, urlParamsToString } from './util/urlParams';
 const FormationEditor = React.lazy(() => import('./FormationEditor'));
 const ReleaseHistory = React.lazy(() => import('./ReleaseHistory'));
 const EnvEditor = React.lazy(() => import('./EnvEditor'));
 const MetadataEditor = React.lazy(() => import('./MetadataEditor'));
-import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 export interface Props extends ClientProps, ErrorHandlerProps, RouteComponentProps {
 	name: string;
@@ -62,35 +63,43 @@ class AppComponent extends React.Component<Props, State> {
 							<>
 								&nbsp;
 								<ExternalAnchor href={githubURL}>
-									<SocialGithubIcon />
+									<GithubIcon />
 								</ExternalAnchor>
 							</>
 						) : null}
 					</>
 				</Heading>
-				<Accordion openMulti={true} animate={false} onActive={this._handleSectionChange} active={activeIndices}>
-					<AccordionPanel heading="Scale">
-						<React.Suspense fallback={<Loading />}>
-							<FormationEditor appName={app.getName()} />
-						</React.Suspense>
+				<Accordion multiple animate={false} onActive={this._handleSectionChange} activeIndex={activeIndices}>
+					<AccordionPanel label="Scale">
+						<Box pad="medium">
+							<React.Suspense fallback={<Loading />}>
+								<FormationEditor appName={app.getName()} />
+							</React.Suspense>
+						</Box>
 					</AccordionPanel>
 
-					<AccordionPanel heading="Release History">
-						<React.Suspense fallback={<Loading />}>
-							<ReleaseHistory appName={app.getName()} currentReleaseName={app.getRelease()} />
-						</React.Suspense>
+					<AccordionPanel label="Release History">
+						<Box pad="medium">
+							<React.Suspense fallback={<Loading />}>
+								<ReleaseHistory appName={app.getName()} currentReleaseName={app.getRelease()} />
+							</React.Suspense>
+						</Box>
 					</AccordionPanel>
 
-					<AccordionPanel heading="Environment">
-						<React.Suspense fallback={<Loading />}>
-							<EnvEditor appName={app.getName()} />
-						</React.Suspense>
+					<AccordionPanel label="Environment">
+						<Box pad="medium">
+							<React.Suspense fallback={<Loading />}>
+								<EnvEditor appName={app.getName()} />
+							</React.Suspense>
+						</Box>
 					</AccordionPanel>
 
-					<AccordionPanel heading="Metadata">
-						<React.Suspense fallback={<Loading />}>
-							<MetadataEditor appName={app.getName()} />
-						</React.Suspense>
+					<AccordionPanel label="Metadata">
+						<Box pad="medium">
+							<React.Suspense fallback={<Loading />}>
+								<MetadataEditor appName={app.getName()} />
+							</React.Suspense>
+						</Box>
 					</AccordionPanel>
 				</Accordion>
 			</>

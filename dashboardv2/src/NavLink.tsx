@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import Anchor from 'grommet/components/Anchor';
+import { Anchor, AnchorProps } from 'grommet';
+import { Omit } from 'grommet/utils';
 
-export interface Props extends Grommet.AnchorProps, RouteComponentProps<{}> {
+export interface Props extends Omit<AnchorProps, 'onClick'>, RouteComponentProps<{}> {
 	path: string;
 	search?: string;
-	onClick?(e: React.MouseEvent): void;
-	onNav?(path: string): void;
+	onClick?: (e: React.MouseEvent) => void;
+	onNav?: (path: string) => void;
 }
 
 class NavAnchor extends React.Component<Props> {

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
-import { CheckmarkIcon, Button, Layer, Box } from 'grommet';
+import { Checkmark as CheckmarkIcon } from 'grommet-icons';
+import { Box, Button } from 'grommet';
 import Loading from './Loading';
 import KeyValueEditor, { KeyValueData, renderKeyValueDiff } from './KeyValueEditor';
 import protoMapReplace from './util/protoMapReplace';
@@ -8,6 +9,7 @@ import protoMapDiff from './util/protoMapDiff';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { App } from './generated/controller_pb';
+import RightOverlay from './RightOverlay';
 
 interface Props extends ClientProps, ErrorHandlerProps {
 	appName: string;
@@ -57,11 +59,7 @@ class MetadataEditor extends React.Component<Props, State> {
 		return (
 			<>
 				{isConfirming ? (
-					<Layer closer overlayClose align="right" onClose={this._handleCancelBtnClick}>
-						<Box full="vertical" justify="center" pad="small">
-							{this._renderDeployMetadata()}
-						</Box>
-					</Layer>
+					<RightOverlay onClose={this._handleCancelBtnClick}>{this._renderDeployMetadata()}</RightOverlay>
 				) : null}
 				<KeyValueEditor
 					data={data || new KeyValueData(new jspb.Map<string, string>([]))}
@@ -77,18 +75,22 @@ class MetadataEditor extends React.Component<Props, State> {
 		const app = this.state.app as App;
 		const data = this.state.data as KeyValueData;
 		return (
-			<form onSubmit={this._handleConfirmSubmit}>
-				<h3>Review Changes</h3>
-				{renderKeyValueDiff(app.getLabelsMap(), data.entries())}
-				{isDeploying ? (
-					// Disabled button
-					<Button type="button" primary icon={<CheckmarkIcon />} label="Saving..." />
-				) : (
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Save" />
-				)}
-				&nbsp;
-				<Button type="button" label="Cancel" onClick={this._handleCancelBtnClick} />
-			</form>
+			<Box tag="form" fill direction="column" onSubmit={this._handleConfirmSubmit}>
+				<Box flex="grow">
+					<h3>Review Changes</h3>
+					{renderKeyValueDiff(app.getLabelsMap(), data.entries())}
+				</Box>
+				<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
+					<Button
+						type="submit"
+						disabled={isDeploying}
+						primary
+						icon={<CheckmarkIcon />}
+						label={isDeploying ? 'Saving...' : 'Save'}
+					/>
+					<Button type="button" label="Cancel" onClick={this._handleCancelBtnClick} />
+				</Box>
+			</Box>
 		);
 	}
 

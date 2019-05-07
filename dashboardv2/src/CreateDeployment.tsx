@@ -1,6 +1,7 @@
 import * as React from 'react';
-import Button from 'grommet/components/Button';
-import { CheckmarkIcon, Columns, Box, Value } from 'grommet';
+import { Checkmark as CheckmarkIcon } from 'grommet-icons';
+import { Box, Button } from 'grommet';
+import Value from './Value';
 
 import { Release, Formation, Deployment, CreateScaleRequest } from './generated/controller_pb';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
@@ -34,6 +35,8 @@ class CreateDeployment extends React.Component<Props, State> {
 		super(props);
 
 		const { newRelease } = props;
+
+		this._isMounted = false;
 
 		this.state = {
 			isLoading: true,
@@ -83,19 +86,24 @@ class CreateDeployment extends React.Component<Props, State> {
 	private _renderNextRelease(currentRelease: Release | null, nextRelease: Release, newFormation?: Formation) {
 		const { isCreating } = this.state;
 		return (
-			<form onSubmit={this._handleNextReleaseSubmit}>
-				<h3>Review Changes</h3>
-				{renderRelease(nextRelease, currentRelease)}
-				{newFormation ? renderFormation(newFormation) : null}
-				{isCreating ? (
-					// Disabled button
-					<Button type="button" primary icon={<CheckmarkIcon />} label="Deploying..." />
-				) : (
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy" />
-				)}
-				&nbsp;
-				<Button type="button" label="Cancel" onClick={this._handleCancelBtnClick} />
-			</form>
+			<Box tag="form" fill direction="column" onSubmit={this._handleNextReleaseSubmit} gap="small" justify="between">
+				<Box>
+					<h3>Review Changes</h3>
+					{renderRelease(nextRelease, currentRelease)}
+					{newFormation ? renderFormation(newFormation) : null}
+				</Box>
+
+				<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
+					<Button
+						type="submit"
+						disabled={isCreating}
+						primary
+						icon={<CheckmarkIcon />}
+						label={isCreating ? 'Deploying...' : 'Deploy'}
+					/>
+					<Button type="button" label="Cancel" onClick={this._handleCancelBtnClick} />
+				</Box>
+			</Box>
 		);
 	}
 
@@ -108,7 +116,7 @@ class CreateDeployment extends React.Component<Props, State> {
 
 		this.__streamAppReleaseCancel();
 		const p = releaseName
-			? new Promise((resolve, reject) => {
+			? (new Promise((resolve, reject) => {
 					client.getRelease(releaseName, (r: Release, error: Error | null) => {
 						if (r && error == null) {
 							resolve(r);
@@ -116,7 +124,7 @@ class CreateDeployment extends React.Component<Props, State> {
 							reject(error);
 						}
 					});
-			  })
+			  }) as Promise<Release>)
 			: Promise.resolve(new Release());
 		p.then((nextRelease: Release) => {
 			this.__streamAppReleaseCancel = client.streamAppRelease(
@@ -188,7 +196,7 @@ class CreateDeployment extends React.Component<Props, State> {
 					reject(error);
 				}
 			});
-		});
+		}) as Promise<Release>;
 	}
 
 	private _createDeployment(release: Release, formation?: Formation) {
@@ -224,18 +232,18 @@ class CreateDeployment extends React.Component<Props, State> {
 
 function renderFormation(f: Formation): React.ReactNode {
 	return (
-		<Columns>
+		<Box direction="column">
 			{f
 				.getProcessesMap()
 				.toArray()
 				.map(([k, v]: [string, number]) => {
 					return (
-						<Box key={k} align="center" separator="right">
+						<Box key={k} align="center" border="right">
 							<Value value={v} label={k} size="small" />
 						</Box>
 					);
 				})}
-		</Columns>
+		</Box>
 	);
 }
 

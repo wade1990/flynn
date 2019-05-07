@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Omit } from 'grommet/utils';
 
 export interface ErrorHandler {
 	(error: Error): void;
@@ -24,7 +25,7 @@ export function handleError(error: Error) {
 }
 
 export default function withErrorHandler<P extends ErrorHandlerProps>(Component: React.ComponentType<P>) {
-	return function ErrorHandlerComponent(props: Pick<P, Exclude<keyof P, keyof ErrorHandlerProps>>) {
-		return <Component {...props} handleError={handleError} />;
+	return function ErrorHandlerComponent(props: Omit<P, keyof ErrorHandlerProps>) {
+		return <Component {...props as P} handleError={handleError} />;
 	};
 }

@@ -1,31 +1,16 @@
 import * as React from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
-import Box from 'grommet/components/Box';
-import Footer from 'grommet/components/Footer';
-import GrommetApp from 'grommet/components/App';
-import Header from 'grommet/components/Header';
-import Paragraph from 'grommet/components/Paragraph';
-import Sidebar from 'grommet/components/Sidebar';
-import Split from 'grommet/components/Split';
-import Title from 'grommet/components/Title';
-import Heading from 'grommet/components/Heading';
-import Notification from 'grommet/components/Notification';
+import { Grommet, Box, Paragraph, Heading } from 'grommet';
+import { aruba } from 'grommet-theme-aruba';
 
+import Split from './Split';
 import Loading from './Loading';
+import Notification from './Notification';
 import AppsListNav from './AppsListNav';
 import withClient, { ClientProps } from './withClient';
 import ExternalAnchor from './ExternalAnchor';
 import { registerErrorHandler } from './withErrorHandler';
-
-const AppComponent = React.lazy(() => import('./AppComponent'));
-
-export interface Props extends ClientProps {}
-
-interface State {
-	error: Error | null;
-	appName: string;
-}
 
 // DEBUG:
 import { default as client, Client } from './client';
@@ -36,6 +21,15 @@ declare global {
 }
 if (typeof window !== 'undefined') {
 	window.client = client;
+}
+
+const AppComponent = React.lazy(() => import('./AppComponent'));
+
+export interface Props extends ClientProps {}
+
+interface State {
+	error: Error | null;
+	appName: string;
 }
 
 class Dashboard extends React.Component<Props, State> {
@@ -70,21 +64,21 @@ class Dashboard extends React.Component<Props, State> {
 		const { error, appName } = this.state;
 
 		return (
-			<GrommetApp centered={false}>
+			<Grommet full theme={aruba} cssVars>
 				<Router>
-					<Split flex="right">
-						<Sidebar colorIndex="neutral-1">
-							<Header pad="medium" justify="between">
-								<Title>Flynn Dashboard</Title>
-							</Header>
-							<Box flex="grow" justify="start">
+					<Split>
+						<Box tag="aside" basis="medium" flex={false} background="neutral-1" fill>
+							<Box tag="header" pad="medium">
+								<h1>Flynn Dashboard</h1>
+							</Box>
+							<Box>
 								<AppsListNav
 									onNav={(path: string) => {
 										this.setState({ appName: this._appName(path) });
 									}}
 								/>
 							</Box>
-							<Footer appCentered={true} direction="column" pad="small" colorIndex="grey-1">
+							<Box tag="footer" direction="row" pad="small" align="center" background="grey-1">
 								<Paragraph size="small">
 									Flynn is designed, built, and managed by Prime Directive, Inc.
 									<br />
@@ -98,17 +92,12 @@ class Dashboard extends React.Component<Props, State> {
 										Trademark Guidelines
 									</ExternalAnchor>
 								</Paragraph>
-							</Footer>
-						</Sidebar>
+							</Box>
+						</Box>
 
-						<Box pad="medium">
+						<Box pad="medium" fill overflow="scroll">
 							{error ? (
-								<Notification
-									status="warning"
-									message={error.message}
-									closer={true}
-									onClose={this._handleErrorDismiss}
-								/>
+								<Notification message={error.message} status="warning" onClose={this._handleErrorDismiss} />
 							) : null}
 							<React.Suspense fallback={<Loading />}>
 								<Switch>
@@ -123,12 +112,12 @@ class Dashboard extends React.Component<Props, State> {
 						</Box>
 					</Split>
 				</Router>
-			</GrommetApp>
+			</Grommet>
 		);
 	}
 
 	private _appName(path: string) {
-		const m = path.match(/\/apps\/[^\/]+/);
+		const m = path.match(/\/apps\/[^/]+/);
 		return m ? m[0].slice(1) : '';
 	}
 

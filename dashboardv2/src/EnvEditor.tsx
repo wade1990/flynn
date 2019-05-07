@@ -1,6 +1,5 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
-import { Layer, Box } from 'grommet';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
 import KeyValueEditor, { KeyValueData } from './KeyValueEditor';
@@ -9,6 +8,7 @@ import protoMapReplace from './util/protoMapReplace';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { Release } from './generated/controller_pb';
+import RightOverlay from './RightOverlay';
 
 interface Props extends ClientProps, ErrorHandlerProps {
 	appName: string;
@@ -61,16 +61,14 @@ class EnvEditor extends React.Component<Props, State> {
 		return (
 			<>
 				{isDeploying ? (
-					<Layer closer overlayClose align="right" onClose={this._handleDeployCancel}>
-						<Box full="vertical" justify="center" pad="small">
-							<CreateDeployment
-								appName={appName}
-								newRelease={newRelease || undefined}
-								onCancel={this._handleDeployCancel}
-								onCreate={this._handleDeploymentCreate}
-							/>
-						</Box>
-					</Layer>
+					<RightOverlay onClose={this._handleDeployCancel}>
+						<CreateDeployment
+							appName={appName}
+							newRelease={newRelease || new Release()}
+							onCancel={this._handleDeployCancel}
+							onCreate={this._handleDeploymentCreate}
+						/>
+					</RightOverlay>
 				) : null}
 				<KeyValueEditor
 					data={envState || new KeyValueData(release.getEnvMap())}

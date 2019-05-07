@@ -1,10 +1,10 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
 
-import { Columns, Box, Button, Value } from 'grommet';
+import { Box, Button } from 'grommet';
 
 import Loading from './Loading';
-import IntegerPicker from './IntegerPicker';
+import ProcessScale from './ProcessScale';
 import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp, DiffOption } from './util/protoMapDiff';
@@ -72,7 +72,7 @@ class FormationEditor extends React.Component<Props, State> {
 		const isPending = formation.getState() === ScaleRequestState.SCALE_PENDING;
 		return (
 			<form onSubmit={isConfirming ? this._handleConfirmSubmit : this._handleSubmit}>
-				<Columns>
+				<Box direction="row" gap="small">
 					{isConfirming || isCreating || isPending
 						? processesFullDiff.reduce(
 								(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
@@ -97,8 +97,8 @@ class FormationEditor extends React.Component<Props, State> {
 										delta = Math.abs(delta);
 									}
 									m.push(
-										<Box align="center" separator="right" key={key}>
-											<Value size="large" value={delta !== 0 ? `${val} (${sign}${delta})` : val} label={key} />
+										<Box align="center" key={key}>
+											<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
 										</Box>
 									);
 									return m;
@@ -107,10 +107,11 @@ class FormationEditor extends React.Component<Props, State> {
 						  )
 						: processes.map(([key, val]: [string, number]) => {
 								return (
-									<Box align="center" separator="right" key={key}>
-										<IntegerPicker
+									<Box align="center" key={key}>
+										<ProcessScale
 											value={val}
 											label={key}
+											editable
 											onChange={(newVal) => {
 												this._handleProcessChange(key, newVal);
 											}}
@@ -118,7 +119,7 @@ class FormationEditor extends React.Component<Props, State> {
 									</Box>
 								);
 						  })}
-				</Columns>
+				</Box>
 				<br />
 				<br />
 				{hasChanges && !isPending ? (
@@ -130,7 +131,7 @@ class FormationEditor extends React.Component<Props, State> {
 						</>
 					) : isCreating ? (
 						<>
-							<Button primary={true} label="Creating Scale Request" />
+							<Button disabled primary={true} label="Creating Scale Request" />
 						</>
 					) : (
 						<>
@@ -140,7 +141,7 @@ class FormationEditor extends React.Component<Props, State> {
 						</>
 					)
 				) : (
-					<Button type="button" primary={true} label="Create Scale Request" />
+					<Button disabled type="button" primary={true} label="Create Scale Request" />
 				)}
 			</form>
 		);

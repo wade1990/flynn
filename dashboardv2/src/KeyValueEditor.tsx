@@ -1,13 +1,12 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
+import styled from 'styled-components';
 import fz from 'fz';
 
-import Button from 'grommet/components/Button';
-import { CheckmarkIcon, CopyIcon, SearchInput } from 'grommet';
+import { Checkmark as CheckmarkIcon, Copy as CopyIcon } from 'grommet-icons';
+import { Box, Button, TextInput, TextArea } from 'grommet';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import copyToClipboard from './util/copyToClipboard';
-
-import './KeyValueEditor.scss';
 
 export type Entries = jspb.Map<string, string>;
 
@@ -46,6 +45,8 @@ export class KeyValueData {
 					filterText: ''
 			  };
 		this.length = entries.getLength();
+		this.deletedLength = 0;
+		this.hasChanges = false;
 		this._setDeletedLength();
 	}
 
@@ -125,6 +126,8 @@ export class KeyValueData {
 						this.removeEntryAtIndex(index);
 					}
 					break;
+				default:
+					break;
 			}
 		});
 	}
@@ -199,7 +202,7 @@ interface KeyValueInputState {
 }
 
 class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputState> {
-	private _textarea: HTMLTextAreaElement | null;
+	private _textarea: React.RefObject<any>;
 
 	constructor(props: KeyValueInputProps) {
 		super(props);
@@ -211,12 +214,12 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 		this._inputFocusHandler = this._inputFocusHandler.bind(this);
 		this._textareaBlurHandler = this._textareaBlurHandler.bind(this);
 		this._textareaChangeHandler = this._textareaChangeHandler.bind(this);
-		this._textarea = null;
+		this._textarea = React.createRef();
 	}
 
 	public componentDidUpdate(prevProps: KeyValueInputProps, prevState: KeyValueInputState) {
-		if (!prevState.expanded && this.state.expanded && this._textarea) {
-			this._textarea.focus();
+		if (!prevState.expanded && this.state.expanded && this._textarea.current) {
+			(this._textarea.current as HTMLTextAreaElement).focus();
 		}
 	}
 
@@ -225,19 +228,19 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 		const { expanded } = this.state;
 		if (expanded) {
 			return (
-				<textarea
+				<TextArea
 					value={value}
 					onChange={this._textareaChangeHandler}
 					onBlur={this._textareaBlurHandler}
-					ref={(el) => {
-						this._textarea = el;
-					}}
+					resize="vertical"
+					style={{ height: 500 }}
+					ref={this._textarea}
 					{...rest}
 				/>
 			);
 		}
 		return (
-			<input
+			<TextInput
 				type="text"
 				disabled={disabled}
 				placeholder={placeholder}
@@ -307,33 +310,29 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		const { data, keyPlaceholder, valuePlaceholder, submitLabel } = this.props;
 
 		return (
-			<form onSubmit={this._submitHandler} className="kv-editor">
-				<SearchInput onDOMChange={this._searchInputHandler} />
-				{data.map(([key, value]: [string, string], index: number) => {
-					return (
-						<div key={index} className="kv-row">
-							<KeyValueInput
-								placeholder={keyPlaceholder}
-								value={key}
-								onChange={this._keyChangeHandler.bind(this, index)}
-								onPaste={this._handlePaste}
-							/>
-							<KeyValueInput
-								placeholder={valuePlaceholder}
-								value={value}
-								onChange={this._valueChangeHandler.bind(this, index)}
-								onPaste={this._handlePaste}
-							/>
-						</div>
-					);
-				})}
-				{data.hasChanges ? (
-					// Enable save button
-					<Button type="submit" primary icon={<CheckmarkIcon />} label={submitLabel} />
-				) : (
-					// Disable save button
-					<Button type="button" primary icon={<CheckmarkIcon />} label={submitLabel} />
-				)}
+			<form onSubmit={this._submitHandler}>
+				<Box direction="column" gap="xsmall">
+					<TextInput type="search" onChange={this._searchInputHandler} />
+					{data.map(([key, value]: [string, string], index: number) => {
+						return (
+							<Box key={index} direction="row" gap="xsmall">
+								<KeyValueInput
+									placeholder={keyPlaceholder}
+									value={key}
+									onChange={this._keyChangeHandler.bind(this, index)}
+									onPaste={this._handlePaste}
+								/>
+								<KeyValueInput
+									placeholder={valuePlaceholder}
+									value={value}
+									onChange={this._valueChangeHandler.bind(this, index)}
+									onPaste={this._handlePaste}
+								/>
+							</Box>
+						);
+					})}
+				</Box>
+				<Button disabled={!data.hasChanges} type="submit" primary icon={<CheckmarkIcon />} label={submitLabel} />
 				&nbsp;
 				<Button type="button" icon={<CopyIcon />} onClick={this._handleCopyButtonClick} />
 			</form>
@@ -402,13 +401,30 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 
 type StringMap = jspb.Map<string, string>;
 
+const changeOps = new Set(['add', 'remove']);
+const opBackgroundColors = {
+	remove: 'rgba(255, 0, 0, 0.075)',
+	add: 'rgba(0, 255, 0, 0.075)'
+} as { [key: string]: string };
+interface DiffLineProps {
+	op: string;
+}
+const DiffLine = styled(Box)<DiffLineProps>`
+	white-space: pre-wrap;
+	word-break: break-all;
+	line-height: 1.2em;
+	max-width: 40vw;
+	font-weight: ${(props) => (changeOps.has(props.op) ? 'bold' : 'normal')};
+	background-color: ${(props) => opBackgroundColors[props.op] || 'transparent'};
+`;
+
 export function renderKeyValueDiff(prev: StringMap, next: StringMap) {
 	const diff = protoMapDiff(prev, next, DiffOption.INCLUDE_UNCHANGED).sort((a, b) => {
 		return a.key.localeCompare(b.key);
 	});
 
 	return (
-		<pre>
+		<Box tag="pre">
 			{diff.map((item) => {
 				let value;
 				let prefix = ' ';
@@ -424,14 +440,15 @@ export function renderKeyValueDiff(prev: StringMap, next: StringMap) {
 						prefix = '+';
 						value = next.get(item.key);
 						break;
+					default:
+						break;
 				}
 				return (
-					<span key={item.op + item.key} className={'next-diff-' + item.op}>
+					<DiffLine as="span" key={item.op + item.key} op={item.op}>
 						{prefix} {item.key} = {value}
-						<br />
-					</span>
+					</DiffLine>
 				);
 			})}
-		</pre>
+		</Box>
 	);
 }

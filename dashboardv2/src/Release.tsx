@@ -1,11 +1,10 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
+import { Box } from 'grommet';
 
 import { Release } from './generated/controller_pb';
 import ExternalAnchor from './ExternalAnchor';
 import { renderKeyValueDiff } from './KeyValueEditor';
-
-import './Release.scss';
 
 export function renderRelease(release: Release, prev: Release | null) {
 	const labels = release.getLabelsMap();
@@ -30,7 +29,7 @@ export function renderRelease(release: Release, prev: Release | null) {
 		.split('/')
 		.slice(-1)[0];
 	return (
-		<div>
+		<Box fill>
 			{releaseID ? (
 				<>
 					Release {releaseID}
@@ -44,6 +43,6 @@ export function renderRelease(release: Release, prev: Release | null) {
 				</>
 			) : null}
 			{renderKeyValueDiff(prev ? prev.getEnvMap() : new jspb.Map([]), release.getEnvMap())}
-		</div>
+		</Box>
 	);
 }

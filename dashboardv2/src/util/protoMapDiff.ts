@@ -64,6 +64,8 @@ export function applyProtoMapDiff<K, V>(m: jspb.Map<K, V>, diff: Diff<K, V>, mut
 			case 'remove':
 				newMap.del(op.key);
 				break;
+			default:
+				break;
 		}
 	});
 	return newMap;

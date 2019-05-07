@@ -184,7 +184,7 @@ class _Client implements Client {
 		const req = new UpdateAppRequest();
 		req.setApp(app);
 		return buildCancelFunc(
-			this._cc.updateAppMeta(req, (error: ServiceError, response: App | null) => {
+			this._cc.updateAppMeta(req, (error: ServiceError | null, response: App | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -229,7 +229,7 @@ class _Client implements Client {
 
 	public createScale(req: CreateScaleRequest, cb: CreateScaleCallback): CancelFunc {
 		return buildCancelFunc(
-			this._cc.createScale(req, (error: ServiceError, response: ScaleRequest | null) => {
+			this._cc.createScale(req, (error: ServiceError | null, response: ScaleRequest | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -258,7 +258,7 @@ class _Client implements Client {
 		const getReleaseRequest = new GetReleaseRequest();
 		getReleaseRequest.setName(name);
 		return buildCancelFunc(
-			this._cc.getRelease(getReleaseRequest, (error: ServiceError, response: Release | null) => {
+			this._cc.getRelease(getReleaseRequest, (error: ServiceError | null, response: Release | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -294,7 +294,7 @@ class _Client implements Client {
 		req.setParent(parentName);
 		req.setRelease(release);
 		return buildCancelFunc(
-			this._cc.createRelease(req, (error: ServiceError, response: Release | null) => {
+			this._cc.createRelease(req, (error: ServiceError | null, response: Release | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {

@@ -4,7 +4,7 @@ export interface ResourceNameMap {
 
 export default function parseResourceName(name: string): ResourceNameMap {
 	const parts = name.split('/');
-	const resourceNameMap = {};
+	const resourceNameMap = {} as ResourceNameMap;
 	for (let i = 0; i < parts.length; i += 2) {
 		if (i === parts.length) {
 			break;

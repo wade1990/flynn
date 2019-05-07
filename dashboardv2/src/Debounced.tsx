@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { debounced, DebouncedFunc } from './util';
+import { default as debounced, Func as DebouncedFunc } from './util/debounced';
 
 export interface Props {
 	children: React.ReactNode;
