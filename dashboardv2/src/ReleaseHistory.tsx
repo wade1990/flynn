@@ -45,10 +45,10 @@ function mapHistory<T>(
 		let d = deployments[di];
 		let r = d ? d.getNewRelease() || null : null;
 		let pr = d ? d.getOldRelease() || null : null;
-		const rt = r ? (r.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
+		const dt = d ? (d.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
 		const s = scaleRequests[si];
 		const st = s ? (s.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
-		if ((rt && st && rt > st) || (rt && !st)) {
+		if ((dt && st && dt > st) || (dt && !st)) {
 			res.push(rfn(d.getName(), [r as Release, pr], i));
 			di++;
 			i++;
