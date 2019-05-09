@@ -5,9 +5,19 @@ import { Box } from 'grommet';
 import { Release } from './generated/controller_pb';
 import ExternalAnchor from './ExternalAnchor';
 import { renderKeyValueDiff } from './KeyValueEditor';
+import useApp from './useApp';
 
-export function renderRelease(release: Release, prev: Release | null) {
+export interface ReleaseProps {
+	release: Release;
+	prevRelease?: Release | null;
+}
+
+export default function ReleaseComponent({ release, prevRelease: prev }: ReleaseProps) {
+	// TODO(jvatic): Add parent field to Release and use that instead of `getName`
+	const { app } = useApp(release.getName().split('/releases/')[0]);
+
 	const labels = release.getLabelsMap();
+	const appMeta = app ? app.getLabelsMap() : new jspb.Map([]);
 
 	const gitCommit =
 		labels.get('git.commit') ||
@@ -19,9 +29,11 @@ export function renderRelease(release: Release, prev: Release | null) {
 			return null;
 		})();
 
-	let githubURL = null as string | null;
-	if (labels.get('github') === 'true') {
-		githubURL = `https://github.com/${labels.get('github_user')}/${labels.get('github_repo')}/tree/${gitCommit}`;
+	let githubURL = (appMeta.get('github.url') || null) as string | null;
+	if (githubURL) {
+		githubURL = `${githubURL.replace(/\/$/, '')}/commit/${gitCommit}`;
+	} else if (labels.get('github') === 'true') {
+		githubURL = `https://github.com/${labels.get('github_user')}/${labels.get('github_repo')}/commit/${gitCommit}`;
 	}
 
 	const releaseID = release
@@ -38,7 +50,9 @@ export function renderRelease(release: Release, prev: Release | null) {
 			) : null}
 			{gitCommit ? (
 				<>
-					git.commit {githubURL ? <ExternalAnchor href={githubURL}>{gitCommit}</ExternalAnchor> : gitCommit}
+					<span>
+						git.commit {githubURL ? <ExternalAnchor href={githubURL}>{gitCommit}</ExternalAnchor> : gitCommit}
+					</span>
 					<br />
 				</>
 			) : null}

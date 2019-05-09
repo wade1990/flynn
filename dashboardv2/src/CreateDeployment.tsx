@@ -7,7 +7,7 @@ import { Release, Formation, Deployment, CreateScaleRequest } from './generated/
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import withClient, { ClientProps } from './withClient';
 import Loading from './Loading';
-import { renderRelease } from './Release';
+import ReleaseComponent from './Release';
 import protoMapReplace from './util/protoMapReplace';
 
 interface Props extends ErrorHandlerProps, ClientProps {
@@ -89,7 +89,7 @@ class CreateDeployment extends React.Component<Props, State> {
 			<Box tag="form" fill direction="column" onSubmit={this._handleNextReleaseSubmit} gap="small" justify="between">
 				<Box>
 					<h3>Review Changes</h3>
-					{renderRelease(nextRelease, currentRelease)}
+					<ReleaseComponent release={nextRelease} prevRelease={currentRelease} />
 					{newFormation ? renderFormation(newFormation) : null}
 				</Box>
 

@@ -105,6 +105,64 @@ export namespace UpdateAppRequest {
   }
 }
 
+export class ListDeploymentsRequest extends jspb.Message {
+  getPageSize(): number;
+  setPageSize(value: number): void;
+
+  getPageToken(): string;
+  setPageToken(value: string): void;
+
+  getParent(): string;
+  setParent(value: string): void;
+
+  getFilterType(): ReleaseType;
+  setFilterType(value: ReleaseType): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListDeploymentsRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: ListDeploymentsRequest): ListDeploymentsRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListDeploymentsRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListDeploymentsRequest;
+  static deserializeBinaryFromReader(message: ListDeploymentsRequest, reader: jspb.BinaryReader): ListDeploymentsRequest;
+}
+
+export namespace ListDeploymentsRequest {
+  export type AsObject = {
+    pageSize: number,
+    pageToken: string,
+    parent: string,
+    filterType: ReleaseType,
+  }
+}
+
+export class ListDeploymentsResponse extends jspb.Message {
+  clearDeploymentsList(): void;
+  getDeploymentsList(): Array<ExpandedDeployment>;
+  setDeploymentsList(value: Array<ExpandedDeployment>): void;
+  addDeployments(value?: ExpandedDeployment, index?: number): ExpandedDeployment;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListDeploymentsResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: ListDeploymentsResponse): ListDeploymentsResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListDeploymentsResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListDeploymentsResponse;
+  static deserializeBinaryFromReader(message: ListDeploymentsResponse, reader: jspb.BinaryReader): ListDeploymentsResponse;
+}
+
+export namespace ListDeploymentsResponse {
+  export type AsObject = {
+    deploymentsList: Array<ExpandedDeployment.AsObject>,
+    nextPageToken: string,
+  }
+}
+
 export class ListReleasesRequest extends jspb.Message {
   getPageSize(): number;
   setPageSize(value: number): void;
@@ -697,6 +755,78 @@ export namespace Deployment {
     name: string,
     oldRelease: string,
     newRelease: string,
+    strategy: string,
+    status: DeploymentStatus,
+    processesMap: Array<[string, number]>,
+    tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
+    deployTimeout: number,
+    createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+    expireTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+    endTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+  }
+}
+
+export class ExpandedDeployment extends jspb.Message {
+  getName(): string;
+  setName(value: string): void;
+
+  hasOldRelease(): boolean;
+  clearOldRelease(): void;
+  getOldRelease(): Release | undefined;
+  setOldRelease(value?: Release): void;
+
+  hasNewRelease(): boolean;
+  clearNewRelease(): void;
+  getNewRelease(): Release | undefined;
+  setNewRelease(value?: Release): void;
+
+  getType(): ReleaseType;
+  setType(value: ReleaseType): void;
+
+  getStrategy(): string;
+  setStrategy(value: string): void;
+
+  getStatus(): DeploymentStatus;
+  setStatus(value: DeploymentStatus): void;
+
+  getProcessesMap(): jspb.Map<string, number>;
+  clearProcessesMap(): void;
+  getTagsMap(): jspb.Map<string, DeploymentProcessTags>;
+  clearTagsMap(): void;
+  getDeployTimeout(): number;
+  setDeployTimeout(value: number): void;
+
+  hasCreateTime(): boolean;
+  clearCreateTime(): void;
+  getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setCreateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
+
+  hasExpireTime(): boolean;
+  clearExpireTime(): void;
+  getExpireTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setExpireTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
+
+  hasEndTime(): boolean;
+  clearEndTime(): void;
+  getEndTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setEndTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ExpandedDeployment.AsObject;
+  static toObject(includeInstance: boolean, msg: ExpandedDeployment): ExpandedDeployment.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ExpandedDeployment, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ExpandedDeployment;
+  static deserializeBinaryFromReader(message: ExpandedDeployment, reader: jspb.BinaryReader): ExpandedDeployment;
+}
+
+export namespace ExpandedDeployment {
+  export type AsObject = {
+    name: string,
+    oldRelease?: Release.AsObject,
+    newRelease?: Release.AsObject,
+    type: ReleaseType,
     strategy: string,
     status: DeploymentStatus,
     processesMap: Array<[string, number]>,

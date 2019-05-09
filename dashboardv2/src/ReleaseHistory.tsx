@@ -4,47 +4,56 @@ import { RouteComponentProps } from 'react-router-dom';
 import styled from 'styled-components';
 
 import { Checkmark as CheckmarkIcon } from 'grommet-icons';
-import { CheckBox, Button, Box, BoxProps } from 'grommet';
+import { CheckBox, Button, Box, BoxProps, Text } from 'grommet';
 import { Omit } from 'grommet/utils';
 import ProcessScale from './ProcessScale';
 import RightOverlay from './RightOverlay';
 
 import useRouter from './useRouter';
-import { listReleasesRequestFilterType } from './client';
+import { listDeploymentsRequestFilterType } from './client';
 import { ClientContext } from './withClient';
 import { handleError } from './withErrorHandler';
-import { Release, ReleaseType, Deployment, ScaleRequest, Formation } from './generated/controller_pb';
+import {
+	Release,
+	ReleaseType,
+	Deployment,
+	ExpandedDeployment,
+	ScaleRequest,
+	Formation,
+	ListDeploymentsResponse
+} from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
-import { renderRelease } from './Release';
+import ReleaseComponent from './Release';
 import { parseURLParams, urlParamsToString, URLParams } from './util/urlParams';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 
 function mapHistory<T>(
-	releases: Release[],
+	deployments: ExpandedDeployment[],
 	scaleRequests: ScaleRequest[],
-	rfn: (releases: [Release, Release | null], index: number) => T,
-	sfn: (scaleRequest: ScaleRequest, index: number) => T
+	rfn: (key: string, releases: [Release, Release | null], index: number) => T,
+	sfn: (key: string, scaleRequest: ScaleRequest, index: number) => T
 ): T[] {
 	const res = [] as T[];
-	const rlen = releases.length;
+	const dlen = deployments.length;
 	const slen = scaleRequests.length;
 	let i = 0;
-	let ri = 0;
+	let di = 0;
 	let si = 0;
-	while (ri < rlen || si < slen) {
-		let r = releases[ri];
-		let pr = releases[ri + 1] || null;
+	while (di < dlen || si < slen) {
+		let d = deployments[di];
+		let r = d ? d.getNewRelease() || null : null;
+		let pr = d ? d.getOldRelease() || null : null;
 		const rt = r ? (r.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
 		const s = scaleRequests[si];
 		const st = s ? (s.getCreateTime() as timestamp_pb.Timestamp).toDate() : null;
 		if ((rt && st && rt > st) || (rt && !st)) {
-			res.push(rfn([r, pr], i));
-			ri++;
+			res.push(rfn(d.getName(), [r as Release, pr], i));
+			di++;
 			i++;
 		} else if (st) {
-			res.push(sfn(s, i));
+			res.push(sfn(s.getName(), s, i));
 			si++;
 			i++;
 		} else {
@@ -150,7 +159,7 @@ function ReleaseHistoryRelease({
 					checked={selected}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
 				/>
-				{renderRelease(r, p)}
+				<ReleaseComponent release={r} prevRelease={p} />
 			</label>
 		</SelectableBox>
 	);
@@ -175,6 +184,7 @@ function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps 
 				<div>
 					<div>Release {releaseID}</div>
 					<Box direction="row">
+						{diff.length === 0 ? <Text color="dark-2">&lt;No processes&gt;</Text> : null}
 						{diff.reduce(
 							(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
 								if (op.op === 'remove') {
@@ -248,12 +258,13 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 
 	const client = React.useContext(ClientContext);
 
-	// Get releases
-	const [releases, setReleases] = React.useState<Release[]>([]);
-	const [releasesLoading, setReleasesLoading] = React.useState(isCodeReleaseEnabled || isConfigReleaseEnabled);
+	// Stream deployments
+	const [deployments, setDeployments] = React.useState<ExpandedDeployment[]>([]);
+	const [deploymentsLoading, setDeploymentsLoading] = React.useState(false);
 	React.useEffect(
 		() => {
 			if (!isCodeReleaseEnabled && !isConfigReleaseEnabled) {
+				setDeploymentsLoading(false);
 				return;
 			}
 
@@ -264,18 +275,18 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 				filterType = ReleaseType.CONFIG;
 			}
 
-			const cancel = client.listReleasesStream(
+			const cancel = client.streamDeployments(
 				appName,
-				(releases: Release[], error: Error | null) => {
+				(res: ListDeploymentsResponse, error: Error | null) => {
 					if (error) {
 						handleError(error);
 						return;
 					}
 
-					setReleases(releases);
-					setReleasesLoading(false);
+					setDeployments(res.getDeploymentsList());
+					setDeploymentsLoading(false);
 				},
-				listReleasesRequestFilterType(filterType)
+				listDeploymentsRequestFilterType(filterType)
 			);
 			return cancel;
 		},
@@ -288,6 +299,7 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 	React.useEffect(
 		() => {
 			if (!isScaleEnabled) {
+				setScaleRequestsLoading(false);
 				return;
 			}
 
@@ -306,23 +318,28 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 	);
 
 	// Get current formation
-	const [currentFormation, setCurrentFormation] = React.useState<Formation | null>(null);
+	const [currentFormation, setCurrentFormation] = React.useState<Formation>(new Formation());
 	const [currentFormationLoading, setCurrentFormationLoading] = React.useState(isScaleEnabled);
-	React.useEffect(() => {
-		if (!isScaleEnabled) {
-			return;
-		}
-
-		const cancel = client.streamAppFormation(appName, (formation: Formation, error: Error | null) => {
-			if (error) {
-				return handleError(error);
+	React.useEffect(
+		() => {
+			if (!isScaleEnabled) {
+				setCurrentFormationLoading(false);
+				return;
 			}
 
-			setCurrentFormation(formation);
-			setCurrentFormationLoading(false);
-		});
-		return cancel;
-	});
+			const cancel = client.streamAppFormation(appName, (formation: Formation, error: Error | null) => {
+				if (error) {
+					setCurrentFormationLoading(false);
+					return handleError(error);
+				}
+
+				setCurrentFormation(formation);
+				setCurrentFormationLoading(false);
+			});
+			return cancel;
+		},
+		[appName, client, isScaleEnabled]
+	);
 
 	const [isDeploying, setIsDeploying] = React.useState(false);
 	const [currentReleaseName, setCurrentReleaseName] = React.useState<string>(initialCurrentReleaseName);
@@ -372,7 +389,7 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 		setNextFormation(null);
 	};
 
-	if (releasesLoading || scaleRequestsLoading || currentFormationLoading) {
+	if (deploymentsLoading || scaleRequestsLoading || currentFormationLoading) {
 		return <Loading />;
 	}
 
@@ -400,11 +417,11 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 
 				<Box tag="ul">
 					{mapHistory(
-						releases,
+						deployments,
 						isScaleEnabled ? scaleRequests : [],
-						([r, p]) => (
+						(key, [r, p]) => (
 							<ReleaseHistoryRelease
-								key={r.getName()}
+								key={key}
 								tag="li"
 								margin={{ bottom: 'small' }}
 								release={r}
@@ -423,9 +440,9 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 								}}
 							/>
 						),
-						(s) => (
+						(key, s) => (
 							<ReleaseHistoryScale
-								key={s.getName()}
+								key={key}
 								tag="li"
 								margin={{ bottom: 'small' }}
 								scaleRequest={s}

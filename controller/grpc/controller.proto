@@ -50,6 +50,7 @@ service Controller {
   rpc CreateRelease (CreateReleaseRequest) returns (Release) {
     option (google.api.http).post = "/v2/{parent=apps/-}/releases}";
   };
+  rpc StreamDeployments(ListDeploymentsRequest) returns (stream ListDeploymentsResponse) {};
   rpc CreateDeployment (CreateDeploymentRequest) returns (stream Event) {
     option (google.api.http).post = "/v2/{parent=apps/-}/deployments";
   };
@@ -80,6 +81,18 @@ message GetAppRequest {
 message UpdateAppRequest {
   App app = 1;
   google.protobuf.FieldMask update_mask = 2;
+}
+
+message ListDeploymentsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string parent = 3;
+  ReleaseType filter_type = 4;
+}
+
+message ListDeploymentsResponse {
+  repeated ExpandedDeployment deployments = 1;
+  string next_page_token = 2;
 }
 
 message ListReleasesRequest {
@@ -255,6 +268,26 @@ message Deployment {
   google.protobuf.Timestamp create_time = 10;
   google.protobuf.Timestamp expire_time = 11;
   google.protobuf.Timestamp end_time = 12;
+}
+
+message ExpandedDeployment {
+  // name = "apps/APP_ID/deployments/DEPLOYMENT_ID"
+  string name = 1;
+  // old_release = Release.name
+  Release old_release = 3;
+  // new_release = Release.name
+  Release new_release = 4;
+  ReleaseType type = 5;
+  string strategy = 6;
+  DeploymentStatus status = 7;
+  map<string, int32> processes = 8;
+  // profobuf doesn't support maps within maps, so map[string]map[string]string
+  // could not be reproduced
+  map<string, DeploymentProcessTags> tags = 9;
+  int32 deploy_timeout = 10;
+  google.protobuf.Timestamp create_time = 11;
+  google.protobuf.Timestamp expire_time = 12;
+  google.protobuf.Timestamp end_time = 13;
 }
 
 message DeploymentProcessTags {

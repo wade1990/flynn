@@ -23,6 +23,8 @@ import {
 	CreateScaleRequest,
 	CreateDeploymentRequest,
 	Deployment,
+	ListDeploymentsRequest,
+	ListDeploymentsResponse,
 	Event
 } from './generated/controller_pb';
 
@@ -41,6 +43,11 @@ export interface Client {
 		...reqModifiers: ListReleasesRequestModifier[]
 	) => CancelFunc;
 	createRelease: (parentName: string, release: Release, cb: ReleaseCallback) => CancelFunc;
+	streamDeployments: (
+		parentName: string,
+		cb: ListDeploymentsCallback,
+		...reqModifiers: ListDeploymentsRequestModifier[]
+	) => CancelFunc;
 	createDeployment: (parentName: string, releaseName: string, cb: DeploymentCallback) => CancelFunc;
 	createDeploymentWithScale: (
 		parentName: string,
@@ -60,8 +67,13 @@ export type DeploymentCallback = (deployment: Deployment, error: Error | null) =
 export type FormationCallback = (formation: Formation, error: Error | null) => void;
 export type ReleaseListCallback = (releases: Release[], error: Error | null) => void;
 export type ScaleRequestListCallback = (scaleRequests: ScaleRequest[], error: Error | null) => void;
+export type ListDeploymentsCallback = (res: ListDeploymentsResponse, error: Error | null) => void;
 
 export type ListReleasesRequestModifier = (req: ListReleasesRequest) => void;
+export type ListDeploymentsRequestModifier = {
+	(req: ListDeploymentsRequest): void;
+	displayName: string;
+};
 
 const UnknownError = new Error('Unknown error');
 
@@ -78,6 +90,15 @@ export function listReleasesRequestFilterType(filterType: ReleaseType): ListRele
 	return (req: ListReleasesRequest) => {
 		req.setFilterType(filterType);
 	};
+}
+
+export function listDeploymentsRequestFilterType(filterType: ReleaseType): ListDeploymentsRequestModifier {
+	return Object.assign(
+		(req: ListDeploymentsRequest) => {
+			req.setFilterType(filterType);
+		},
+		{ displayName: `filterType--${filterType}` }
+	);
 }
 
 export interface StreamEventsOptions {}
@@ -304,6 +325,30 @@ class _Client implements Client {
 				}
 			})
 		);
+	}
+
+	public streamDeployments(
+		appName: string,
+		cb: ListDeploymentsCallback,
+		...reqModifiers: ListDeploymentsRequestModifier[]
+	): CancelFunc {
+		const streamKey = `${appName}:${reqModifiers.map((m) => m.displayName).join(':')}`;
+		const [stream, lastResponse] = memoizedStream('streamDeployments', streamKey, () => {
+			const req = new ListDeploymentsRequest();
+			req.setParent(appName);
+			reqModifiers.forEach((m) => m(req));
+			return this._cc.streamDeployments(req);
+		});
+		stream.on('data', (response: ListDeploymentsResponse) => {
+			cb(response, null);
+		});
+		if (lastResponse) {
+			cb(lastResponse, null);
+		}
+		buildStreamErrorHandler(stream, (error: Error) => {
+			cb(new ListDeploymentsResponse(), error);
+		});
+		return buildCancelFunc(stream);
 	}
 
 	public createDeployment(parentName: string, releaseName: string, cb: DeploymentCallback): CancelFunc {

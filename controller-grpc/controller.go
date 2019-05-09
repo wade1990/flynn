@@ -731,18 +731,21 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 		return err
 	}
 
+	errChan := make(chan error, 1)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			if err := refreshFormation(); err != nil {
-				fmt.Printf("StreamAppFormation: Error refreshing formation: %s\n", err)
+				errChan <- err
+				return
 			}
 			sendResponse()
 
 			// wait for events before refreshing formation and sending respond again
 			event, ok := <-events
 			if !ok {
+				errChan <- nil
 				break
 			}
 			// update releaseID whenever a new release is created
@@ -754,6 +757,10 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 		}
 	}()
 	wg.Wait()
+
+	if err := <-errChan; err != nil {
+		return err
+	}
 
 	if err := eventStream.Close(); err != nil {
 		return err
@@ -913,6 +920,193 @@ func (s *server) ListReleasesStream(stream Controller_ListReleasesStreamServer) 
 			}
 			if err := refreshReleases(); err != nil {
 				fmt.Printf("ListReleasesStream: Error refreshing releases: %s\n", err)
+				continue
+			}
+			sendResponse()
+		}
+	}()
+	wg.Wait()
+
+	if err := eventStream.Close(); err != nil {
+		return err
+	}
+
+	return eventStream.Err()
+}
+
+func (s *server) listDeployments(req *ListDeploymentsRequest) ([]*ExpandedDeployment, error) {
+	appID := parseIDFromName(req.Parent, "apps")
+	ctDeployments, err := s.Client.DeploymentList(appID)
+	if err != nil {
+		return nil, err
+	}
+
+	// DEBUG
+	fmt.Printf("listDeployments: Got %d for %q (%q)\n", len(ctDeployments), appID, req.Parent)
+
+	getReleaseType := func(prev, r *Release) ReleaseType {
+		if prev != nil {
+			if reflect.DeepEqual(prev.Artifacts, r.Artifacts) {
+				return ReleaseType_CONFIG
+			}
+		} else if len(r.Artifacts) == 0 {
+			return ReleaseType_CONFIG
+		}
+		return ReleaseType_CODE
+	}
+
+	var wg sync.WaitGroup
+	var deploymentsMtx sync.Mutex
+	deployments := make([]*ExpandedDeployment, len(ctDeployments))
+
+	for i, ctd := range ctDeployments {
+		d := convertDeployment(ctd)
+		ed := &ExpandedDeployment{
+			Name:          d.Name,
+			Strategy:      d.Strategy,
+			Status:        d.Status,
+			Processes:     d.Processes,
+			Tags:          d.Tags,
+			DeployTimeout: d.DeployTimeout,
+			CreateTime:    d.CreateTime,
+			ExpireTime:    d.ExpireTime,
+			EndTime:       d.EndTime,
+		}
+		if d.OldRelease != "" {
+			ed.OldRelease = &Release{
+				Name: d.OldRelease,
+			}
+		}
+		if d.NewRelease != "" {
+			ed.NewRelease = &Release{
+				Name: d.NewRelease,
+			}
+		}
+
+		wg.Add(1)
+		go func(ed *ExpandedDeployment) {
+			defer wg.Done()
+			var wgInner sync.WaitGroup
+
+			var oldRelease *Release
+			if ed.OldRelease != nil {
+				wgInner.Add(1)
+				go func() {
+					defer wgInner.Done()
+					ctRelease, err := s.Client.GetRelease(parseIDFromName(ed.OldRelease.Name, "releases"))
+					if err != nil {
+						// DEBUG
+						fmt.Printf("listDeployments: Error getting OldRelease(%q): %v\n", ed.OldRelease.Name, err)
+						return
+					}
+					oldRelease = convertRelease(ctRelease)
+				}()
+			}
+
+			var newRelease *Release
+			if ed.NewRelease != nil {
+				wgInner.Add(1)
+				go func() {
+					defer wgInner.Done()
+					ctRelease, err := s.Client.GetRelease(parseIDFromName(ed.NewRelease.Name, "releases"))
+					if err != nil {
+						// DEBUG
+						fmt.Printf("listDeployments: Error getting NewRelease(%q): %v\n", ed.NewRelease.Name, err)
+						return
+					}
+					newRelease = convertRelease(ctRelease)
+				}()
+			}
+
+			// wait for releases
+			wgInner.Wait()
+
+			deploymentsMtx.Lock()
+			ed.Type = getReleaseType(oldRelease, newRelease)
+
+			// DEBUG
+			fmt.Printf("listDeployments: Got type(%v)\n", ed.Type)
+
+			ed.OldRelease = oldRelease
+			ed.NewRelease = newRelease
+			deploymentsMtx.Unlock()
+		}(ed)
+
+		deploymentsMtx.Lock()
+		deployments[i] = ed
+		deploymentsMtx.Unlock()
+	}
+
+	// wait for releases and deployment types
+	wg.Wait()
+
+	var filtered []*ExpandedDeployment
+	if req.FilterType == ReleaseType_ANY {
+		filtered = deployments
+	} else {
+		filtered = make([]*ExpandedDeployment, 0, len(deployments))
+		for _, ed := range deployments {
+			// DEBUG
+			fmt.Printf("listDeployments: Filtering deployment %v == %v ?\n", req.FilterType, ed.Type)
+
+			// filter by type of deployment
+			if req.FilterType != ReleaseType_ANY && ed.Type != req.FilterType {
+				continue
+			}
+			filtered = append(filtered, ed)
+		}
+	}
+
+	// DEBUG
+	fmt.Printf("listDeployments: Responding with %d\n", len(filtered))
+
+	return filtered, nil
+}
+
+func (s *server) StreamDeployments(req *ListDeploymentsRequest, srv Controller_StreamDeploymentsServer) error {
+	var deployments []*ExpandedDeployment
+	var deploymentsMtx sync.RWMutex
+	refreshDeployments := func() error {
+		deploymentsMtx.Lock()
+		defer deploymentsMtx.Unlock()
+		var err error
+		deployments, err = s.listDeployments(req)
+		return err
+	}
+
+	sendResponse := func() {
+		deploymentsMtx.RLock()
+		srv.Send(&ListDeploymentsResponse{
+			Deployments: deployments,
+		})
+		deploymentsMtx.RUnlock()
+	}
+
+	if err := refreshDeployments(); err != nil {
+		return err
+	}
+	sendResponse()
+
+	var wg sync.WaitGroup
+
+	events := make(chan *ct.Event)
+	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
+		ObjectTypes: []ct.EventType{ct.EventTypeDeployment},
+	}, events)
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			if _, ok := <-events; !ok {
+				break
+			}
+			if err := refreshDeployments(); err != nil {
+				// DEBUG
+				fmt.Printf("StreamDeployments: Error refreshing deployments: %s\n", err)
 				continue
 			}
 			sendResponse()
