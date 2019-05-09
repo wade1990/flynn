@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as timestamp_pb from 'google-protobuf/google/protobuf/timestamp_pb';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import { RouteComponentProps } from 'react-router-dom';
+import styled from 'styled-components';
 
 import { Checkmark as CheckmarkIcon } from 'grommet-icons';
 import { CheckBox, Button, Box, BoxProps } from 'grommet';
@@ -8,9 +9,10 @@ import { Omit } from 'grommet/utils';
 import ProcessScale from './ProcessScale';
 import RightOverlay from './RightOverlay';
 
+import useRouter from './useRouter';
 import { listReleasesRequestFilterType } from './client';
-import withClient, { ClientProps } from './withClient';
-import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
+import { ClientContext } from './withClient';
+import { handleError } from './withErrorHandler';
 import { Release, ReleaseType, Deployment, ScaleRequest, Formation } from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
@@ -51,6 +53,22 @@ function mapHistory<T>(
 	}
 	return res;
 }
+
+interface SelectableBoxProps {
+	selected: boolean;
+}
+
+const selectedBoxCSS = `
+	background-color: var(--active);
+`;
+
+const SelectableBox = styled(Box)`
+	&:hover {
+		background-color: var(--active);
+	}
+
+	${(props: SelectableBoxProps) => (props.selected ? selectedBoxCSS : '')};
+`;
 
 interface ReleaseHistoryFiltersProps extends Omit<RouteComponentProps<{}>, 'match'>, BoxProps {
 	urlParams: URLParams;
@@ -126,7 +144,7 @@ function ReleaseHistoryRelease({
 	...boxProps
 }: ReleaseHistoryReleaseProps) {
 	return (
-		<Box {...boxProps}>
+		<SelectableBox selected={selected} {...boxProps}>
 			<label>
 				<CheckBox
 					checked={selected}
@@ -134,7 +152,7 @@ function ReleaseHistoryRelease({
 				/>
 				{renderRelease(r, p)}
 			</label>
-		</Box>
+		</SelectableBox>
 	);
 }
 
@@ -148,7 +166,7 @@ function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps 
 	const releaseID = s.getParent().split('/')[3];
 	const diff = protoMapDiff(s.getOldProcessesMap(), s.getNewProcessesMap(), DiffOption.INCLUDE_UNCHANGED);
 	return (
-		<Box {...boxProps}>
+		<SelectableBox selected={selected} {...boxProps}>
 			<label>
 				<CheckBox
 					checked={selected}
@@ -183,17 +201,13 @@ function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps 
 					</Box>
 				</div>
 			</label>
-		</Box>
+		</SelectableBox>
 	);
 }
 
-export interface Props extends RouteComponentProps<{}> {
-	releases: Release[];
-	scaleRequests: ScaleRequest[];
+export interface Props {
+	appName: string;
 	currentReleaseName: string;
-	selectedItemName: string;
-	currentFormation: Formation;
-	onSubmit: (releaseName: string) => void;
 }
 
 enum SelectedResourceType {
@@ -201,368 +215,259 @@ enum SelectedResourceType {
 	ScaleRequest
 }
 
-function ReleaseHistory(props: Props) {
-	const [selectedItemName, setSelectedItemName] = React.useState<string>(
-		props.selectedItemName || props.currentReleaseName
-	);
+export default function ReleaseHistory({ appName, currentReleaseName: initialCurrentReleaseName }: Props) {
+	const [selectedItemName, setSelectedItemName] = React.useState<string>(initialCurrentReleaseName);
 	const [selectedResourceType, setSelectedResourceType] = React.useState<SelectedResourceType>(
 		SelectedResourceType.Release
 	);
 	const [selectedScaleRequestDiff, setSelectedScaleRequestDiff] = React.useState<Diff<string, number> | null>(null);
 
+	const { history, location } = useRouter();
+	const urlParams = React.useMemo(() => parseURLParams(location.search), [location.search]);
+	const releasesListFilters = urlParams['rhf'] || ['code'];
+
+	const rhf = releasesListFilters;
+	const isCodeReleaseEnabled = React.useMemo(
+		() => {
+			return rhf.length === 0 || rhf.indexOf('code') !== -1;
+		},
+		[rhf]
+	);
+	const isConfigReleaseEnabled = React.useMemo(
+		() => {
+			return rhf.indexOf('env') !== -1;
+		},
+		[rhf]
+	);
+	const isScaleEnabled = React.useMemo(
+		() => {
+			return rhf.indexOf('scale') !== -1;
+		},
+		[rhf]
+	);
+
+	const client = React.useContext(ClientContext);
+
+	// Get releases
+	const [releases, setReleases] = React.useState<Release[]>([]);
+	const [releasesLoading, setReleasesLoading] = React.useState(isCodeReleaseEnabled || isConfigReleaseEnabled);
+	React.useEffect(
+		() => {
+			if (!isCodeReleaseEnabled && !isConfigReleaseEnabled) {
+				return;
+			}
+
+			let filterType = ReleaseType.ANY;
+			if (isCodeReleaseEnabled && !isConfigReleaseEnabled) {
+				filterType = ReleaseType.CODE;
+			} else if (isConfigReleaseEnabled && !isCodeReleaseEnabled) {
+				filterType = ReleaseType.CONFIG;
+			}
+
+			const cancel = client.listReleasesStream(
+				appName,
+				(releases: Release[], error: Error | null) => {
+					if (error) {
+						handleError(error);
+						return;
+					}
+
+					setReleases(releases);
+					setReleasesLoading(false);
+				},
+				listReleasesRequestFilterType(filterType)
+			);
+			return cancel;
+		},
+		[appName, client, isCodeReleaseEnabled, isConfigReleaseEnabled]
+	);
+
+	// Get scale requests
+	const [scaleRequests, setScaleRequests] = React.useState<ScaleRequest[]>([]);
+	const [scaleRequestsLoading, setScaleRequestsLoading] = React.useState(isScaleEnabled);
+	React.useEffect(
+		() => {
+			if (!isScaleEnabled) {
+				return;
+			}
+
+			const cancel = client.listScaleRequestsStream(appName, (scaleRequests: ScaleRequest[], error: Error | null) => {
+				if (error) {
+					handleError(error);
+					return;
+				}
+
+				setScaleRequests(scaleRequests);
+				setScaleRequestsLoading(false);
+			});
+			return cancel;
+		},
+		[appName, client, isScaleEnabled]
+	);
+
+	// Get current formation
+	const [currentFormation, setCurrentFormation] = React.useState<Formation | null>(null);
+	const [currentFormationLoading, setCurrentFormationLoading] = React.useState(isScaleEnabled);
+	React.useEffect(() => {
+		if (!isScaleEnabled) {
+			return;
+		}
+
+		const cancel = client.streamAppFormation(appName, (formation: Formation, error: Error | null) => {
+			if (error) {
+				return handleError(error);
+			}
+
+			setCurrentFormation(formation);
+			setCurrentFormationLoading(false);
+		});
+		return cancel;
+	});
+
+	const [isDeploying, setIsDeploying] = React.useState(false);
+	const [currentReleaseName, setCurrentReleaseName] = React.useState<string>(initialCurrentReleaseName);
+	React.useEffect(
+		() => {
+			// If props.currentReleaseName changes, use the new value
+			setCurrentReleaseName(initialCurrentReleaseName);
+		},
+		[initialCurrentReleaseName]
+	);
+	const [nextFormation, setNextFormation] = React.useState<Formation | null>(null);
 	const submitHandler = (e: React.SyntheticEvent) => {
 		e.preventDefault();
 		if (selectedItemName === '') {
 			return;
 		}
-		props.onSubmit(selectedItemName);
-	};
-
-	const { releases, scaleRequests, currentReleaseName, currentFormation, location, history } = props;
-
-	const urlParams = parseURLParams(location.search);
-	const releasesListFilters = urlParams['rhf'] || ['code'];
-
-	const isScaleEnabled = releasesListFilters.indexOf('scale') !== -1;
-
-	return (
-		<form onSubmit={submitHandler}>
-			<ReleaseHistoryFilters
-				location={location}
-				history={history}
-				filters={releasesListFilters}
-				urlParams={urlParams}
-			/>
-
-			<Box tag="ul">
-				{mapHistory(
-					releases,
-					isScaleEnabled ? scaleRequests : [],
-					([r, p]) => (
-						<ReleaseHistoryRelease
-							key={r.getName()}
-							tag="li"
-							margin={{ bottom: 'small' }}
-							release={r}
-							prevRelease={p}
-							selected={selectedItemName === r.getName()}
-							onChange={(isSelected) => {
-								if (isSelected) {
-									setSelectedItemName(r.getName());
-									setSelectedResourceType(SelectedResourceType.Release);
-									setSelectedScaleRequestDiff(null);
-								} else {
-									setSelectedItemName(currentReleaseName);
-									setSelectedResourceType(SelectedResourceType.Release);
-									setSelectedScaleRequestDiff(null);
-								}
-							}}
-						/>
-					),
-					(s) => (
-						<ReleaseHistoryScale
-							key={s.getName()}
-							tag="li"
-							margin={{ bottom: 'small' }}
-							scaleRequest={s}
-							selected={selectedItemName === s.getName()}
-							onChange={(isSelected) => {
-								if (isSelected) {
-									const diff = protoMapDiff(currentFormation.getProcessesMap(), s.getNewProcessesMap());
-									setSelectedItemName(s.getName());
-									setSelectedResourceType(SelectedResourceType.ScaleRequest);
-									setSelectedScaleRequestDiff(diff);
-								} else {
-									setSelectedItemName(currentReleaseName);
-									setSelectedResourceType(SelectedResourceType.Release);
-									setSelectedScaleRequestDiff(null);
-								}
-							}}
-						/>
-					)
-				)}
-			</Box>
-
-			{selectedItemName === currentReleaseName ? (
-				<Button disabled primary icon={<CheckmarkIcon />} label="Deploy Release" />
-			) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
-				selectedItemName.startsWith(currentReleaseName) ? (
-					(selectedScaleRequestDiff as Diff<string, number>).length > 0 ? (
-						<Button type="submit" primary icon={<CheckmarkIcon />} label="Scale Release" />
-					) : (
-						// disabled button (no diff)
-						<Button disabled primary icon={<CheckmarkIcon />} label="Scale Release" />
-					)
-				) : (
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release / Scale" />
-				)
-			) : (
-				<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
-			)}
-		</form>
-	);
-}
-
-export interface WrappedProps extends ClientProps, ErrorHandlerProps, RouteComponentProps<{}> {
-	appName: string;
-	currentReleaseName: string;
-}
-
-interface WrappedState {
-	releases: Release[];
-	releasesLoading: boolean;
-	scaleRequests: ScaleRequest[];
-	scaleRequestsLoading: boolean;
-	currentFormation: Formation | null;
-	currentFormationLoading: boolean;
-	isDeploying: boolean;
-	releaseName: string;
-	newFormation: Formation | null;
-}
-
-class WrappedReleaseHistory extends React.Component<WrappedProps, WrappedState> {
-	private __streamReleasesCancel: () => void;
-	private __streamScaleRequestsCancel: () => void;
-	private __streamAppFormationCancel: () => void;
-	private __isScaleEnabled: boolean;
-	private __isCodeReleaseEnabled: boolean;
-	private __isConfigReleaseEnabled: boolean;
-	constructor(props: WrappedProps) {
-		super(props);
-		this.state = {
-			releases: [],
-			releasesLoading: false,
-			scaleRequests: [],
-			scaleRequestsLoading: false,
-			currentFormation: null,
-			currentFormationLoading: false,
-			isDeploying: false,
-			releaseName: '',
-			newFormation: null
-		};
-		this.__isScaleEnabled = false;
-		this.__isCodeReleaseEnabled = false;
-		this.__isConfigReleaseEnabled = false;
-		this._checkToggles(false);
-		this.__streamReleasesCancel = () => {};
-		this.__streamScaleRequestsCancel = () => {};
-		this.__streamAppFormationCancel = () => {};
-		this._handleSubmit = this._handleSubmit.bind(this);
-		this._handleDeployCancel = this._handleDeployCancel.bind(this);
-		this._handleDeploymentCreate = this._handleDeploymentCreate.bind(this);
-	}
-
-	public componentDidMount() {
-		if (this.__isCodeReleaseEnabled || this.__isConfigReleaseEnabled) {
-			this._fetchReleases();
-		}
-		if (this.__isScaleEnabled) {
-			this._fetchScaleRequests();
-		}
-	}
-
-	public componentDidUpdate() {
-		this._checkToggles(true);
-	}
-
-	public componentWillUnmount() {
-		this.__streamReleasesCancel();
-		this.__streamScaleRequestsCancel();
-		this.__streamAppFormationCancel();
-	}
-
-	private _checkToggles(toggleFetch: boolean) {
-		const { location } = this.props;
-		const rhf = parseURLParams(location.search)['rhf'] || [];
-		const prevIsScaleEnabled = this.__isScaleEnabled;
-		this.__isScaleEnabled = rhf.indexOf('scale') !== -1;
-		if (toggleFetch) {
-			if (!prevIsScaleEnabled && this.__isScaleEnabled) {
-				this._fetchScaleRequests();
-			} else if (prevIsScaleEnabled && !this.__isScaleEnabled) {
-				this.__streamScaleRequestsCancel();
-				this.__streamAppFormationCancel();
-				if (this.state.scaleRequestsLoading || this.state.currentFormationLoading) {
-					this.setState({
-						scaleRequestsLoading: false,
-						currentFormationLoading: false
-					});
-				}
-			}
-		}
-
-		const prevIsCodeReleaseEnabled = this.__isCodeReleaseEnabled;
-		this.__isCodeReleaseEnabled = rhf.length === 0 || rhf.indexOf('code') !== -1;
-
-		const prevIsConfigReleaseEnabled = this.__isConfigReleaseEnabled;
-		this.__isConfigReleaseEnabled = rhf.indexOf('env') !== -1;
-
-		if (toggleFetch) {
-			const isReleaseEnabled = this.__isCodeReleaseEnabled || this.__isConfigReleaseEnabled;
-			if (
-				prevIsCodeReleaseEnabled !== this.__isCodeReleaseEnabled ||
-				prevIsConfigReleaseEnabled !== this.__isConfigReleaseEnabled
-			) {
-				this._fetchReleases();
-			} else if (prevIsScaleEnabled && !isReleaseEnabled) {
-				this.__streamReleasesCancel();
-				if (this.state.releasesLoading) {
-					this.setState({
-						releasesLoading: false
-					});
-				}
-			}
-		}
-	}
-
-	private _fetchReleases() {
-		const { client, appName, handleError } = this.props;
-		this.setState({
-			releases: [],
-			releasesLoading: true
-		});
-
-		let filterType = ReleaseType.ANY;
-		if (this.__isCodeReleaseEnabled && !this.__isConfigReleaseEnabled) {
-			filterType = ReleaseType.CODE;
-		} else if (this.__isConfigReleaseEnabled && !this.__isCodeReleaseEnabled) {
-			filterType = ReleaseType.CONFIG;
-		}
-
-		this.__streamReleasesCancel();
-		this.__streamReleasesCancel = client.listReleasesStream(
-			appName,
-			(releases: Release[], error: Error | null) => {
-				if (error) {
-					return handleError(error);
-				}
-
-				this.setState({
-					releasesLoading: false,
-					releases
-				});
-			},
-			listReleasesRequestFilterType(filterType)
-		);
-	}
-
-	private _fetchScaleRequests() {
-		const { client, appName, handleError } = this.props;
-		this.setState({
-			scaleRequests: [],
-			scaleRequestsLoading: true,
-			currentFormationLoading: true
-		});
-		this.__streamScaleRequestsCancel();
-		this.__streamScaleRequestsCancel = client.listScaleRequestsStream(
-			appName,
-			(scaleRequests: ScaleRequest[], error: Error | null) => {
-				if (error) {
-					return handleError(error);
-				}
-
-				this.setState({
-					scaleRequestsLoading: false,
-					scaleRequests
-				});
-			}
-		);
-
-		this.__streamAppFormationCancel();
-		this.__streamAppFormationCancel = client.streamAppFormation(
-			appName,
-			(formation: Formation, error: Error | null) => {
-				if (error) {
-					return handleError(error);
-				}
-
-				this.setState({
-					currentFormation: formation,
-					currentFormationLoading: false
-				});
-			}
-		);
-	}
-
-	public render() {
-		const { appName, client, handleError, ...props } = this.props;
-		const {
-			releasesLoading,
-			releases,
-			scaleRequestsLoading,
-			scaleRequests,
-			currentFormation,
-			currentFormationLoading,
-			isDeploying,
-			releaseName,
-			newFormation
-		} = this.state;
-		if (releasesLoading || scaleRequestsLoading || currentFormationLoading) {
-			return <Loading />;
-		}
-		return (
-			<>
-				{isDeploying ? (
-					<RightOverlay onClose={this._handleDeployCancel}>
-						<CreateDeployment
-							appName={appName}
-							releaseName={releaseName}
-							newFormation={newFormation || undefined}
-							onCancel={this._handleDeployCancel}
-							onCreate={this._handleDeploymentCreate}
-						/>
-					</RightOverlay>
-				) : null}
-				<ReleaseHistory
-					{...props as Props}
-					selectedItemName={releaseName}
-					releases={releases}
-					scaleRequests={scaleRequests}
-					currentFormation={currentFormation as Formation}
-					onSubmit={this._handleSubmit}
-				/>
-			</>
-		);
-	}
-
-	private _handleSubmit(itemName: string) {
+		const itemName = selectedItemName;
 		if (itemName.includes('/scale/')) {
-			const sr = this.state.scaleRequests.find((sr) => sr.getName() === itemName);
-			const newFormation = new Formation();
+			// It's a scale request we're deploying
+			const sr = scaleRequests.find((sr) => sr.getName() === itemName);
+			const nextFormation = new Formation();
 			if (!sr) {
 				return;
 			}
-			protoMapReplace(newFormation.getProcessesMap(), sr.getNewProcessesMap());
-			protoMapReplace(newFormation.getTagsMap(), sr.getNewTagsMap());
-			this.setState({
-				isDeploying: true,
-				releaseName: sr.getParent(),
-				newFormation
-			});
+			protoMapReplace(nextFormation.getProcessesMap(), sr.getNewProcessesMap());
+			protoMapReplace(nextFormation.getTagsMap(), sr.getNewTagsMap());
+			setIsDeploying(true);
+			setCurrentReleaseName(sr.getParent());
+			setNextFormation(nextFormation);
 		} else {
-			this.setState({
-				isDeploying: true,
-				releaseName: itemName,
-				newFormation: null
-			});
+			// It's a release we're deploying
+			setIsDeploying(true);
+			setCurrentReleaseName(itemName);
+			setNextFormation(null);
 		}
+	};
+
+	const handleDeployCancel = () => {
+		setIsDeploying(false);
+		setCurrentReleaseName('');
+		setNextFormation(null);
+	};
+
+	const handleDeploymentCreate = (deployment: Deployment) => {
+		setIsDeploying(false);
+		setCurrentReleaseName('');
+		setNextFormation(null);
+	};
+
+	if (releasesLoading || scaleRequestsLoading || currentFormationLoading) {
+		return <Loading />;
 	}
 
-	private _handleDeployCancel() {
-		this.setState({
-			isDeploying: false,
-			releaseName: '',
-			newFormation: null
-		});
-	}
+	return (
+		<>
+			{isDeploying ? (
+				<RightOverlay onClose={handleDeployCancel}>
+					<CreateDeployment
+						appName={appName}
+						releaseName={currentReleaseName}
+						newFormation={nextFormation || undefined}
+						onCancel={handleDeployCancel}
+						onCreate={handleDeploymentCreate}
+					/>
+				</RightOverlay>
+			) : null}
 
-	private _handleDeploymentCreate(deployment: Deployment) {
-		this.setState({
-			isDeploying: false,
-			releaseName: '',
-			newFormation: null
-		});
-	}
+			<form onSubmit={submitHandler}>
+				<ReleaseHistoryFilters
+					location={location}
+					history={history}
+					filters={releasesListFilters}
+					urlParams={urlParams}
+				/>
+
+				<Box tag="ul">
+					{mapHistory(
+						releases,
+						isScaleEnabled ? scaleRequests : [],
+						([r, p]) => (
+							<ReleaseHistoryRelease
+								key={r.getName()}
+								tag="li"
+								margin={{ bottom: 'small' }}
+								release={r}
+								prevRelease={p}
+								selected={selectedItemName === r.getName()}
+								onChange={(isSelected) => {
+									if (isSelected) {
+										setSelectedItemName(r.getName());
+										setSelectedResourceType(SelectedResourceType.Release);
+										setSelectedScaleRequestDiff(null);
+									} else {
+										setSelectedItemName(currentReleaseName);
+										setSelectedResourceType(SelectedResourceType.Release);
+										setSelectedScaleRequestDiff(null);
+									}
+								}}
+							/>
+						),
+						(s) => (
+							<ReleaseHistoryScale
+								key={s.getName()}
+								tag="li"
+								margin={{ bottom: 'small' }}
+								scaleRequest={s}
+								selected={selectedItemName === s.getName()}
+								onChange={(isSelected) => {
+									if (isSelected) {
+										const diff = protoMapDiff(
+											(currentFormation as Formation).getProcessesMap(),
+											s.getNewProcessesMap()
+										);
+										setSelectedItemName(s.getName());
+										setSelectedResourceType(SelectedResourceType.ScaleRequest);
+										setSelectedScaleRequestDiff(diff);
+									} else {
+										setSelectedItemName(currentReleaseName);
+										setSelectedResourceType(SelectedResourceType.Release);
+										setSelectedScaleRequestDiff(null);
+									}
+								}}
+							/>
+						)
+					)}
+				</Box>
+
+				{selectedItemName === currentReleaseName ? (
+					<Button disabled primary icon={<CheckmarkIcon />} label="Deploy Release" />
+				) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
+					selectedItemName.startsWith(currentReleaseName) ? (
+						<Button
+							type="submit"
+							disabled={(selectedScaleRequestDiff as Diff<string, number>).length > 0}
+							primary
+							icon={<CheckmarkIcon />}
+							label="Scale Release"
+						/>
+					) : (
+						<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release / Scale" />
+					)
+				) : (
+					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
+				)}
+			</form>
+		</>
+	);
 }
-
-export default withErrorHandler(withRouter(withClient(WrappedReleaseHistory)));
