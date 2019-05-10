@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { ClientContext } from './withClient';
+import useClient from './useClient';
 import { App } from './generated/controller_pb';
 
 export default function useApp(appName: string) {
-	const client = React.useContext(ClientContext);
+	const client = useClient();
 	const [appLoading, setAppLoading] = React.useState(true);
 	const [app, setApp] = React.useState<App | null>(null);
 	const [error, setError] = React.useState<Error | null>(null);
