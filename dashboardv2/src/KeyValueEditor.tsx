@@ -1,11 +1,18 @@
 import * as React from 'react';
+import { debounce, Cancelable } from 'lodash';
 import * as jspb from 'google-protobuf';
 import styled from 'styled-components';
 import fz from 'fz';
 
-import { Checkmark as CheckmarkIcon, Copy as CopyIcon } from 'grommet-icons';
-import { Box, Button, TextInput, TextArea } from 'grommet';
-import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
+import {
+	Checkmark as CheckmarkIcon,
+	Copy as CopyIcon,
+	StatusWarning as WarningIcon,
+	Update as UpdateIcon
+} from 'grommet-icons';
+import { Stack, Box, Button, TextInput, TextArea } from 'grommet';
+import Notification from './Notification';
+import protoMapDiff, { mergeProtoMapDiff, Diff, DiffOp, DiffOption, DiffConflict } from './util/protoMapDiff';
 import copyToClipboard from './util/copyToClipboard';
 
 export type Entries = jspb.Map<string, string>;
@@ -20,6 +27,8 @@ interface KeyValueDataInternalState {
 	filterText: string;
 	deletedIndices: { [key: number]: boolean };
 	changedIndices: { [key: number]: boolean };
+	conflicts: DiffConflict<string, string>[];
+	conflictKeys: Set<string>;
 }
 
 export class KeyValueData {
@@ -28,6 +37,7 @@ export class KeyValueData {
 	public hasChanges: boolean;
 	private _entries: Entries;
 	private _state: KeyValueDataInternalState;
+
 	constructor(entries: Entries, state: KeyValueDataInternalState | null = null) {
 		this._entries = entries;
 		this._state = state
@@ -42,12 +52,35 @@ export class KeyValueData {
 							m[key] = index;
 							return m;
 						}, {}),
-					filterText: ''
+					filterText: '',
+					conflicts: [],
+					conflictKeys: new Set<string>([])
 			  };
 		this.length = entries.getLength();
 		this.deletedLength = 0;
 		this.hasChanges = false;
 		this._setDeletedLength();
+	}
+
+	public rebase(entries: Entries): KeyValueData {
+		const [diff, conflicts, conflictKeys] = mergeProtoMapDiff(
+			protoMapDiff(this._state.originalEntries, entries),
+			this.getDiff()
+		);
+		const data = new KeyValueData(
+			this._entries,
+			Object.assign({}, this._state, { originalEntries: entries, conflicts, conflictKeys })
+		);
+		data.applyDiff(diff);
+		return data;
+	}
+
+	public hasConflicts(): boolean {
+		return this._state.conflicts.length > 0;
+	}
+
+	public hasConflict(key: string): boolean {
+		return this._state.conflictKeys.has(key);
 	}
 
 	public dup(): KeyValueData {
@@ -60,6 +93,10 @@ export class KeyValueData {
 
 	public get(key: string): string | undefined {
 		return this._entries.get(key);
+	}
+
+	public getOriginal(key: string): string | undefined {
+		return this._state.originalEntries.get(key);
 	}
 
 	public entries(): Entries {
@@ -106,6 +143,10 @@ export class KeyValueData {
 		);
 	}
 
+	public getDiff(): Diff<string, string> {
+		return protoMapDiff(this._state.originalEntries, this._entries);
+	}
+
 	public applyDiff(diff: Diff<string, string>) {
 		diff.forEach((op: DiffOp<string, string>) => {
 			let index = this._entries.toArray().findIndex(([key, value]: [string, string]) => {
@@ -113,11 +154,11 @@ export class KeyValueData {
 			});
 			switch (op.op) {
 				case 'add':
+					if (index === -1) {
+						index = this._entries.toArray().length;
+					}
+					this.setKeyAtIndex(index, op.key);
 					if (op.value) {
-						if (index === -1) {
-							index = this._entries.toArray().length;
-						}
-						this.setKeyAtIndex(index, op.key);
 						this.setValueAtIndex(index, op.value);
 					}
 					break;
@@ -149,10 +190,17 @@ export class KeyValueData {
 
 	public setValueAtIndex(index: number, val: string) {
 		const entries = this._entries.toArray().slice(); // don't modify old map
+		const key = (entries[index] || [])[0];
 		entries[index] = [(entries[index] || [])[0] || '', val];
 		this.length = entries.length;
 		this._entries = new jspb.Map(entries);
-		if (val === '' && (entries[index] || [])[0] === '') {
+		if (this.hasConflict(key) && val === this.getOriginal(key)) {
+			// if value is being set to the original and there was a conflict,
+			// remove the conflict (resolved)
+			this._state.conflictKeys.delete(key);
+			this._state.conflicts = this._state.conflicts.filter((c) => c[0].key !== key);
+		}
+		if (val === '' && key === '') {
 			// if there's no key or value, remove it
 			this.removeEntryAtIndex(index);
 		} else {
@@ -190,6 +238,8 @@ export class KeyValueData {
 interface KeyValueInputProps {
 	placeholder: string;
 	value: string;
+	newValue?: string;
+	hasConflict?: boolean;
 	onChange: (value: string) => void;
 	disabled?: boolean;
 
@@ -197,43 +247,79 @@ interface KeyValueInputProps {
 }
 
 interface KeyValueInputState {
+	value: string;
 	expanded: boolean;
 	multiline: boolean;
 }
 
 class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputState> {
 	private _textarea: React.RefObject<any>;
+	private _onChange: ((value: string) => void) & Cancelable;
 
 	constructor(props: KeyValueInputProps) {
 		super(props);
 		this.state = {
+			value: props.value,
 			expanded: false,
 			multiline: props.value.indexOf('\n') >= 0
 		};
-		this._inputChangeHandler = this._inputChangeHandler.bind(this);
 		this._inputFocusHandler = this._inputFocusHandler.bind(this);
 		this._textareaBlurHandler = this._textareaBlurHandler.bind(this);
-		this._textareaChangeHandler = this._textareaChangeHandler.bind(this);
+		this._changeHandler = this._changeHandler.bind(this);
 		this._textarea = React.createRef();
+		this._onChange = debounce((value) => {
+			this.props.onChange(value);
+		}, 300);
 	}
 
 	public componentDidUpdate(prevProps: KeyValueInputProps, prevState: KeyValueInputState) {
 		if (!prevState.expanded && this.state.expanded && this._textarea.current) {
 			(this._textarea.current as HTMLTextAreaElement).focus();
 		}
+		if (this.props.value !== prevProps.value) {
+			this.setState({ value: this.props.value });
+		}
+	}
+
+	public componentWillUnmount() {
+		this._onChange.cancel();
 	}
 
 	public render() {
-		const { placeholder, value, disabled, onChange, ...rest } = this.props;
+		const { hasConflict, newValue } = this.props;
+		if (hasConflict) {
+			return (
+				<Stack fill anchor="right" guidingChild="last">
+					<Box fill="vertical" justify="between" margin="xsmall">
+						<WarningIcon />
+					</Box>
+					{this._renderInput()}
+				</Stack>
+			);
+		}
+		if (newValue) {
+			return (
+				<Box fill direction="row">
+					{this._renderInput()}
+					<Button type="button" icon={<UpdateIcon />} onClick={() => this.props.onChange(newValue)} />
+				</Box>
+			);
+		}
+		return this._renderInput();
+	}
+
+	private _renderInput() {
+		const { value } = this.state;
+		const { placeholder, hasConflict, disabled, onChange, value: _value, ...rest } = this.props;
 		const { expanded } = this.state;
 		if (expanded) {
 			return (
 				<TextArea
 					value={value}
-					onChange={this._textareaChangeHandler}
+					onChange={this._changeHandler}
 					onBlur={this._textareaBlurHandler}
 					resize="vertical"
-					style={{ height: 500 }}
+					style={{ height: 500, paddingRight: hasConflict ? '2em' : undefined }}
 					ref={this._textarea}
 					{...rest}
 				/>
@@ -242,24 +328,22 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 		return (
 			<TextInput
 				type="text"
+				style={hasConflict ? { paddingRight: '2em' } : undefined}
 				disabled={disabled}
 				placeholder={placeholder}
 				value={value}
-				onChange={this._inputChangeHandler}
+				onChange={this._changeHandler}
 				onFocus={this._inputFocusHandler}
 				{...rest}
 			/>
 		);
 	}
 
-	private _inputChangeHandler(e: React.ChangeEvent<HTMLInputElement>) {
+	private _changeHandler(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+		this._onChange.cancel();
 		const value = e.target.value || '';
-		this.props.onChange(value);
-	}
-
-	private _textareaChangeHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {
-		const value = e.target.value || '';
-		this.props.onChange(value);
+		this.setState({ value });
+		this._onChange(value);
 	}
 
 	private _inputFocusHandler() {
@@ -279,13 +363,16 @@ class KeyValueInput extends React.Component<KeyValueInputProps, KeyValueInputSta
 	}
 }
 
+type DataCallback = (data: KeyValueData) => void;
+
 export interface Props {
 	data: KeyValueData;
-	onChange: (data: KeyValueData) => void;
-	onSubmit: (data: KeyValueData) => void;
+	onChange: DataCallback;
+	onSubmit: DataCallback;
 	keyPlaceholder: string;
 	valuePlaceholder: string;
 	submitLabel: string;
+	conflictsMessage: string;
 }
 
 interface State {}
@@ -294,8 +381,11 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 	public static defaultProps = {
 		keyPlaceholder: 'Key',
 		valuePlaceholder: 'Value',
-		submitLabel: 'Review Changes'
+		submitLabel: 'Review Changes',
+		conflictsMessage: 'Some entries have conflicts'
 	};
+
+	private _onChange: DataCallback & Cancelable;
 
 	constructor(props: Props) {
 		super(props);
@@ -304,27 +394,37 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		this._submitHandler = this._submitHandler.bind(this);
 		this._handlePaste = this._handlePaste.bind(this);
 		this._handleCopyButtonClick = this._handleCopyButtonClick.bind(this);
+		this._onChange = debounce(this.props.onChange, 200);
+	}
+
+	public componentWillUnmount() {
+		this._onChange.cancel();
 	}
 
 	public render() {
-		const { data, keyPlaceholder, valuePlaceholder, submitLabel } = this.props;
+		const { data, keyPlaceholder, valuePlaceholder, submitLabel, conflictsMessage } = this.props;
+		const hasConflicts = data.hasConflicts();
 
 		return (
 			<form onSubmit={this._submitHandler}>
 				<Box direction="column" gap="xsmall">
+					{hasConflicts ? <Notification status="warning" message={conflictsMessage} /> : null}
 					<TextInput type="search" onChange={this._searchInputHandler} />
 					{data.map(([key, value]: [string, string], index: number) => {
+						const hasConflict = data.hasConflict(key);
 						return (
 							<Box key={index} direction="row" gap="xsmall">
 								<KeyValueInput
 									placeholder={keyPlaceholder}
 									value={key}
+									hasConflict={hasConflict}
 									onChange={this._keyChangeHandler.bind(this, index)}
 									onPaste={this._handlePaste}
 								/>
 								<KeyValueInput
 									placeholder={valuePlaceholder}
 									value={value}
+									newValue={hasConflict ? data.getOriginal(key) : undefined}
 									onChange={this._valueChangeHandler.bind(this, index)}
 									onPaste={this._handlePaste}
 								/>
@@ -332,7 +432,13 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 						);
 					})}
 				</Box>
-				<Button disabled={!data.hasChanges} type="submit" primary icon={<CheckmarkIcon />} label={submitLabel} />
+				<Button
+					disabled={!data.hasChanges}
+					type="submit"
+					primary
+					icon={hasConflicts ? <WarningIcon /> : <CheckmarkIcon />}
+					label={submitLabel}
+				/>
 				&nbsp;
 				<Button type="button" icon={<CopyIcon />} onClick={this._handleCopyButtonClick} />
 			</form>
@@ -352,7 +458,7 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 	private _valueChangeHandler(index: number, value: string) {
 		let nextEntries = this.props.data.dup();
 		nextEntries.setValueAtIndex(index, value);
-		this.props.onChange(nextEntries);
+		this._onChange(nextEntries);
 	}
 
 	private _handlePaste(event: React.ClipboardEvent) {

@@ -1,5 +1,5 @@
 import * as jspb from 'google-protobuf';
-import protoMapDiff, { Diff, applyProtoMapDiff, DiffOption } from './protoMapDiff';
+import protoMapDiff, { Diff, applyProtoMapDiff, mergeProtoMapDiff, DiffOption } from './protoMapDiff';
 import protoMapToObject from './protoMapToObject';
 
 it('generates diff', () => {
@@ -63,4 +63,31 @@ it('applies diff via mutation', () => {
 		third: 'third-value-2',
 		fourth: 'fourth-value'
 	});
+});
+
+it('merges diffs', () => {
+	const a = [
+		{ op: 'add', key: 'second', value: 'second-value' },
+		{ op: 'add', key: 'fifth', value: 'fifth-value' },
+		{ op: 'remove', key: 'first' },
+		{ op: 'remove', key: 'third' }
+	] as Diff<string, string>;
+	const b = [
+		{ op: 'remove', key: 'first' },
+		{ op: 'remove', key: 'third' },
+		{ op: 'remove', key: 'second' },
+		{ op: 'add', key: 'third', value: 'third-value-2' },
+		{ op: 'add', key: 'second', value: 'second-value-2' }
+	] as Diff<string, string>;
+	const [c, conflicts, conflictKeys] = mergeProtoMapDiff(a, b);
+	expect(c).toEqual([
+		{ op: 'add', key: 'second', value: 'second-value-2' },
+		{ op: 'add', key: 'fifth', value: 'fifth-value' },
+		{ op: 'remove', key: 'first' },
+		{ op: 'add', key: 'third', value: 'third-value-2' }
+	]);
+	expect(conflicts).toEqual([
+		[{ op: 'add', key: 'second', value: 'second-value' }, { op: 'add', key: 'second', value: 'second-value-2' }]
+	]);
+	expect([...conflictKeys]).toEqual(['second']);
 });

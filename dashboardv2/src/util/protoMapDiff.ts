@@ -8,6 +8,8 @@ export interface DiffOp<K, V> {
 
 export type Diff<K, V> = Array<DiffOp<K, V>>;
 
+export type DiffConflict<K, V> = [DiffOp<K, V>, DiffOp<K, V>];
+
 export enum DiffOption {
 	INCLUDE_UNCHANGED
 }
@@ -69,4 +71,33 @@ export function applyProtoMapDiff<K, V>(m: jspb.Map<K, V>, diff: Diff<K, V>, mut
 		}
 	});
 	return newMap;
+}
+
+export function mergeProtoMapDiff<K, V>(a: Diff<K, V>, b: Diff<K, V>): [Diff<K, V>, DiffConflict<K, V>[], Set<K>] {
+	const c = [] as Diff<K, V>;
+	const conflicts = [] as DiffConflict<K, V>[];
+	const conflictKeys = new Set<K>([]);
+	function addOp(op: DiffOp<K, V>) {
+		for (let i = 0; i < c.length; i++) {
+			if (c[i].key === op.key && c[i].op === op.op) {
+				if (c[i].value !== op.value) {
+					conflicts.push([c[i], op]);
+					conflictKeys.add(op.key);
+				}
+				c[i] = op;
+				return;
+			}
+			if (c[i].key === op.key && c[i].op === 'add' && op.op === 'remove') {
+				return;
+			}
+			if (c[i].key === op.key && c[i].op === 'remove' && op.op === 'add') {
+				c[i] = op;
+				return;
+			}
+		}
+		c.push(op);
+	}
+	a.forEach(addOp);
+	b.forEach(addOp);
+	return [c, conflicts, conflictKeys];
 }
