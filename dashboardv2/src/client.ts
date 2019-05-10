@@ -57,17 +57,18 @@ export interface Client {
 	) => CancelFunc;
 }
 
+export type ErrorWithCode = Error & ServiceError;
 export type CancelFunc = () => void;
-export type ListAppsStreamCallback = (apps: App[], error: Error | null) => void;
-export type StreamAppCallback = (app: App, error: Error | null) => void;
-export type UpdateAppCallback = (app: App, error: Error | null) => void;
-export type CreateScaleCallback = (sr: ScaleRequest, error: Error | null) => void;
-export type ReleaseCallback = (release: Release, error: Error | null) => void;
-export type DeploymentCallback = (deployment: Deployment, error: Error | null) => void;
-export type FormationCallback = (formation: Formation, error: Error | null) => void;
-export type ReleaseListCallback = (releases: Release[], error: Error | null) => void;
-export type ScaleRequestListCallback = (scaleRequests: ScaleRequest[], error: Error | null) => void;
-export type ListDeploymentsCallback = (res: ListDeploymentsResponse, error: Error | null) => void;
+export type ListAppsStreamCallback = (apps: App[], error: ErrorWithCode | null) => void;
+export type StreamAppCallback = (app: App, error: ErrorWithCode | null) => void;
+export type UpdateAppCallback = (app: App, error: ErrorWithCode | null) => void;
+export type CreateScaleCallback = (sr: ScaleRequest, error: ErrorWithCode | null) => void;
+export type ReleaseCallback = (release: Release, error: ErrorWithCode | null) => void;
+export type DeploymentCallback = (deployment: Deployment, error: ErrorWithCode | null) => void;
+export type FormationCallback = (formation: Formation, error: ErrorWithCode | null) => void;
+export type ReleaseListCallback = (releases: Release[], error: ErrorWithCode | null) => void;
+export type ScaleRequestListCallback = (scaleRequests: ScaleRequest[], error: ErrorWithCode | null) => void;
+export type ListDeploymentsCallback = (res: ListDeploymentsResponse, error: ErrorWithCode | null) => void;
 
 export type ListReleasesRequestModifier = (req: ListReleasesRequest) => void;
 export type ListDeploymentsRequestModifier = {
@@ -75,7 +76,14 @@ export type ListDeploymentsRequestModifier = {
 	displayName: string;
 };
 
-const UnknownError = new Error('Unknown error');
+const UnknownError: ErrorWithCode = Object.assign(new Error('Unknown error'), {
+	code: grpc.Code.Unknown,
+	metadata: new grpc.Metadata()
+});
+
+export function isNotFoundError(error: Error): boolean {
+	return (error as ErrorWithCode).code === grpc.Code.NotFound;
+}
 
 export function listReleasesRequestFilterLabels(filterLabels: { [key: string]: string }): ListReleasesRequestModifier {
 	return (req: ListReleasesRequest) => {
@@ -116,10 +124,18 @@ function buildCancelFunc(req: Cancellable): CancelFunc {
 	};
 }
 
-function buildStreamErrorHandler<T>(stream: ResponseStream<T>, cb: (error: Error) => void) {
+function convertServiceError(error: ServiceError): ErrorWithCode {
+	return Object.assign(convertServiceError(error), error);
+}
+
+function buildStatusError(s: Status): ErrorWithCode {
+	return Object.assign(new Error(s.details), s);
+}
+
+function buildStreamErrorHandler<T>(stream: ResponseStream<T>, cb: (error: ErrorWithCode) => void) {
 	stream.on('status', (s: Status) => {
 		if (s.code !== grpc.Code.OK) {
-			cb(new Error(s.details));
+			cb(buildStatusError(s));
 		}
 	});
 }
@@ -176,7 +192,7 @@ class _Client implements Client {
 		stream.on('data', (response: ListAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb([], error);
 		});
 		return buildCancelFunc(stream);
@@ -192,7 +208,7 @@ class _Client implements Client {
 		stream.on('data', (response: App) => {
 			cb(response, null);
 		});
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb(new App(), error);
 		});
 		if (lastResponse) {
@@ -209,7 +225,7 @@ class _Client implements Client {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
-					cb(new App(), new Error(error.message));
+					cb(new App(), convertServiceError(error));
 				} else {
 					cb(new App(), UnknownError);
 				}
@@ -224,7 +240,7 @@ class _Client implements Client {
 		stream.on('data', (response: Release) => {
 			cb(response, null);
 		});
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb(new Release(), error);
 		});
 		return buildCancelFunc(stream);
@@ -242,7 +258,7 @@ class _Client implements Client {
 		if (lastResponse) {
 			cb(lastResponse, null);
 		}
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb(new Formation(), error);
 		});
 		return buildCancelFunc(stream);
@@ -254,7 +270,7 @@ class _Client implements Client {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
-					cb(new ScaleRequest(), new Error(error.message));
+					cb(new ScaleRequest(), convertServiceError(error));
 				} else {
 					cb(new ScaleRequest(), UnknownError);
 				}
@@ -269,7 +285,7 @@ class _Client implements Client {
 		stream.on('data', (response: ListScaleRequestsResponse) => {
 			cb(response.getScaleRequestsList(), null);
 		});
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb([], error);
 		});
 		return buildCancelFunc(stream);
@@ -283,7 +299,7 @@ class _Client implements Client {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
-					cb(new Release(), new Error(error.message));
+					cb(new Release(), convertServiceError(error));
 				} else {
 					cb(new Release(), UnknownError);
 				}
@@ -304,7 +320,7 @@ class _Client implements Client {
 		stream.on('data', (response: ListReleasesResponse) => {
 			cb(response.getReleasesList(), null);
 		});
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb([], error);
 		});
 		return buildCancelFunc(stream);
@@ -319,7 +335,7 @@ class _Client implements Client {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
-					cb(new Release(), new Error(error.message));
+					cb(new Release(), convertServiceError(error));
 				} else {
 					cb(new Release(), UnknownError);
 				}
@@ -345,7 +361,7 @@ class _Client implements Client {
 		if (lastResponse) {
 			cb(lastResponse, null);
 		}
-		buildStreamErrorHandler(stream, (error: Error) => {
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb(new ListDeploymentsResponse(), error);
 		});
 		return buildCancelFunc(stream);
@@ -387,7 +403,7 @@ class _Client implements Client {
 			if (s.code === grpc.Code.OK && deployment) {
 				cb(deployment, null);
 			} else {
-				cb(new Deployment(), new Error(s.details));
+				cb(new Deployment(), buildStatusError(s));
 			}
 		});
 		stream.on('end', () => {});

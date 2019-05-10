@@ -9,6 +9,7 @@ import withClient, { ClientProps } from './withClient';
 import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import { Release } from './generated/controller_pb';
 import RightOverlay from './RightOverlay';
+import { isNotFoundError } from './client';
 
 interface Props extends ClientProps, ErrorHandlerProps {
 	appName: string;
@@ -90,7 +91,7 @@ class EnvEditor extends React.Component<Props, State> {
 		});
 		this.__streamAppReleaseCancel();
 		this.__streamAppReleaseCancel = client.streamAppRelease(appName, (release: Release, error: Error | null) => {
-			if (error) {
+			if (error && !isNotFoundError(error)) {
 				return handleError(error);
 			}
 

@@ -31,6 +31,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -248,6 +249,11 @@ func (s *server) StreamApp(req *GetAppRequest, stream Controller_StreamAppServer
 	var app *App
 	var appMtx sync.RWMutex
 	appID := parseIDFromName(req.Name, "apps")
+
+	if appID == "" {
+		return grpc.Errorf(codes.InvalidArgument, "StreamApp Error: Invalid app name: %q", req.Name)
+	}
+
 	refreshApp := func() error {
 		appMtx.Lock()
 		defer appMtx.Unlock()
@@ -281,10 +287,11 @@ func (s *server) StreamApp(req *GetAppRequest, stream Controller_StreamAppServer
 		defer wg.Done()
 		for {
 			if err := refreshApp(); err != nil {
-				fmt.Printf("StreamApp: Error refreshing app: %s\n", err)
-				continue
+				// TODO(jvatic): Handle error
+				fmt.Printf("StreamApp(%q): Error refreshing app: %s\n", req.Name, err)
+			} else {
+				sendResponse()
 			}
-			sendResponse()
 
 			// wait for events before refreshing app and sending respond again
 			if _, ok := <-events; !ok {
@@ -505,23 +512,37 @@ func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_S
 		return err
 	}
 
+	errChan := make(chan error, 1)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			if err := refreshRelease(); err != nil {
-				fmt.Printf("StreamApp: Error refreshing app: %s\n", err)
-				continue
+				errCode := codes.Unknown
+				if err == controller.ErrNotFound {
+					errCode = codes.NotFound
+				} else {
+					fmt.Printf("StreamAppRelease(%q): Error refreshing app release: %s\n", req.Parent, err)
+				}
+				errChan <- grpc.Errorf(errCode, "Error fetching app(%q) release: %s", req.Parent, err)
+				return
+			} else {
+				sendResponse()
 			}
-			sendResponse()
 
 			// wait for events before refreshing release and sending respond again
 			if _, ok := <-events; !ok {
+				errChan <- nil
 				break
 			}
 		}
 	}()
 	wg.Wait()
+
+	if err := <-errChan; err != nil {
+		eventStream.Close()
+		return err
+	}
 
 	if err := eventStream.Close(); err != nil {
 		return err
@@ -637,7 +658,8 @@ func (s *server) ListScaleRequestsStream(req *ListScaleRequestsRequest, stream C
 			}
 			var ctReq *ct.ScaleRequest
 			if err := json.Unmarshal(event.Data, &ctReq); err != nil {
-				fmt.Printf("ScaleRequestsStream: Error parsing data: %s\n", err)
+				// TODO(jvatic): Handle error
+				fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
 				continue
 			}
 			req := convertScaleRequest(ctReq)
@@ -737,7 +759,11 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 		defer wg.Done()
 		for {
 			if err := refreshFormation(); err != nil {
-				errChan <- err
+				errCode := codes.Unknown
+				if err == controller.ErrNotFound {
+					errCode = codes.NotFound
+				}
+				errChan <- grpc.Errorf(errCode, "Error fetching current app formation(\"apps/%s/releases/%s\"): %s", appID, releaseID, err)
 				return
 			}
 			sendResponse()
@@ -759,6 +785,7 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 	wg.Wait()
 
 	if err := <-errChan; err != nil {
+		eventStream.Close()
 		return err
 	}
 

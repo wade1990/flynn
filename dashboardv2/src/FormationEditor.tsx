@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
 
-import { Box, Button } from 'grommet';
+import { Box, Button, Text } from 'grommet';
 
 import Loading from './Loading';
 import ProcessScale from './ProcessScale';
@@ -10,6 +10,7 @@ import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { Formation, ScaleRequest, ScaleRequestState, CreateScaleRequest } from './generated/controller_pb';
+import { isNotFoundError } from './client';
 
 function buildProcessesArray(m: jspb.Map<string, number>): [string, number][] {
 	return m.toArray().sort(([ak, av]: [string, number], [bk, bv]: [string, number]) => {
@@ -73,52 +74,56 @@ class FormationEditor extends React.Component<Props, State> {
 		return (
 			<form onSubmit={isConfirming ? this._handleConfirmSubmit : this._handleSubmit}>
 				<Box direction="row" gap="small">
-					{isConfirming || isCreating || isPending
-						? processesFullDiff.reduce(
-								(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
-									const key = op.key;
-									let startVal = formation.getProcessesMap().get(key) || 0;
-									let val = op.value || 0;
-									if (op.op === 'remove') {
-										return m;
-									}
-									if (op.op === 'keep') {
-										val = startVal;
-									}
-									let delta = val - startVal;
-									let sign = '+';
-									if (delta < 0) {
-										sign = '-';
-									}
-									if (isPending) {
-										// don't show delta
-										delta = 0;
-									} else {
-										delta = Math.abs(delta);
-									}
-									m.push(
-										<Box align="center" key={key}>
-											<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
-										</Box>
-									);
+					{isConfirming || isCreating || isPending ? (
+						processesFullDiff.reduce(
+							(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
+								const key = op.key;
+								let startVal = formation.getProcessesMap().get(key) || 0;
+								let val = op.value || 0;
+								if (op.op === 'remove') {
 									return m;
-								},
-								[] as React.ReactNodeArray
-						  )
-						: processes.map(([key, val]: [string, number]) => {
-								return (
+								}
+								if (op.op === 'keep') {
+									val = startVal;
+								}
+								let delta = val - startVal;
+								let sign = '+';
+								if (delta < 0) {
+									sign = '-';
+								}
+								if (isPending) {
+									// don't show delta
+									delta = 0;
+								} else {
+									delta = Math.abs(delta);
+								}
+								m.push(
 									<Box align="center" key={key}>
-										<ProcessScale
-											value={val}
-											label={key}
-											editable
-											onChange={(newVal) => {
-												this._handleProcessChange(key, newVal);
-											}}
-										/>
+										<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
 									</Box>
 								);
-						  })}
+								return m;
+							},
+							[] as React.ReactNodeArray
+						)
+					) : processes.length === 0 ? (
+						<Text color="dark-2">&lt;No processes&gt;</Text>
+					) : (
+						processes.map(([key, val]: [string, number]) => {
+							return (
+								<Box align="center" key={key}>
+									<ProcessScale
+										value={val}
+										label={key}
+										editable
+										onChange={(newVal) => {
+											this._handleProcessChange(key, newVal);
+										}}
+									/>
+								</Box>
+							);
+						})
+					)}
 				</Box>
 				<br />
 				<br />
@@ -157,7 +162,9 @@ class FormationEditor extends React.Component<Props, State> {
 		this.__streamAppFormationCancel = client.streamAppFormation(
 			appName,
 			(formation: Formation, error: Error | null) => {
-				if (error) {
+				if (error && isNotFoundError(error)) {
+					formation.setState(ScaleRequestState.SCALE_COMPLETE);
+				} else if (error) {
 					return handleError(error);
 				}
 

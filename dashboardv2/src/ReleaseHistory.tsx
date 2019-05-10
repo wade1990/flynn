@@ -227,6 +227,13 @@ enum SelectedResourceType {
 
 export default function ReleaseHistory({ appName, currentReleaseName: initialCurrentReleaseName }: Props) {
 	const [selectedItemName, setSelectedItemName] = React.useState<string>(initialCurrentReleaseName);
+	React.useEffect(
+		() => {
+			// select new app release when it changes
+			setSelectedItemName(initialCurrentReleaseName);
+		},
+		[initialCurrentReleaseName]
+	);
 	const [selectedResourceType, setSelectedResourceType] = React.useState<SelectedResourceType>(
 		SelectedResourceType.Release
 	);
