@@ -7,7 +7,10 @@ cp ${TARGET}/app/Gemfile.lock /app/Gemfile.lock
 # Install NodeSource repo and nodejs, install then run bundler and download npm deps
 curl --fail --silent --location https://deb.nodesource.com/setup_4.x | bash -
 apt-get update
-apt-get install -y nodejs build-essential ruby ruby-dev
+apt-get -y install software-properties-common
+apt-add-repository ppa:brightbox/ruby-ng
+apt-get update
+apt-get install -y nodejs build-essential ruby2.3 ruby2.3-dev
 gem install bundler --no-rdoc --no-ri
 cd /app
 bundle install --deployment
