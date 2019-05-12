@@ -1,7 +1,7 @@
-import { grpc } from '@improbable-eng/grpc-web';
+import * as grpcWeb from 'grpc-web';
 
 import Config from './config';
-import { ControllerClient, ServiceError, Status, ResponseStream } from './generated/controller_pb_service';
+import { ControllerClient } from './generated/controller_grpc_web_pb';
 import {
 	ListAppsRequest,
 	ListAppsResponse,
@@ -57,7 +57,7 @@ export interface Client {
 	) => CancelFunc;
 }
 
-export type ErrorWithCode = Error & ServiceError;
+export type ErrorWithCode = Error & grpcWeb.Error;
 export type CancelFunc = () => void;
 export type ListAppsStreamCallback = (apps: App[], error: ErrorWithCode | null) => void;
 export type StreamAppCallback = (app: App, error: ErrorWithCode | null) => void;
@@ -77,12 +77,12 @@ export type ListDeploymentsRequestModifier = {
 };
 
 const UnknownError: ErrorWithCode = Object.assign(new Error('Unknown error'), {
-	code: grpc.Code.Unknown,
-	metadata: new grpc.Metadata()
+	code: grpcWeb.StatusCode.UNKNOWN,
+	metadata: {}
 });
 
 export function isNotFoundError(error: Error): boolean {
-	return (error as ErrorWithCode).code === grpc.Code.NotFound;
+	return (error as ErrorWithCode).code === grpcWeb.StatusCode.NOT_FOUND;
 }
 
 export function listReleasesRequestFilterLabels(filterLabels: { [key: string]: string }): ListReleasesRequestModifier {
@@ -124,30 +124,30 @@ function buildCancelFunc(req: Cancellable): CancelFunc {
 	};
 }
 
-function convertServiceError(error: ServiceError): ErrorWithCode {
+function convertServiceError(error: grpcWeb.Error): ErrorWithCode {
 	return Object.assign(convertServiceError(error), error);
 }
 
-function buildStatusError(s: Status): ErrorWithCode {
+function buildStatusError(s: grpcWeb.Status): ErrorWithCode {
 	return Object.assign(new Error(s.details), s);
 }
 
-function buildStreamErrorHandler<T>(stream: ResponseStream<T>, cb: (error: ErrorWithCode) => void) {
-	stream.on('status', (s: Status) => {
-		if (s.code !== grpc.Code.OK) {
+function buildStreamErrorHandler<T>(stream: grpcWeb.ClientReadableStream<T>, cb: (error: ErrorWithCode) => void) {
+	stream.on('status', (s: grpcWeb.Status) => {
+		if (s.code !== grpcWeb.StatusCode.OK) {
 			cb(buildStatusError(s));
 		}
 	});
 }
 
-const __memoizedStreams = {} as { [key: string]: ResponseStream<any> };
+const __memoizedStreams = {} as { [key: string]: grpcWeb.ClientReadableStream<any> };
 const __memoizedStreamUsers = {} as { [key: string]: number };
 const __memoizedStreamResponses = {} as { [key: string]: any };
 function memoizedStream<T>(
 	contextKey: string,
 	streamKey: string,
-	initStream: () => ResponseStream<T>
-): [ResponseStream<T>, T | undefined] {
+	initStream: () => grpcWeb.ClientReadableStream<T>
+): [grpcWeb.ClientReadableStream<T>, T | undefined] {
 	const key = contextKey + streamKey;
 	function cleanup() {
 		const n = (__memoizedStreamUsers[key] = (__memoizedStreamUsers[key] || 0) - 1);
@@ -163,7 +163,7 @@ function memoizedStream<T>(
 
 	let stream = __memoizedStreams[key];
 	if (stream) {
-		return [stream as ResponseStream<T>, __memoizedStreamResponses[key] as T | undefined];
+		return [stream as grpcWeb.ClientReadableStream<T>, __memoizedStreamResponses[key] as T | undefined];
 	}
 	stream = initStream();
 	stream.on('data', (data: T) => {
@@ -187,8 +187,7 @@ class _Client implements Client {
 	}
 
 	public listAppsStream(cb: ListAppsStreamCallback): CancelFunc {
-		const stream = this._cc.listAppsStream();
-		stream.write(new ListAppsRequest());
+		const stream = this._cc.listAppsStream(new ListAppsRequest());
 		stream.on('data', (response: ListAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
@@ -221,7 +220,7 @@ class _Client implements Client {
 		const req = new UpdateAppRequest();
 		req.setApp(app);
 		return buildCancelFunc(
-			this._cc.updateAppMeta(req, (error: ServiceError | null, response: App | null) => {
+			this._cc.updateAppMeta(req, undefined, (error: grpcWeb.Error | null, response: App | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -266,7 +265,7 @@ class _Client implements Client {
 
 	public createScale(req: CreateScaleRequest, cb: CreateScaleCallback): CancelFunc {
 		return buildCancelFunc(
-			this._cc.createScale(req, (error: ServiceError | null, response: ScaleRequest | null) => {
+			this._cc.createScale(req, undefined, (error: grpcWeb.Error | null, response: ScaleRequest | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -295,7 +294,7 @@ class _Client implements Client {
 		const getReleaseRequest = new GetReleaseRequest();
 		getReleaseRequest.setName(name);
 		return buildCancelFunc(
-			this._cc.getRelease(getReleaseRequest, (error: ServiceError | null, response: Release | null) => {
+			this._cc.getRelease(getReleaseRequest, undefined, (error: grpcWeb.Error | null, response: Release | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -312,11 +311,10 @@ class _Client implements Client {
 		cb: ReleaseListCallback,
 		...reqModifiers: ListReleasesRequestModifier[]
 	): CancelFunc {
-		const stream = this._cc.listReleasesStream();
 		const req = new ListReleasesRequest();
 		req.setParent(parentName);
 		reqModifiers.forEach((m) => m(req));
-		stream.write(req);
+		const stream = this._cc.listReleasesStream(req);
 		stream.on('data', (response: ListReleasesResponse) => {
 			cb(response.getReleasesList(), null);
 		});
@@ -331,7 +329,7 @@ class _Client implements Client {
 		req.setParent(parentName);
 		req.setRelease(release);
 		return buildCancelFunc(
-			this._cc.createRelease(req, (error: ServiceError | null, response: Release | null) => {
+			this._cc.createRelease(req, undefined, (error: grpcWeb.Error | null, response: Release | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -399,8 +397,8 @@ class _Client implements Client {
 				}
 			}
 		});
-		stream.on('status', (s: Status) => {
-			if (s.code === grpc.Code.OK && deployment) {
+		stream.on('status', (s: grpcWeb.Status) => {
+			if (s.code === grpcWeb.StatusCode.OK && deployment) {
 				cb(deployment, null);
 			} else {
 				cb(new Deployment(), buildStatusError(s));
@@ -411,6 +409,6 @@ class _Client implements Client {
 	}
 }
 
-const cc = new ControllerClient(Config.CONTROLLER_HOST, {});
+const cc = new ControllerClient(Config.CONTROLLER_HOST, null, {});
 
 export default new _Client(cc);

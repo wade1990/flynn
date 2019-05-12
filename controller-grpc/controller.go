@@ -106,7 +106,7 @@ func corsHandler(main http.Handler) http.Handler {
 			return true
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
-		AllowHeaders:     []string{"Authorization", "Accept", "Content-Type", "If-Match", "If-None-Match", "X-GRPC-Web"},
+		AllowHeaders:     []string{"Authorization", "Accept", "Content-Type", "If-Match", "If-None-Match", "X-GRPC-Web", "X-User-Agent"},
 		ExposeHeaders:    []string{"ETag"},
 		AllowCredentials: true,
 		MaxAge:           time.Hour,
