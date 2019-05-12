@@ -34,12 +34,8 @@ nodebin="${nodedir}/node-v${nodeversion}-linux-x64/bin"
 ln -nfs ${nodebin}/node ${nodedir}/bin/node
 ln -nfs ${nodebin}/npm ${nodedir}/bin/npm
 
-# install grpc/grpc-web protoc-gen-grpc-web
-curl -sLo /usr/local/bin/protoc-gen-grpc-web "https://github.com/grpc/grpc-web/releases/download/1.0.4/protoc-gen-grpc-web-1.0.4-linux-x86_64"
-chmod +x /usr/local/bin/protoc-gen-grpc-web
-
-# install google-brotobuf
-npm install -g google-protobuf
+# install typescript protoc (https://github.com/improbable-eng/ts-protoc-gen)
+npm install -g google-protobuf ts-protoc-gen
 
 # install yarn
 curl -o- -L https://yarnpkg.com/install.sh | bash # TODO(jvatic): perform checksum
