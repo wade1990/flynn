@@ -11,8 +11,6 @@ import {
 	GetAppReleaseRequest,
 	GetReleaseRequest,
 	CreateReleaseRequest,
-	ListReleasesRequest,
-	ListReleasesResponse,
 	Release,
 	ReleaseType,
 	GetAppFormationRequest,
@@ -37,11 +35,6 @@ export interface Client {
 	createScale: (req: CreateScaleRequest, cb: CreateScaleCallback) => CancelFunc;
 	listScaleRequestsStream: (appName: string, cb: ScaleRequestListCallback) => CancelFunc;
 	getRelease: (name: string, cb: ReleaseCallback) => CancelFunc;
-	listReleasesStream: (
-		parentName: string,
-		cb: ReleaseListCallback,
-		...reqModifiers: ListReleasesRequestModifier[]
-	) => CancelFunc;
 	createRelease: (parentName: string, release: Release, cb: ReleaseCallback) => CancelFunc;
 	streamDeployments: (
 		parentName: string,
@@ -66,11 +59,9 @@ export type CreateScaleCallback = (sr: ScaleRequest, error: ErrorWithCode | null
 export type ReleaseCallback = (release: Release, error: ErrorWithCode | null) => void;
 export type DeploymentCallback = (deployment: Deployment, error: ErrorWithCode | null) => void;
 export type FormationCallback = (formation: Formation, error: ErrorWithCode | null) => void;
-export type ReleaseListCallback = (releases: Release[], error: ErrorWithCode | null) => void;
 export type ScaleRequestListCallback = (scaleRequests: ScaleRequest[], error: ErrorWithCode | null) => void;
 export type ListDeploymentsCallback = (res: ListDeploymentsResponse, error: ErrorWithCode | null) => void;
 
-export type ListReleasesRequestModifier = (req: ListReleasesRequest) => void;
 export type ListDeploymentsRequestModifier = {
 	(req: ListDeploymentsRequest): void;
 	displayName: string;
@@ -83,21 +74,6 @@ const UnknownError: ErrorWithCode = Object.assign(new Error('Unknown error'), {
 
 export function isNotFoundError(error: Error): boolean {
 	return (error as ErrorWithCode).code === grpc.Code.NotFound;
-}
-
-export function listReleasesRequestFilterLabels(filterLabels: { [key: string]: string }): ListReleasesRequestModifier {
-	return (req: ListReleasesRequest) => {
-		const fl = req.getFilterLabelsMap();
-		for (const [k, v] of Object.entries(filterLabels)) {
-			fl.set(k, v);
-		}
-	};
-}
-
-export function listReleasesRequestFilterType(filterType: ReleaseType): ListReleasesRequestModifier {
-	return (req: ListReleasesRequest) => {
-		req.setFilterType(filterType);
-	};
 }
 
 export function listDeploymentsRequestFilterType(filterType: ReleaseType): ListDeploymentsRequestModifier {
@@ -187,8 +163,7 @@ class _Client implements Client {
 	}
 
 	public listAppsStream(cb: ListAppsStreamCallback): CancelFunc {
-		const stream = this._cc.listAppsStream();
-		stream.write(new ListAppsRequest());
+		const stream = this._cc.listAppsStream(new ListAppsRequest());
 		stream.on('data', (response: ListAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
@@ -305,25 +280,6 @@ class _Client implements Client {
 				}
 			})
 		);
-	}
-
-	public listReleasesStream(
-		parentName: string,
-		cb: ReleaseListCallback,
-		...reqModifiers: ListReleasesRequestModifier[]
-	): CancelFunc {
-		const stream = this._cc.listReleasesStream();
-		const req = new ListReleasesRequest();
-		req.setParent(parentName);
-		reqModifiers.forEach((m) => m(req));
-		stream.write(req);
-		stream.on('data', (response: ListReleasesResponse) => {
-			cb(response.getReleasesList(), null);
-		});
-		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
-			cb([], error);
-		});
-		return buildCancelFunc(stream);
 	}
 
 	public createRelease(parentName: string, release: Release, cb: ReleaseCallback): CancelFunc {

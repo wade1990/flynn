@@ -4,31 +4,13 @@
 import * as controller_pb from "./controller_pb";
 import {grpc} from "@improbable-eng/grpc-web";
 
-type ControllerListApps = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: false;
-  readonly responseStream: false;
-  readonly requestType: typeof controller_pb.ListAppsRequest;
-  readonly responseType: typeof controller_pb.ListAppsResponse;
-};
-
 type ControllerListAppsStream = {
   readonly methodName: string;
   readonly service: typeof Controller;
-  readonly requestStream: true;
+  readonly requestStream: false;
   readonly responseStream: true;
   readonly requestType: typeof controller_pb.ListAppsRequest;
   readonly responseType: typeof controller_pb.ListAppsResponse;
-};
-
-type ControllerGetApp = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: false;
-  readonly responseStream: false;
-  readonly requestType: typeof controller_pb.GetAppRequest;
-  readonly responseType: typeof controller_pb.App;
 };
 
 type ControllerStreamApp = {
@@ -40,15 +22,6 @@ type ControllerStreamApp = {
   readonly responseType: typeof controller_pb.App;
 };
 
-type ControllerUpdateApp = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: false;
-  readonly responseStream: false;
-  readonly requestType: typeof controller_pb.UpdateAppRequest;
-  readonly responseType: typeof controller_pb.App;
-};
-
 type ControllerUpdateAppMeta = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -56,15 +29,6 @@ type ControllerUpdateAppMeta = {
   readonly responseStream: false;
   readonly requestType: typeof controller_pb.UpdateAppRequest;
   readonly responseType: typeof controller_pb.App;
-};
-
-type ControllerGetAppRelease = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: false;
-  readonly responseStream: false;
-  readonly requestType: typeof controller_pb.GetAppReleaseRequest;
-  readonly responseType: typeof controller_pb.Release;
 };
 
 type ControllerStreamAppRelease = {
@@ -112,24 +76,6 @@ type ControllerGetRelease = {
   readonly responseType: typeof controller_pb.Release;
 };
 
-type ControllerListReleases = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: false;
-  readonly responseStream: false;
-  readonly requestType: typeof controller_pb.ListReleasesRequest;
-  readonly responseType: typeof controller_pb.ListReleasesResponse;
-};
-
-type ControllerListReleasesStream = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: true;
-  readonly responseStream: true;
-  readonly requestType: typeof controller_pb.ListReleasesRequest;
-  readonly responseType: typeof controller_pb.ListReleasesResponse;
-};
-
 type ControllerStreamAppLog = {
   readonly methodName: string;
   readonly service: typeof Controller;
@@ -166,36 +112,20 @@ type ControllerCreateDeployment = {
   readonly responseType: typeof controller_pb.Event;
 };
 
-type ControllerStreamEvents = {
-  readonly methodName: string;
-  readonly service: typeof Controller;
-  readonly requestStream: false;
-  readonly responseStream: true;
-  readonly requestType: typeof controller_pb.StreamEventsRequest;
-  readonly responseType: typeof controller_pb.Event;
-};
-
 export class Controller {
   static readonly serviceName: string;
-  static readonly ListApps: ControllerListApps;
   static readonly ListAppsStream: ControllerListAppsStream;
-  static readonly GetApp: ControllerGetApp;
   static readonly StreamApp: ControllerStreamApp;
-  static readonly UpdateApp: ControllerUpdateApp;
   static readonly UpdateAppMeta: ControllerUpdateAppMeta;
-  static readonly GetAppRelease: ControllerGetAppRelease;
   static readonly StreamAppRelease: ControllerStreamAppRelease;
   static readonly CreateScale: ControllerCreateScale;
   static readonly ListScaleRequestsStream: ControllerListScaleRequestsStream;
   static readonly StreamAppFormation: ControllerStreamAppFormation;
   static readonly GetRelease: ControllerGetRelease;
-  static readonly ListReleases: ControllerListReleases;
-  static readonly ListReleasesStream: ControllerListReleasesStream;
   static readonly StreamAppLog: ControllerStreamAppLog;
   static readonly CreateRelease: ControllerCreateRelease;
   static readonly StreamDeployments: ControllerStreamDeployments;
   static readonly CreateDeployment: ControllerCreateDeployment;
-  static readonly StreamEvents: ControllerStreamEvents;
 }
 
 export type ServiceError = { message: string, code: number; metadata: grpc.Metadata }
@@ -230,35 +160,8 @@ export class ControllerClient {
   readonly serviceHost: string;
 
   constructor(serviceHost: string, options?: grpc.RpcOptions);
-  listApps(
-    requestMessage: controller_pb.ListAppsRequest,
-    metadata: grpc.Metadata,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.ListAppsResponse|null) => void
-  ): UnaryResponse;
-  listApps(
-    requestMessage: controller_pb.ListAppsRequest,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.ListAppsResponse|null) => void
-  ): UnaryResponse;
-  listAppsStream(metadata?: grpc.Metadata): BidirectionalStream<controller_pb.ListAppsRequest, controller_pb.ListAppsResponse>;
-  getApp(
-    requestMessage: controller_pb.GetAppRequest,
-    metadata: grpc.Metadata,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
-  ): UnaryResponse;
-  getApp(
-    requestMessage: controller_pb.GetAppRequest,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
-  ): UnaryResponse;
+  listAppsStream(requestMessage: controller_pb.ListAppsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListAppsResponse>;
   streamApp(requestMessage: controller_pb.GetAppRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.App>;
-  updateApp(
-    requestMessage: controller_pb.UpdateAppRequest,
-    metadata: grpc.Metadata,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
-  ): UnaryResponse;
-  updateApp(
-    requestMessage: controller_pb.UpdateAppRequest,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
-  ): UnaryResponse;
   updateAppMeta(
     requestMessage: controller_pb.UpdateAppRequest,
     metadata: grpc.Metadata,
@@ -267,15 +170,6 @@ export class ControllerClient {
   updateAppMeta(
     requestMessage: controller_pb.UpdateAppRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
-  ): UnaryResponse;
-  getAppRelease(
-    requestMessage: controller_pb.GetAppReleaseRequest,
-    metadata: grpc.Metadata,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
-  ): UnaryResponse;
-  getAppRelease(
-    requestMessage: controller_pb.GetAppReleaseRequest,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
   ): UnaryResponse;
   streamAppRelease(requestMessage: controller_pb.GetAppReleaseRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Release>;
   createScale(
@@ -298,16 +192,6 @@ export class ControllerClient {
     requestMessage: controller_pb.GetReleaseRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.Release|null) => void
   ): UnaryResponse;
-  listReleases(
-    requestMessage: controller_pb.ListReleasesRequest,
-    metadata: grpc.Metadata,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.ListReleasesResponse|null) => void
-  ): UnaryResponse;
-  listReleases(
-    requestMessage: controller_pb.ListReleasesRequest,
-    callback: (error: ServiceError|null, responseMessage: controller_pb.ListReleasesResponse|null) => void
-  ): UnaryResponse;
-  listReleasesStream(metadata?: grpc.Metadata): BidirectionalStream<controller_pb.ListReleasesRequest, controller_pb.ListReleasesResponse>;
   streamAppLog(requestMessage: controller_pb.StreamAppLogRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.LogChunk>;
   createRelease(
     requestMessage: controller_pb.CreateReleaseRequest,
@@ -320,6 +204,5 @@ export class ControllerClient {
   ): UnaryResponse;
   streamDeployments(requestMessage: controller_pb.ListDeploymentsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListDeploymentsResponse>;
   createDeployment(requestMessage: controller_pb.CreateDeploymentRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Event>;
-  streamEvents(requestMessage: controller_pb.StreamEventsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Event>;
 }
 

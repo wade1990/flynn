@@ -4,7 +4,6 @@ package main
 import (
 	"encoding/json"
 	fmt "fmt"
-	"io"
 	"net/http"
 	"os"
 	"path"
@@ -166,7 +165,7 @@ func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsR
 	}, nil
 }
 
-func (s *server) ListAppsStream(stream Controller_ListAppsStreamServer) error {
+func (s *server) ListAppsStream(req *ListAppsRequest, stream Controller_ListAppsStreamServer) error {
 	var apps []*App
 	var appsMtx sync.RWMutex
 	refreshApps := func() error {
@@ -188,24 +187,6 @@ func (s *server) ListAppsStream(stream Controller_ListAppsStreamServer) error {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			_, err := stream.Recv()
-			if err != nil {
-				fmt.Printf("ListAppsStream: Error receiving request: %s\n", err)
-				break
-			}
-			// TODO(jvatic): Pagination
-			if err := refreshApps(); err != nil {
-				fmt.Printf("ListAppsStream: Error refreshing apps: %s\n", err)
-				continue
-			}
-			sendResponse()
-		}
-	}()
-
 	events := make(chan *ct.Event)
 	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
 		ObjectTypes: []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease},
@@ -218,14 +199,15 @@ func (s *server) ListAppsStream(stream Controller_ListAppsStreamServer) error {
 	go func() {
 		defer wg.Done()
 		for {
-			if _, ok := <-events; !ok {
-				break
-			}
 			if err := refreshApps(); err != nil {
 				fmt.Printf("ListAppsStream: Error refreshing apps: %s\n", err)
 				continue
 			}
 			sendResponse()
+
+			if _, ok := <-events; !ok {
+				break
+			}
 		}
 	}()
 	wg.Wait()
@@ -808,159 +790,6 @@ func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Relea
 	return convertRelease(release), nil
 }
 
-func (s *server) listReleases(req *ListReleasesRequest) ([]*Release, error) {
-	appID := parseIDFromName(req.Parent, "apps")
-	var ctReleases []*ct.Release
-	if appID == "" {
-		res, err := s.Client.ReleaseList()
-		if err != nil {
-			return nil, err
-		}
-		ctReleases = res
-	} else {
-		res, err := s.Client.AppReleaseList(appID)
-		if err != nil {
-			return nil, err
-		}
-		ctReleases = res
-	}
-
-	releases := make([]*Release, len(ctReleases))
-	for i, ctr := range ctReleases {
-		r := convertRelease(ctr)
-
-		// Determine the type of release
-		r.Type = ReleaseType_CODE
-		if i+1 < len(ctReleases) {
-			prev := ctReleases[i+1]
-			if reflect.DeepEqual(prev.ArtifactIDs, ctr.ArtifactIDs) {
-				r.Type = ReleaseType_CONFIG
-			}
-		} else if len(r.Artifacts) == 0 {
-			r.Type = ReleaseType_CONFIG
-		}
-
-		releases[i] = r
-	}
-
-	var filtered []*Release
-	if len(req.FilterLabels) == 0 && req.FilterType == ReleaseType_ANY {
-		filtered = releases
-	} else {
-		filtered = make([]*Release, 0, len(releases))
-		for _, r := range releases {
-			// filter by type of release
-			if req.FilterType != ReleaseType_ANY && r.Type != req.FilterType {
-				continue
-			}
-			// filter by labels
-			if len(req.FilterLabels) > 0 {
-				for fk, fv := range req.FilterLabels {
-					rv, ok := r.Labels[fk]
-					if rv == fv || (ok && fv == "*") {
-						filtered = append(filtered, r)
-						break
-					}
-				}
-			} else {
-				filtered = append(filtered, r)
-			}
-		}
-	}
-
-	return filtered, nil
-}
-
-func (s *server) ListReleases(ctx context.Context, req *ListReleasesRequest) (*ListReleasesResponse, error) {
-	releases, err := s.listReleases(req)
-	if err != nil {
-		return nil, err
-	}
-	return &ListReleasesResponse{Releases: releases}, nil
-}
-
-func (s *server) ListReleasesStream(stream Controller_ListReleasesStreamServer) error {
-	var req *ListReleasesRequest
-	var reqMtx sync.RWMutex
-	var releases []*Release
-	var releasesMtx sync.RWMutex
-	refreshReleases := func() error {
-		releasesMtx.Lock()
-		defer releasesMtx.Unlock()
-		reqMtx.RLock()
-		defer reqMtx.RUnlock()
-		var err error
-		if req != nil {
-			releases, err = s.listReleases(req)
-		}
-		return err
-	}
-
-	sendResponse := func() {
-		releasesMtx.RLock()
-		stream.Send(&ListReleasesResponse{
-			Releases:      releases,
-			NextPageToken: "", // TODO(jvatic): Pagination
-		})
-		releasesMtx.RUnlock()
-	}
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			r, err := stream.Recv()
-			if err != nil {
-				if err != io.EOF {
-					fmt.Printf("ListReleasesStream: Error receiving request: %s\n", err)
-				}
-				break
-			}
-			reqMtx.Lock()
-			req = r
-			reqMtx.Unlock()
-			// TODO(jvatic): Pagination
-			if err := refreshReleases(); err != nil {
-				fmt.Printf("ListReleasesStream: Error refreshing releases: %s\n", err)
-				continue
-			}
-			sendResponse()
-		}
-	}()
-
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		ObjectTypes: []ct.EventType{ct.EventTypeRelease, ct.EventTypeReleaseDeletion},
-	}, events)
-	if err != nil {
-		return err
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			if _, ok := <-events; !ok {
-				break
-			}
-			if err := refreshReleases(); err != nil {
-				fmt.Printf("ListReleasesStream: Error refreshing releases: %s\n", err)
-				continue
-			}
-			sendResponse()
-		}
-	}()
-	wg.Wait()
-
-	if err := eventStream.Close(); err != nil {
-		return err
-	}
-
-	return eventStream.Err()
-}
-
 func (s *server) listDeployments(req *ListDeploymentsRequest) ([]*ExpandedDeployment, error) {
 	appID := parseIDFromName(req.Parent, "apps")
 	ctDeployments, err := s.Client.DeploymentList(appID)
@@ -1296,8 +1125,6 @@ func (s *server) CreateDeployment(req *CreateDeploymentRequest, ds Controller_Cr
 		}
 
 		ds.Send(&Event{
-			Name:   fmt.Sprintf("events/%d", ctEvent.ID),
-			Parent: fmt.Sprintf("apps/%s/deployments/%s", d.AppID, d.ID),
 			DeploymentEvent: &DeploymentEvent{
 				Deployment: convertDeployment(d),
 				JobType:    de.JobType,
@@ -1328,79 +1155,6 @@ func convertEventTypeSlice(in []string) []ct.EventType {
 		out[i] = ct.EventType(t)
 	}
 	return out
-}
-
-func (s *server) StreamEvents(req *StreamEventsRequest, es Controller_StreamEventsServer) error {
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       parseIDFromName(req.Parent, "apps"),
-		ObjectTypes: convertEventTypeSlice(req.ObjectTypes),
-		ObjectID:    lastResourceName(req.Name),
-		Past:        req.Past,
-		Count:       int(req.Count),
-	}, events)
-	if err != nil {
-		return err
-	}
-
-	for {
-		ctEvent, ok := <-events
-		if !ok {
-			break
-		}
-
-		event := &Event{
-			Name:       fmt.Sprintf("events/%d", ctEvent.ID),
-			Type:       string(ctEvent.ObjectType),
-			CreateTime: timestampProto(ctEvent.CreatedAt),
-		}
-
-		switch ctEvent.ObjectType {
-		case ct.EventTypeApp, ct.EventTypeAppDeletion:
-			event.Parent = fmt.Sprintf("apps/%s", ctEvent.ObjectID)
-			var ctApp *ct.App
-			if err := json.Unmarshal(ctEvent.Data, &ctApp); err != nil {
-				fmt.Printf("Failed to unmarshal app event(%s): %s\n", ctEvent.ObjectID, err)
-				continue
-			}
-			event.App = convertApp(ctApp)
-		case ct.EventTypeAppRelease, ct.EventTypeRelease, ct.EventTypeReleaseDeletion:
-			event.Parent = fmt.Sprintf("apps/%s/releases/%s", ctEvent.AppID, ctEvent.ObjectID)
-			var ctRelease *ct.Release
-			if err := json.Unmarshal(ctEvent.Data, &ctRelease); err != nil {
-				fmt.Printf("Failed to unmarshal release event(%s): %s\n", ctEvent.ObjectID, err)
-				continue
-			}
-			event.Release = convertRelease(ctRelease)
-		case ct.EventTypeDeployment:
-			event.Parent = fmt.Sprintf("apps/%s/deployments/%s", ctEvent.AppID, ctEvent.ObjectID)
-			var ctDeploymentEvent *ct.DeploymentEvent
-			if err := json.Unmarshal(ctEvent.Data, &ctDeploymentEvent); err != nil {
-				fmt.Printf("Failed to unmarshal deployment event(%s): %s\n", ctEvent.ObjectID, err)
-				continue
-			}
-			ctDeployment, err := s.Client.GetDeployment(ctEvent.ObjectID)
-			if err != nil {
-				fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
-				continue
-			}
-			event.DeploymentEvent = &DeploymentEvent{
-				JobType:    ctDeploymentEvent.JobType,
-				JobState:   convertDeploymentEventJobState(ctDeploymentEvent.JobState),
-				Deployment: convertDeployment(ctDeployment),
-			}
-			event.Error = ctDeploymentEvent.Error
-		case ct.EventTypeRoute, ct.EventTypeRouteDeletion:
-			event.Parent = fmt.Sprintf("apps/%s/routes/%s", ctEvent.AppID, ctEvent.ObjectID)
-		}
-
-		es.Send(event)
-	}
-
-	if err := eventStream.Close(); err != nil {
-		return err
-	}
-	return eventStream.Err()
 }
 
 func parseIDFromName(name string, resource string) string {

@@ -10,31 +10,13 @@ var Controller = (function () {
   return Controller;
 }());
 
-Controller.ListApps = {
-  methodName: "ListApps",
-  service: Controller,
-  requestStream: false,
-  responseStream: false,
-  requestType: controller_pb.ListAppsRequest,
-  responseType: controller_pb.ListAppsResponse
-};
-
 Controller.ListAppsStream = {
   methodName: "ListAppsStream",
   service: Controller,
-  requestStream: true,
+  requestStream: false,
   responseStream: true,
   requestType: controller_pb.ListAppsRequest,
   responseType: controller_pb.ListAppsResponse
-};
-
-Controller.GetApp = {
-  methodName: "GetApp",
-  service: Controller,
-  requestStream: false,
-  responseStream: false,
-  requestType: controller_pb.GetAppRequest,
-  responseType: controller_pb.App
 };
 
 Controller.StreamApp = {
@@ -46,15 +28,6 @@ Controller.StreamApp = {
   responseType: controller_pb.App
 };
 
-Controller.UpdateApp = {
-  methodName: "UpdateApp",
-  service: Controller,
-  requestStream: false,
-  responseStream: false,
-  requestType: controller_pb.UpdateAppRequest,
-  responseType: controller_pb.App
-};
-
 Controller.UpdateAppMeta = {
   methodName: "UpdateAppMeta",
   service: Controller,
@@ -62,15 +35,6 @@ Controller.UpdateAppMeta = {
   responseStream: false,
   requestType: controller_pb.UpdateAppRequest,
   responseType: controller_pb.App
-};
-
-Controller.GetAppRelease = {
-  methodName: "GetAppRelease",
-  service: Controller,
-  requestStream: false,
-  responseStream: false,
-  requestType: controller_pb.GetAppReleaseRequest,
-  responseType: controller_pb.Release
 };
 
 Controller.StreamAppRelease = {
@@ -118,24 +82,6 @@ Controller.GetRelease = {
   responseType: controller_pb.Release
 };
 
-Controller.ListReleases = {
-  methodName: "ListReleases",
-  service: Controller,
-  requestStream: false,
-  responseStream: false,
-  requestType: controller_pb.ListReleasesRequest,
-  responseType: controller_pb.ListReleasesResponse
-};
-
-Controller.ListReleasesStream = {
-  methodName: "ListReleasesStream",
-  service: Controller,
-  requestStream: true,
-  responseStream: true,
-  requestType: controller_pb.ListReleasesRequest,
-  responseType: controller_pb.ListReleasesResponse
-};
-
 Controller.StreamAppLog = {
   methodName: "StreamAppLog",
   service: Controller,
@@ -172,15 +118,6 @@ Controller.CreateDeployment = {
   responseType: controller_pb.Event
 };
 
-Controller.StreamEvents = {
-  methodName: "StreamEvents",
-  service: Controller,
-  requestStream: false,
-  responseStream: true,
-  requestType: controller_pb.StreamEventsRequest,
-  responseType: controller_pb.Event
-};
-
 exports.Controller = Controller;
 
 function ControllerClient(serviceHost, options) {
@@ -188,108 +125,40 @@ function ControllerClient(serviceHost, options) {
   this.options = options || {};
 }
 
-ControllerClient.prototype.listApps = function listApps(requestMessage, metadata, callback) {
-  if (arguments.length === 2) {
-    callback = arguments[1];
-  }
-  var client = grpc.unary(Controller.ListApps, {
-    request: requestMessage,
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport,
-    debug: this.options.debug,
-    onEnd: function (response) {
-      if (callback) {
-        if (response.status !== grpc.Code.OK) {
-          var err = new Error(response.statusMessage);
-          err.code = response.status;
-          err.metadata = response.trailers;
-          callback(err, null);
-        } else {
-          callback(null, response.message);
-        }
-      }
-    }
-  });
-  return {
-    cancel: function () {
-      callback = null;
-      client.close();
-    }
-  };
-};
-
-ControllerClient.prototype.listAppsStream = function listAppsStream(metadata) {
+ControllerClient.prototype.listAppsStream = function listAppsStream(requestMessage, metadata) {
   var listeners = {
     data: [],
     end: [],
     status: []
   };
-  var client = grpc.client(Controller.ListAppsStream, {
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport
-  });
-  client.onEnd(function (status, statusMessage, trailers) {
-    listeners.end.forEach(function (handler) {
-      handler();
-    });
-    listeners.status.forEach(function (handler) {
-      handler({ code: status, details: statusMessage, metadata: trailers });
-    });
-    listeners = null;
-  });
-  client.onMessage(function (message) {
-    listeners.data.forEach(function (handler) {
-      handler(message);
-    })
-  });
-  client.start(metadata);
-  return {
-    on: function (type, handler) {
-      listeners[type].push(handler);
-      return this;
-    },
-    write: function (requestMessage) {
-      client.send(requestMessage);
-      return this;
-    },
-    end: function () {
-      client.finishSend();
-    },
-    cancel: function () {
-      listeners = null;
-      client.close();
-    }
-  };
-};
-
-ControllerClient.prototype.getApp = function getApp(requestMessage, metadata, callback) {
-  if (arguments.length === 2) {
-    callback = arguments[1];
-  }
-  var client = grpc.unary(Controller.GetApp, {
+  var client = grpc.invoke(Controller.ListAppsStream, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
     transport: this.options.transport,
     debug: this.options.debug,
-    onEnd: function (response) {
-      if (callback) {
-        if (response.status !== grpc.Code.OK) {
-          var err = new Error(response.statusMessage);
-          err.code = response.status;
-          err.metadata = response.trailers;
-          callback(err, null);
-        } else {
-          callback(null, response.message);
-        }
-      }
+    onMessage: function (responseMessage) {
+      listeners.data.forEach(function (handler) {
+        handler(responseMessage);
+      });
+    },
+    onEnd: function (status, statusMessage, trailers) {
+      listeners.end.forEach(function (handler) {
+        handler();
+      });
+      listeners.status.forEach(function (handler) {
+        handler({ code: status, details: statusMessage, metadata: trailers });
+      });
+      listeners = null;
     }
   });
   return {
+    on: function (type, handler) {
+      listeners[type].push(handler);
+      return this;
+    },
     cancel: function () {
-      callback = null;
+      listeners = null;
       client.close();
     }
   };
@@ -334,73 +203,11 @@ ControllerClient.prototype.streamApp = function streamApp(requestMessage, metada
   };
 };
 
-ControllerClient.prototype.updateApp = function updateApp(requestMessage, metadata, callback) {
-  if (arguments.length === 2) {
-    callback = arguments[1];
-  }
-  var client = grpc.unary(Controller.UpdateApp, {
-    request: requestMessage,
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport,
-    debug: this.options.debug,
-    onEnd: function (response) {
-      if (callback) {
-        if (response.status !== grpc.Code.OK) {
-          var err = new Error(response.statusMessage);
-          err.code = response.status;
-          err.metadata = response.trailers;
-          callback(err, null);
-        } else {
-          callback(null, response.message);
-        }
-      }
-    }
-  });
-  return {
-    cancel: function () {
-      callback = null;
-      client.close();
-    }
-  };
-};
-
 ControllerClient.prototype.updateAppMeta = function updateAppMeta(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
   var client = grpc.unary(Controller.UpdateAppMeta, {
-    request: requestMessage,
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport,
-    debug: this.options.debug,
-    onEnd: function (response) {
-      if (callback) {
-        if (response.status !== grpc.Code.OK) {
-          var err = new Error(response.statusMessage);
-          err.code = response.status;
-          err.metadata = response.trailers;
-          callback(err, null);
-        } else {
-          callback(null, response.message);
-        }
-      }
-    }
-  });
-  return {
-    cancel: function () {
-      callback = null;
-      client.close();
-    }
-  };
-};
-
-ControllerClient.prototype.getAppRelease = function getAppRelease(requestMessage, metadata, callback) {
-  if (arguments.length === 2) {
-    callback = arguments[1];
-  }
-  var client = grpc.unary(Controller.GetAppRelease, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -606,82 +413,6 @@ ControllerClient.prototype.getRelease = function getRelease(requestMessage, meta
   };
 };
 
-ControllerClient.prototype.listReleases = function listReleases(requestMessage, metadata, callback) {
-  if (arguments.length === 2) {
-    callback = arguments[1];
-  }
-  var client = grpc.unary(Controller.ListReleases, {
-    request: requestMessage,
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport,
-    debug: this.options.debug,
-    onEnd: function (response) {
-      if (callback) {
-        if (response.status !== grpc.Code.OK) {
-          var err = new Error(response.statusMessage);
-          err.code = response.status;
-          err.metadata = response.trailers;
-          callback(err, null);
-        } else {
-          callback(null, response.message);
-        }
-      }
-    }
-  });
-  return {
-    cancel: function () {
-      callback = null;
-      client.close();
-    }
-  };
-};
-
-ControllerClient.prototype.listReleasesStream = function listReleasesStream(metadata) {
-  var listeners = {
-    data: [],
-    end: [],
-    status: []
-  };
-  var client = grpc.client(Controller.ListReleasesStream, {
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport
-  });
-  client.onEnd(function (status, statusMessage, trailers) {
-    listeners.end.forEach(function (handler) {
-      handler();
-    });
-    listeners.status.forEach(function (handler) {
-      handler({ code: status, details: statusMessage, metadata: trailers });
-    });
-    listeners = null;
-  });
-  client.onMessage(function (message) {
-    listeners.data.forEach(function (handler) {
-      handler(message);
-    })
-  });
-  client.start(metadata);
-  return {
-    on: function (type, handler) {
-      listeners[type].push(handler);
-      return this;
-    },
-    write: function (requestMessage) {
-      client.send(requestMessage);
-      return this;
-    },
-    end: function () {
-      client.finishSend();
-    },
-    cancel: function () {
-      listeners = null;
-      client.close();
-    }
-  };
-};
-
 ControllerClient.prototype.streamAppLog = function streamAppLog(requestMessage, metadata) {
   var listeners = {
     data: [],
@@ -798,45 +529,6 @@ ControllerClient.prototype.createDeployment = function createDeployment(requestM
     status: []
   };
   var client = grpc.invoke(Controller.CreateDeployment, {
-    request: requestMessage,
-    host: this.serviceHost,
-    metadata: metadata,
-    transport: this.options.transport,
-    debug: this.options.debug,
-    onMessage: function (responseMessage) {
-      listeners.data.forEach(function (handler) {
-        handler(responseMessage);
-      });
-    },
-    onEnd: function (status, statusMessage, trailers) {
-      listeners.end.forEach(function (handler) {
-        handler();
-      });
-      listeners.status.forEach(function (handler) {
-        handler({ code: status, details: statusMessage, metadata: trailers });
-      });
-      listeners = null;
-    }
-  });
-  return {
-    on: function (type, handler) {
-      listeners[type].push(handler);
-      return this;
-    },
-    cancel: function () {
-      listeners = null;
-      client.close();
-    }
-  };
-};
-
-ControllerClient.prototype.streamEvents = function streamEvents(requestMessage, metadata) {
-  var listeners = {
-    data: [],
-    end: [],
-    status: []
-  };
-  var client = grpc.invoke(Controller.StreamEvents, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
