@@ -19,14 +19,12 @@ const spinning = (
 	</svg>
 );
 
-export default class Loading extends React.Component {
-	public render() {
-		return (
-			<Debounced timeoutMs={200}>
-				<Box align="center" justify="center" style={{ height: '100px' }}>
-					{spinning}
-				</Box>
-			</Debounced>
-		);
-	}
+export default function Loading() {
+	return (
+		<Debounced timeoutMs={200}>
+			<Box align="center" justify="center" style={{ height: '100px' }}>
+				{spinning}
+			</Box>
+		</Debounced>
+	);
 }
