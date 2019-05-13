@@ -6,7 +6,7 @@ import useAppsList from './useAppsList';
 import { handleError } from './withErrorHandler';
 
 import Loading from './Loading';
-import NavLink from './NavLink';
+import NavAnchor from './NavAnchor';
 import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 export interface Props {
@@ -54,7 +54,7 @@ export default function AppsListNav({ onNav }: Props) {
 		<Box tag="ul" margin="none" pad="none" flex={true} overflow="auto">
 			{appRoutes.map((r) => {
 				return (
-					<NavLink path={r.path} search={search} key={r.path} onNav={navHandler}>
+					<NavAnchor path={r.path} search={search} key={r.path} onNav={navHandler}>
 						<Box
 							tag="li"
 							direction="row"
@@ -68,7 +68,7 @@ export default function AppsListNav({ onNav }: Props) {
 						>
 							{r.displayName}
 						</Box>
-					</NavLink>
+					</NavAnchor>
 				);
 			})}
 		</Box>
