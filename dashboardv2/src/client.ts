@@ -145,8 +145,11 @@ function memoizedStream<T>(
 	stream.on('data', (data: T) => {
 		__memoizedStreamResponses[key] = data;
 	});
-	stream.on('end', cleanup);
-	const cancel = stream.cancel;
+	let cancel = stream.cancel;
+	stream.on('end', () => {
+		cleanup();
+		cancel = () => {};
+	});
 	stream.cancel = () => {
 		if (cleanup() === 0) {
 			cancel();
