@@ -5,35 +5,33 @@ import { Omit } from 'grommet/utils';
 
 export interface Props extends Omit<AnchorProps, 'onClick'> {
 	onClick?: (event: React.MouseEvent) => void;
+	children: React.ReactNode;
 }
 
-class ExternalAnchor extends React.Component<Props> {
-	constructor(props: Props) {
-		super(props);
-		this._clickHandler = this._clickHandler.bind(this);
-	}
+export default function ExternalAnchor(props: Props) {
+	const { onClick, children, ...rest } = props;
+	return (
+		<Anchor
+			{...rest}
+			onClick={(e: React.MouseEvent) => {
+				const defaultOnClick = onClick || (() => {});
 
-	public render() {
-		return <Anchor {...this.props} onClick={this._clickHandler} />;
-	}
+				defaultOnClick(e);
 
-	private _clickHandler(e: React.MouseEvent) {
-		const defaultOnClick = this.props.onClick || (() => {});
+				if (e.isPropagationStopped()) {
+					return;
+				}
 
-		defaultOnClick(e);
+				// don't open in new window if any modifier keys are pressed
+				if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+					return;
+				}
 
-		if (e.isPropagationStopped()) {
-			return;
-		}
-
-		// don't open in new window if any modifier keys are pressed
-		if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
-			return;
-		}
-
-		e.preventDefault();
-		window.open(this.props.href);
-	}
+				e.preventDefault();
+				window.open(props.href);
+			}}
+		>
+			{children}
+		</Anchor>
+	);
 }
-
-export default ExternalAnchor;
