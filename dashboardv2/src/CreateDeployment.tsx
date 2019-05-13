@@ -4,13 +4,16 @@ import { Box, Button } from 'grommet';
 import Value from './Value';
 
 import { Release, Formation, Deployment, CreateScaleRequest } from './generated/controller_pb';
-import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
-import withClient, { ClientProps } from './withClient';
+import { handleError } from './withErrorHandler';
+import useClient from './useClient';
+import useAppRelease from './useAppRelease';
+import useRelease from './useRelease';
+import useCallIfMounted from './useCallIfMounted';
 import Loading from './Loading';
 import ReleaseComponent from './Release';
 import protoMapReplace from './util/protoMapReplace';
 
-interface Props extends ErrorHandlerProps, ClientProps {
+interface Props {
 	appName: string;
 	releaseName?: string;
 	newRelease?: Release;
@@ -19,175 +22,38 @@ interface Props extends ErrorHandlerProps, ClientProps {
 	onCreate: (deployment: Deployment) => void;
 }
 
-interface State {
-	isLoading: boolean;
-	isCreating: boolean;
-	currentRelease: Release | null;
-	nextRelease: Release | null;
-	newRelease: Release | null;
-}
+export default function CreateDeployment(props: Props) {
+	const client = useClient();
+	const newRelease = props.newRelease;
+	const newFormation = props.newFormation;
+	const { release: currentRelease, loading: currentReleaseLoading, error: currentReleaseError } = useAppRelease(
+		props.appName
+	);
+	const { release: nextRelease, loading: nextReleaseLoading, error: nextReleaseError } = useRelease(
+		props.releaseName || ''
+	);
+	const isLoading = React.useMemo(
+		() => {
+			return currentReleaseLoading || nextReleaseLoading;
+		},
+		[currentReleaseLoading, nextReleaseLoading]
+	);
+	const [isCreating, setIsCreating] = React.useState(false);
 
-class CreateDeployment extends React.Component<Props, State> {
-	private _isMounted: boolean;
-	private __streamAppReleaseCancel: () => void;
+	React.useEffect(
+		() => {
+			const error = currentReleaseError || nextReleaseError;
+			if (error) {
+				handleError(error);
+			}
+		},
+		[currentReleaseError, nextReleaseError]
+	);
 
-	constructor(props: Props) {
-		super(props);
+	const callIfMounted = useCallIfMounted();
 
-		const { newRelease } = props;
-
-		this._isMounted = false;
-
-		this.state = {
-			isLoading: true,
-			isCreating: false,
-			currentRelease: null,
-			nextRelease: null,
-			newRelease: newRelease || null
-		};
-
-		this.__streamAppReleaseCancel = () => {};
-		this._handleNextReleaseSubmit = this._handleNextReleaseSubmit.bind(this);
-		this._handleCancelBtnClick = this._handleCancelBtnClick.bind(this);
-	}
-
-	public componentDidMount() {
-		this._isMounted = true;
-		this._getData();
-	}
-
-	public componentDidUpdate(prevProps: Props) {
-		const { newRelease } = this.props;
-		if (prevProps.newRelease !== newRelease) {
-			this.setState({
-				newRelease: newRelease || null
-			});
-		}
-	}
-
-	public componentWillUnmount() {
-		this._isMounted = false;
-		this.__streamAppReleaseCancel();
-	}
-
-	public render() {
-		const { isLoading, currentRelease, nextRelease, newRelease } = this.state;
-		const { newFormation } = this.props;
-		if (isLoading) return <Loading />;
-		if (nextRelease) {
-			return this._renderNextRelease(currentRelease, nextRelease, newFormation);
-		}
-		if (newRelease) {
-			return this._renderNextRelease(currentRelease, newRelease, newFormation);
-		}
-		throw new Error('<CreateDeployment> Invalid state!');
-	}
-
-	private _renderNextRelease(currentRelease: Release | null, nextRelease: Release, newFormation?: Formation) {
-		const { isCreating } = this.state;
-		return (
-			<Box tag="form" fill direction="column" onSubmit={this._handleNextReleaseSubmit} gap="small" justify="between">
-				<Box>
-					<h3>Review Changes</h3>
-					<ReleaseComponent release={nextRelease} prevRelease={currentRelease} />
-					{newFormation ? renderFormation(newFormation) : null}
-				</Box>
-
-				<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
-					<Button
-						type="submit"
-						disabled={isCreating}
-						primary
-						icon={<CheckmarkIcon />}
-						label={isCreating ? 'Deploying...' : 'Deploy'}
-					/>
-					<Button type="button" label="Cancel" onClick={this._handleCancelBtnClick} />
-				</Box>
-			</Box>
-		);
-	}
-
-	private _getData() {
-		if (!this._isMounted) return;
-		const { appName, releaseName, client, handleError } = this.props;
-		this.setState({
-			isLoading: true
-		});
-
-		this.__streamAppReleaseCancel();
-		const p = releaseName
-			? (new Promise((resolve, reject) => {
-					client.getRelease(releaseName, (r: Release, error: Error | null) => {
-						if (r && error == null) {
-							resolve(r);
-						} else {
-							reject(error);
-						}
-					});
-			  }) as Promise<Release>)
-			: Promise.resolve(new Release());
-		p.then((nextRelease: Release) => {
-			this.__streamAppReleaseCancel = client.streamAppRelease(
-				appName,
-				(currentRelease: Release, error: Error | null) => {
-					const { newRelease } = this.state;
-					const nextState = {
-						isLoading: false,
-						currentRelease
-					} as State;
-					if (releaseName) {
-						nextState.nextRelease = nextRelease;
-					} else if (newRelease) {
-						nextState.newRelease = newRelease;
-					} else {
-						throw new Error('<CreateDeployment> requires either `releaseName` or `newRelease` props.');
-					}
-					this.setState(nextState);
-				}
-			);
-		}).catch((error: Error) => {
-			this.setState({
-				isLoading: false
-			});
-			handleError(error);
-		});
-	}
-
-	private _handleNextReleaseSubmit(e: React.SyntheticEvent) {
-		e.preventDefault();
-		if (!this._isMounted) return;
-		const { handleError, onCreate, newFormation } = this.props;
-		const { nextRelease, newRelease } = this.state;
-		this.setState({
-			isCreating: true
-		});
-		let p = Promise.resolve(null) as Promise<any>;
-		if (newRelease) {
-			p = this._createRelease(newRelease).then((release: Release) => {
-				return this._createDeployment(release, newFormation);
-			});
-		} else if (nextRelease) {
-			p = this._createDeployment(nextRelease, newFormation);
-		}
-		p.then((deployment) => {
-			onCreate(deployment);
-		}).catch((error: Error) => {
-			if (!this._isMounted) return;
-			this.setState({
-				isCreating: false
-			});
-			handleError(error);
-		});
-	}
-
-	private _handleCancelBtnClick(e: React.SyntheticEvent) {
-		e.preventDefault();
-		const { onCancel } = this.props;
-		onCancel();
-	}
-
-	private _createRelease(newRelease: Release) {
-		const { client, appName } = this.props;
+	function createRelease(newRelease: Release) {
+		const { appName } = props;
 		return new Promise((resolve, reject) => {
 			client.createRelease(appName, newRelease, (release: Release, error: Error | null) => {
 				if (release && error === null) {
@@ -199,8 +65,8 @@ class CreateDeployment extends React.Component<Props, State> {
 		}) as Promise<Release>;
 	}
 
-	private _createDeployment(release: Release, formation?: Formation) {
-		const { client, appName } = this.props;
+	function createDeployment(release: Release, formation?: Formation) {
+		const { appName } = props;
 		let scaleRequest = null as CreateScaleRequest | null;
 		if (formation) {
 			scaleRequest = new CreateScaleRequest();
@@ -228,6 +94,64 @@ class CreateDeployment extends React.Component<Props, State> {
 		createDeployment();
 		return p;
 	}
+
+	function handleFormSubmit(e: React.SyntheticEvent) {
+		e.preventDefault();
+		const { onCreate, newFormation } = props;
+		setIsCreating(true);
+		let p = Promise.resolve(null) as Promise<any>;
+		if (newRelease) {
+			p = createRelease(newRelease).then((release: Release) => {
+				return createDeployment(release, newFormation);
+			});
+		} else if (nextRelease) {
+			p = createDeployment(nextRelease, newFormation);
+		}
+		p.then((deployment) => {
+			callIfMounted(() => {
+				onCreate(deployment);
+			});
+		}).catch((error: Error) => {
+			callIfMounted(() => {
+				setIsCreating(false);
+				handleError(error);
+			});
+		});
+	}
+
+	if (isLoading) return <Loading />;
+
+	if (!(nextRelease || newRelease)) {
+		throw new Error('<CreateDeployment> Error: invalid `releaseName` or `newRelease` prop');
+	}
+
+	return (
+		<Box tag="form" fill direction="column" onSubmit={handleFormSubmit} gap="small" justify="between">
+			<Box>
+				<h3>Review Changes</h3>
+				<ReleaseComponent release={(nextRelease || newRelease) as Release} prevRelease={currentRelease} />
+				{newFormation ? renderFormation(newFormation) : null}
+			</Box>
+
+			<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
+				<Button
+					type="submit"
+					disabled={isCreating}
+					primary
+					icon={<CheckmarkIcon />}
+					label={isCreating ? 'Deploying...' : 'Deploy'}
+				/>
+				<Button
+					type="button"
+					label="Cancel"
+					onClick={(e: React.SyntheticEvent) => {
+						e.preventDefault();
+						props.onCancel();
+					}}
+				/>
+			</Box>
+		</Box>
+	);
 }
 
 function renderFormation(f: Formation): React.ReactNode {
@@ -246,5 +170,3 @@ function renderFormation(f: Formation): React.ReactNode {
 		</Box>
 	);
 }
-
-export default withErrorHandler(withClient(CreateDeployment));
