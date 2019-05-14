@@ -1,24 +1,23 @@
 import * as React from 'react';
 import * as jspb from 'google-protobuf';
-
 import { Box, Button, Text } from 'grommet';
 
+import useClient from './useClient';
+import useAppFormation from './useAppFormation';
+import { handleError } from './withErrorHandler';
 import Loading from './Loading';
 import ProcessScale from './ProcessScale';
-import withClient, { ClientProps } from './withClient';
-import withErrorHandler, { ErrorHandlerProps } from './withErrorHandler';
 import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { Formation, ScaleRequest, ScaleRequestState, CreateScaleRequest } from './generated/controller_pb';
-import { isNotFoundError } from './client';
 
 function buildProcessesArray(m: jspb.Map<string, number>): [string, number][] {
-	return m.toArray().sort(([ak, av]: [string, number], [bk, bv]: [string, number]) => {
+	return Array.from(m.getEntryList()).sort(([ak, av]: [string, number], [bk, bv]: [string, number]) => {
 		return ak.localeCompare(bk);
 	});
 }
 
-interface Props extends ClientProps, ErrorHandlerProps {
+interface Props {
 	appName: string;
 }
 
@@ -33,235 +32,197 @@ interface State {
 	isCreating: boolean;
 }
 
-class FormationEditor extends React.Component<Props, State> {
-	private __streamAppFormationCancel: () => void;
-	constructor(props: Props) {
-		super(props);
-		this.state = {
-			formation: null,
-			processes: [],
-			processesDiff: [],
-			processesFullDiff: [],
-			hasChanges: false,
-			isLoading: true,
-			isConfirming: false,
-			isCreating: false
-		};
+export default function FormationEditor({ appName }: Props) {
+	const client = useClient();
+	const { formation, loading: isLoading, error: formationError } = useAppFormation(appName);
+	const [initialProcesses, setInitialProcesses] = React.useState<jspb.Map<string, number>>(
+		new jspb.Map<string, number>([])
+	);
+	const [processes, setProcesses] = React.useState<[string, number][]>([]);
+	const [processesDiff, setProcessesDiff] = React.useState<Diff<string, number>>([]);
+	const [processesFullDiff, setProcessesFullDiff] = React.useState<Diff<string, number>>([]); // includes keep entries for rendering
+	const [hasChanges, setHasChanges] = React.useState(false);
+	const [isConfirming, setIsConfirming] = React.useState(false);
+	const [isCreating, setIsCreating] = React.useState(false);
 
-		this.__streamAppFormationCancel = () => {};
-		this._getData = this._getData.bind(this);
-		this._handleSubmit = this._handleSubmit.bind(this);
-		this._handleConfirmSubmit = this._handleConfirmSubmit.bind(this);
-		this._handleCancelSubmit = this._handleCancelSubmit.bind(this);
-		this._handleReset = this._handleReset.bind(this);
-	}
-
-	public componentDidMount() {
-		this._getData();
-	}
-
-	public componentWillUnmount() {
-		this.__streamAppFormationCancel();
-	}
-
-	public render() {
-		const { formation, processes, processesFullDiff, hasChanges, isLoading, isConfirming, isCreating } = this.state;
-		if (isLoading) {
-			return <Loading />;
-		}
-		if (!formation) throw new Error('Unexpected lack of formation!');
-		const isPending = formation.getState() === ScaleRequestState.SCALE_PENDING;
-		return (
-			<form onSubmit={isConfirming ? this._handleConfirmSubmit : this._handleSubmit}>
-				<Box direction="row" gap="small">
-					{isConfirming || isCreating || isPending ? (
-						processesFullDiff.reduce(
-							(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
-								const key = op.key;
-								let startVal = formation.getProcessesMap().get(key) || 0;
-								let val = op.value || 0;
-								if (op.op === 'remove') {
-									return m;
-								}
-								if (op.op === 'keep') {
-									val = startVal;
-								}
-								let delta = val - startVal;
-								let sign = '+';
-								if (delta < 0) {
-									sign = '-';
-								}
-								if (isPending) {
-									// don't show delta
-									delta = 0;
-								} else {
-									delta = Math.abs(delta);
-								}
-								m.push(
-									<Box align="center" key={key}>
-										<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
-									</Box>
-								);
-								return m;
-							},
-							[] as React.ReactNodeArray
-						)
-					) : processes.length === 0 ? (
-						<Text color="dark-2">&lt;No processes&gt;</Text>
-					) : (
-						processes.map(([key, val]: [string, number]) => {
-							return (
-								<Box align="center" key={key}>
-									<ProcessScale
-										value={val}
-										label={key}
-										editable
-										onChange={(newVal) => {
-											this._handleProcessChange(key, newVal);
-										}}
-									/>
-								</Box>
-							);
-						})
-					)}
-				</Box>
-				<br />
-				<br />
-				{hasChanges && !isPending ? (
-					isConfirming ? (
-						<>
-							<Button type="submit" primary={true} label="Confirm and Create Scale Request" />
-							&nbsp;
-							<Button type="button" label="Cancel" onClick={this._handleCancelSubmit} />
-						</>
-					) : isCreating ? (
-						<>
-							<Button disabled primary={true} label="Creating Scale Request" />
-						</>
-					) : (
-						<>
-							<Button type="submit" primary={true} label="Create Scale Request" />
-							&nbsp;
-							<Button type="button" label="Reset" onClick={this._handleReset} />
-						</>
-					)
-				) : (
-					<Button disabled type="button" primary={true} label="Create Scale Request" />
-				)}
-			</form>
-		);
-	}
-
-	private _getData() {
-		const { client, appName, handleError } = this.props;
-		this.setState({
-			formation: null,
-			isLoading: true
-		});
-		this.__streamAppFormationCancel();
-		this.__streamAppFormationCancel = client.streamAppFormation(
-			appName,
-			(formation: Formation, error: Error | null) => {
-				if (error && isNotFoundError(error)) {
-					formation.setState(ScaleRequestState.SCALE_COMPLETE);
-				} else if (error) {
-					return handleError(error);
-				}
-
-				// preserve changes
-				const { hasChanges, processesDiff } = this.state;
-				let processesMap = formation.getProcessesMap();
-				if (hasChanges) {
-					processesMap = applyProtoMapDiff(processesMap, processesDiff);
-				}
-
-				this.setState({
-					formation,
-					processes: buildProcessesArray(processesMap),
-					isLoading: false
-				});
+	React.useEffect(
+		() => {
+			if (formationError) {
+				handleError(formationError);
 			}
-		);
-	}
+		},
+		[formationError]
+	);
 
-	private _handleProcessChange(key: string, val: number) {
-		const nextProcesses = this.state.processes.map(([k, v]: [string, number]) => {
+	React.useEffect(
+		() => {
+			if (!formation) return;
+
+			// preserve changes
+			let processesMap = formation.getProcessesMap();
+			if (hasChanges) {
+				processesMap = applyProtoMapDiff(processesMap, processesDiff);
+			}
+
+			setProcesses(buildProcessesArray(processesMap));
+			setInitialProcesses(formation.getProcessesMap());
+		},
+		[formation] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+
+	// set `processesDiff`, `processesFullDiff`, and `hasChanges` when
+	// `processes` changes
+	React.useEffect(
+		() => {
+			const diff = protoMapDiff(initialProcesses, new jspb.Map(processes));
+			const fullDiff = protoMapDiff(
+				(formation || new Formation()).getProcessesMap(),
+				new jspb.Map(processes),
+				DiffOption.INCLUDE_UNCHANGED
+			);
+			setProcessesDiff(diff);
+			setProcessesFullDiff(fullDiff);
+			setHasChanges(diff.length > 0);
+		},
+		[processes] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+
+	function handleProcessChange(key: string, val: number) {
+		setProcesses(processes.map(([k, v]: [string, number]) => {
 			if (k === key) {
 				return [k, val];
 			}
 			return [k, v];
-		}) as [string, number][];
-		const diff = protoMapDiff((this.state.formation || new Formation()).getProcessesMap(), new jspb.Map(nextProcesses));
-		const fullDiff = protoMapDiff(
-			(this.state.formation || new Formation()).getProcessesMap(),
-			new jspb.Map(nextProcesses),
-			DiffOption.INCLUDE_UNCHANGED
-		);
-		this.setState({
-			processes: nextProcesses,
-			processesDiff: diff,
-			processesFullDiff: fullDiff,
-			hasChanges: diff.length > 0
-		});
+		}) as [string, number][]);
 	}
 
-	private _handleSubmit(e: React.SyntheticEvent) {
+	function handleSubmit(e: React.SyntheticEvent) {
 		e.preventDefault();
-		this.setState({
-			isConfirming: true
-		});
+		setIsConfirming(true);
 	}
 
-	private _handleConfirmSubmit(e: React.SyntheticEvent) {
+	function handleConfirmSubmit(e: React.SyntheticEvent) {
 		e.preventDefault();
 
 		// build new formation object with new processes map
-		const { formation, processes } = this.state;
 		if (!formation) return; // should never be null at this point
 
-		this.setState({
-			isConfirming: false,
-			isCreating: true
-		});
+		setIsConfirming(false);
+		setIsCreating(true);
 
-		const { client, handleError } = this.props;
 		const req = new CreateScaleRequest();
 		req.setParent(formation.getParent());
 		protoMapReplace(req.getProcessesMap(), new jspb.Map(processes));
 		protoMapReplace(req.getTagsMap(), formation.getTagsMap());
 		client.createScale(req, (scaleReq: ScaleRequest, error: Error | null) => {
+			setIsCreating(false);
 			if (error) {
-				this.setState({
-					isCreating: false
-				});
-				return handleError(error);
+				handleError(error);
+				return;
 			}
-			this.setState({
-				isCreating: false,
-				processes: buildProcessesArray(scaleReq.getNewProcessesMap()),
-				processesDiff: [],
-				processesFullDiff: [],
-				hasChanges: false
-			});
+			setProcesses(buildProcessesArray(scaleReq.getNewProcessesMap()));
 		});
 	}
 
-	private _handleCancelSubmit(e: React.SyntheticEvent) {
-		e.preventDefault();
-		this.setState({
-			isConfirming: false
-		});
+	if (isLoading) {
+		return <Loading />;
 	}
 
-	private _handleReset(e: React.SyntheticEvent) {
-		e.preventDefault();
-		this.setState({
-			hasChanges: false,
-			processesDiff: [],
-			processesFullDiff: [],
-			processes: buildProcessesArray((this.state.formation || new Formation()).getProcessesMap())
-		});
-	}
+	if (!formation) throw new Error('<FormationEditor> Error: Unexpected lack of formation!');
+
+	const isPending = formation.getState() === ScaleRequestState.SCALE_PENDING;
+
+	return (
+		<form onSubmit={isConfirming ? handleConfirmSubmit : handleSubmit}>
+			<Box direction="row" gap="small">
+				{isConfirming || isCreating || isPending ? (
+					processesFullDiff.reduce(
+						(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
+							const key = op.key;
+							let startVal = formation.getProcessesMap().get(key) || 0;
+							let val = op.value || 0;
+							if (op.op === 'remove') {
+								return m;
+							}
+							if (op.op === 'keep') {
+								val = startVal;
+							}
+							let delta = val - startVal;
+							let sign = '+';
+							if (delta < 0) {
+								sign = '-';
+							}
+							if (isPending) {
+								// don't show delta
+								delta = 0;
+							} else {
+								delta = Math.abs(delta);
+							}
+							m.push(
+								<Box align="center" key={key}>
+									<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
+								</Box>
+							);
+							return m;
+						},
+						[] as React.ReactNodeArray
+					)
+				) : processes.length === 0 ? (
+					<Text color="dark-2">&lt;No processes&gt;</Text>
+				) : (
+					processes.map(([key, val]: [string, number]) => {
+						return (
+							<Box align="center" key={key}>
+								<ProcessScale
+									value={val}
+									label={key}
+									editable
+									onChange={(newVal) => {
+										handleProcessChange(key, newVal);
+									}}
+								/>
+							</Box>
+						);
+					})
+				)}
+			</Box>
+			<br />
+			<br />
+			{hasChanges && !isPending ? (
+				isConfirming ? (
+					<>
+						<Button type="submit" primary={true} label="Confirm and Create Scale Request" />
+						&nbsp;
+						<Button
+							type="button"
+							label="Cancel"
+							onClick={(e: React.SyntheticEvent) => {
+								e.preventDefault();
+								setIsConfirming(true);
+							}}
+						/>
+					</>
+				) : isCreating ? (
+					<>
+						<Button disabled primary={true} label="Creating Scale Request" />
+					</>
+				) : (
+					<>
+						<Button type="submit" primary={true} label="Create Scale Request" />
+						&nbsp;
+						<Button
+							type="button"
+							label="Reset"
+							onClick={(e: React.SyntheticEvent) => {
+								e.preventDefault();
+								setProcesses(buildProcessesArray(initialProcesses));
+							}}
+						/>
+					</>
+				)
+			) : (
+				<Button disabled type="button" primary={true} label="Create Scale Request" />
+			)}
+		</form>
+	);
 }
-
-export default withErrorHandler(withClient(FormationEditor));
