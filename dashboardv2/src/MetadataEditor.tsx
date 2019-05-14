@@ -7,7 +7,8 @@ import useClient from './useClient';
 import useCallIfMounted from './useCallIfMounted';
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
-import KeyValueEditor, { KeyValueData, renderKeyValueDiff } from './KeyValueEditor';
+import KeyValueEditor, { KeyValueData } from './KeyValueEditor';
+import KeyValueDiff from './KeyValueDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { App } from './generated/controller_pb';
 import RightOverlay from './RightOverlay';
@@ -81,7 +82,7 @@ export default function MetadataEditor({ appName }: Props) {
 			<Box tag="form" fill direction="column" onSubmit={handleConfirmSubmit}>
 				<Box flex="grow">
 					<h3>Review Changes</h3>
-					{renderKeyValueDiff(app.getLabelsMap(), data.entries())}
+					<KeyValueDiff prev={app.getLabelsMap()} next={data.entries()} />
 				</Box>
 				<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
 					<Button

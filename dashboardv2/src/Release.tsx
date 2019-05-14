@@ -4,7 +4,7 @@ import { Box } from 'grommet';
 
 import { Release } from './generated/controller_pb';
 import ExternalAnchor from './ExternalAnchor';
-import { renderKeyValueDiff } from './KeyValueEditor';
+import KeyValueDiff from './KeyValueDiff';
 import useApp from './useApp';
 
 export interface ReleaseProps {
@@ -56,7 +56,7 @@ export default function ReleaseComponent({ release, prevRelease: prev }: Release
 					<br />
 				</>
 			) : null}
-			{renderKeyValueDiff(prev ? prev.getEnvMap() : new jspb.Map([]), release.getEnvMap())}
+			<KeyValueDiff prev={prev ? prev.getEnvMap() : new jspb.Map([])} next={release.getEnvMap()} />
 		</Box>
 	);
 }
