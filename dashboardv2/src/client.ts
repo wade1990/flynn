@@ -125,9 +125,9 @@ function memoizedStream<T>(
 	initStream: () => ResponseStream<T>
 ): [ResponseStream<T>, T | undefined] {
 	const key = contextKey + streamKey;
-	function cleanup() {
+	function cleanup(streamEnded = false) {
 		const n = (__memoizedStreamUsers[key] = (__memoizedStreamUsers[key] || 0) - 1);
-		if (n === 0) {
+		if (n === 0 || streamEnded) {
 			delete __memoizedStreams[key];
 			delete __memoizedStreamUsers[key];
 			delete __memoizedStreamResponses[key];
@@ -147,7 +147,7 @@ function memoizedStream<T>(
 	});
 	let cancel = stream.cancel;
 	stream.on('end', () => {
-		cleanup();
+		cleanup(true);
 		cancel = () => {};
 	});
 	stream.cancel = () => {
