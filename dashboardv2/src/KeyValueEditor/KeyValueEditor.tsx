@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { debounce, Cancelable } from 'lodash';
 import * as jspb from 'google-protobuf';
 import styled from 'styled-components';
 
@@ -33,8 +32,6 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		conflictsMessage: 'Some entries have conflicts'
 	};
 
-	private _onChange: DataCallback & Cancelable;
-
 	constructor(props: Props) {
 		super(props);
 		this.state = {};
@@ -42,11 +39,6 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 		this._submitHandler = this._submitHandler.bind(this);
 		this._handlePaste = this._handlePaste.bind(this);
 		this._handleCopyButtonClick = this._handleCopyButtonClick.bind(this);
-		this._onChange = debounce(this.props.onChange, 200);
-	}
-
-	public componentWillUnmount() {
-		this._onChange.cancel();
 	}
 
 	public render() {
@@ -106,7 +98,7 @@ export default class KeyValueEditor extends React.Component<Props, State> {
 	private _valueChangeHandler(index: number, value: string) {
 		let nextEntries = this.props.data.dup();
 		nextEntries.setValueAtIndex(index, value);
-		this._onChange(nextEntries);
+		this.props.onChange(nextEntries);
 	}
 
 	private _handlePaste(event: React.ClipboardEvent) {
