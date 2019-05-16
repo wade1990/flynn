@@ -82,8 +82,8 @@ it('merges diffs', () => {
 	const [c, conflicts, conflictKeys] = mergeProtoMapDiff(a, b);
 	expect(c).toEqual([
 		{ op: 'add', key: 'second', value: 'second-value-2' },
-		{ op: 'add', key: 'fifth', value: 'fifth-value' },
 		{ op: 'remove', key: 'first' },
+		{ op: 'add', key: 'fifth', value: 'fifth-value' },
 		{ op: 'add', key: 'third', value: 'third-value-2' }
 	]);
 	expect(conflicts).toEqual([

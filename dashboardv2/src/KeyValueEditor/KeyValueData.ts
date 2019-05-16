@@ -86,17 +86,17 @@ export class KeyValueData {
 		return this._state.originalEntries.get(key);
 	}
 
-	public entries(): Entries {
+	public entries(filterEmpty: boolean = true): Entries {
 		return new jspb.Map(
 			this._entries.toArray().filter(
 				(entry: [string, string], index: number): boolean => {
-					return this._state.deletedIndices[index] !== true && entry[0] !== '' && entry[1] !== '';
+					return this._state.deletedIndices[index] !== true && (!filterEmpty || (entry[0] !== '' && entry[1] !== ''));
 				}
 			)
 		);
 	}
 
-	public map<T>(fn: (entry: [string, string], index: number) => T): T[] {
+	public map<T>(fn: (entry: [string, string], index: number) => T, appendEmpty: boolean = true): T[] {
 		const filterText = this._state.filterText;
 		return (
 			this._entries
@@ -114,7 +114,7 @@ export class KeyValueData {
 					[] as Array<T>
 				)
 				// there's always an empty entry at the end for adding new env
-				.concat(fn(['', ''], this.length))
+				.concat(appendEmpty ? fn(['', ''], this.length + this.deletedLength) : [])
 		);
 	}
 
@@ -131,7 +131,7 @@ export class KeyValueData {
 	}
 
 	public getDiff(): Diff<string, string> {
-		return protoMapDiff(this._state.originalEntries, this._entries);
+		return protoMapDiff(this._state.originalEntries, this.entries(false));
 	}
 
 	public applyDiff(diff: Diff<string, string>) {
@@ -215,6 +215,7 @@ export class KeyValueData {
 			changedIndices[index] = true;
 		}
 		this.hasChanges = Object.keys(changedIndices).length > 0;
+		this.length = this._entries.getLength() - this.deletedLength;
 	}
 
 	private _setDeletedLength() {

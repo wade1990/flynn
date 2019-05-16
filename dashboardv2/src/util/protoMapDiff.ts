@@ -77,6 +77,7 @@ export function mergeProtoMapDiff<K, V>(a: Diff<K, V>, b: Diff<K, V>): [Diff<K, 
 	const c = [] as Diff<K, V>;
 	const conflicts = [] as DiffConflict<K, V>[];
 	const conflictKeys = new Set<K>([]);
+
 	function addOp(op: DiffOp<K, V>) {
 		for (let i = 0; i < c.length; i++) {
 			if (c[i].key === op.key && c[i].op === op.op) {
@@ -97,7 +98,17 @@ export function mergeProtoMapDiff<K, V>(a: Diff<K, V>, b: Diff<K, V>): [Diff<K, 
 		}
 		c.push(op);
 	}
-	a.forEach(addOp);
-	b.forEach(addOp);
+
+	const alen = a.length;
+	const blen = b.length;
+	for (let i = 0, len = Math.max(alen, blen); i < len; i++) {
+		if (i < alen) {
+			addOp(a[i]);
+		}
+		if (i < blen) {
+			addOp(b[i]);
+		}
+	}
+
 	return [c, conflicts, conflictKeys];
 }
