@@ -7,14 +7,13 @@ import { handleError } from './withErrorHandler';
 
 import Loading from './Loading';
 import NavAnchor from './NavAnchor';
-import { parseURLParams, urlParamsToString } from './util/urlParams';
 
 export interface Props {
 	onNav(path: string): void;
 }
 
 export default function AppsListNav({ onNav }: Props) {
-	const { location } = useRouter();
+	const { location, urlParams } = useRouter();
 	const { apps, loading: isLoading, error: appsError } = useAppsList();
 	React.useEffect(
 		() => {
@@ -30,8 +29,13 @@ export default function AppsListNav({ onNav }: Props) {
 	}
 
 	// some query params are persistent, make sure they're passed along if present
-	const params = parseURLParams(location.search, 'rhf', 's');
-	const search = urlParamsToString(params);
+	const persistedUrlParams = new URLSearchParams();
+	['rhf', 's'].forEach((k) => {
+		urlParams.getAll(k).forEach((v) => {
+			persistedUrlParams.append(k, v);
+		});
+	});
+	const search = '?' + persistedUrlParams.toString();
 
 	const appRoutes = apps.map((app, index) => {
 		const path = `/${app.getName()}`; // e.g. /apps/48a2d322-5cfe-4323-8823-4dad4528c090

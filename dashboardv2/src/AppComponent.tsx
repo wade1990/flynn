@@ -8,7 +8,6 @@ import useRouter from './useRouter';
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
 import ExternalAnchor from './ExternalAnchor';
-import { parseURLParams, urlParamsToString } from './util/urlParams';
 const FormationEditor = React.lazy(() => import('./FormationEditor'));
 const ReleaseHistory = React.lazy(() => import('./ReleaseHistory'));
 const EnvEditor = React.lazy(() => import('./EnvEditor'));
@@ -56,18 +55,14 @@ export default function AppComponent({ name }: Props) {
 		[app]
 	);
 
-	const { history, location } = useRouter();
-	const urlParams = parseURLParams(location.search);
-	const activePanelIndices = (urlParams['s'] || ([] as string[])).map((i: string) => parseInt(i, 10));
+	const { history, location, urlParams } = useRouter();
+	const activePanelIndices = urlParams.getAll('s').map((i: string) => parseInt(i, 10));
 	const handlePanelSectionChange = (activePanelIndices: number[]) => {
-		history.replace(
-			location.pathname +
-				urlParamsToString(
-					Object.assign({}, urlParams, {
-						s: activePanelIndices.map((i: number) => String(i))
-					})
-				)
-		);
+		const nextUrlParams = new URLSearchParams(urlParams);
+		nextUrlParams.delete('s');
+		activePanelIndices.sort().forEach((i: number) => nextUrlParams.append('s', `${i}`));
+		nextUrlParams.sort();
+		history.replace(location.pathname + '?' + nextUrlParams.toString());
 	};
 
 	if (appLoading) {

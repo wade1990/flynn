@@ -28,7 +28,6 @@ import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
 import CreateScaleRequestComponent from './CreateScaleRequest';
 import ReleaseComponent from './Release';
-import { parseURLParams, urlParamsToString, URLParams } from './util/urlParams';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 
@@ -83,7 +82,7 @@ const SelectableBox = styled(Box)`
 `;
 
 interface ReleaseHistoryFiltersProps extends Omit<RouteComponentProps<{}>, 'match'>, BoxProps {
-	urlParams: URLParams;
+	urlParams: URLSearchParams;
 	filters: string[];
 }
 
@@ -91,12 +90,13 @@ function ReleaseHistoryFilters({ location, history, urlParams, filters, ...boxPr
 	const isScaleEnabled = filters.indexOf('scale') !== -1;
 
 	const rhfToggleChangeHanlder = (filterName: string, e: React.ChangeEvent<HTMLInputElement>) => {
-		const rhf = new Set(urlParams.rhf || filters);
+		const rhfParam = urlParams.getAll('rhf');
+		const rhf = new Set(rhfParam.length ? rhfParam : filters);
 		if (e.target.checked) {
 			rhf.add(filterName);
 		} else {
 			rhf.delete(filterName);
-			if (filterName === 'code' && (urlParams.rhf || []).indexOf(filterName) === -1) {
+			if (filterName === 'code' && rhfParam.indexOf(filterName) === -1) {
 				// turning off 'code' will turn on 'env'
 				rhf.add('env');
 			}
@@ -105,14 +105,11 @@ function ReleaseHistoryFilters({ location, history, urlParams, filters, ...boxPr
 			// 'code' is the default so remove it when it's the only one
 			rhf.delete('code');
 		}
-		history.replace(
-			location.pathname +
-				urlParamsToString(
-					Object.assign({}, urlParams, {
-						rhf: [...rhf]
-					})
-				)
-		);
+		const nextUrlParams = new URLSearchParams(urlParams);
+		nextUrlParams.delete('rhf');
+		rhf.forEach((v) => nextUrlParams.append('rhf', v));
+		nextUrlParams.sort();
+		history.replace(location.pathname + '?' + nextUrlParams.toString());
 	};
 
 	return (
@@ -268,9 +265,8 @@ export default function ReleaseHistory({ appName }: Props) {
 		[currentReleaseName]
 	);
 
-	const { history, location } = useRouter();
-	const urlParams = React.useMemo(() => parseURLParams(location.search), [location.search]);
-	const releasesListFilters = urlParams['rhf'] || ['code'];
+	const { history, location, urlParams } = useRouter();
+	const releasesListFilters = [urlParams.getAll('rhf'), ['code']].find((i) => i.length > 0) as string[];
 
 	const rhf = releasesListFilters;
 	const isCodeReleaseEnabled = React.useMemo(
