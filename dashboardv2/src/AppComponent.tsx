@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Github as GithubIcon } from 'grommet-icons';
 import { Box, Heading, Accordion, AccordionPanel } from 'grommet';
 
+import { isNotFoundError } from './client';
 import useApp from './useApp';
 import useRouter from './useRouter';
 
@@ -35,13 +36,26 @@ export interface Props {
 export default function AppComponent({ name }: Props) {
 	// Stream app
 	const { app, loading: appLoading, error: appError } = useApp(name);
+	const isAppDeleted = React.useMemo(
+		() => {
+			// if the app exists and we're getting a not found error, then it has been
+			// deleted
+			return app && appError && isNotFoundError(appError);
+		},
+		[appError] // eslint-disable-line react-hooks/exhaustive-deps
+	);
 	React.useEffect(
 		() => {
 			if (appError) {
-				handleError(appError);
+				if (app && isNotFoundError(appError)) {
+					handleError(new Error(`"${app.getDisplayName()}" has been deleted!`));
+					history.push('/' + location.search);
+				} else {
+					handleError(appError);
+				}
 			}
 		},
-		[appError]
+		[appError] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 	React.useDebugValue(`App(${app ? name : 'null'})${appLoading ? ' (Loading)' : ''}`);
 
@@ -69,7 +83,7 @@ export default function AppComponent({ name }: Props) {
 		return <Loading />;
 	}
 
-	if (!app) {
+	if (!app || isAppDeleted) {
 		return null;
 	}
 
