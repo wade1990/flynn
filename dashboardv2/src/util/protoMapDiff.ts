@@ -11,7 +11,8 @@ export type Diff<K, V> = Array<DiffOp<K, V>>;
 export type DiffConflict<K, V> = [DiffOp<K, V>, DiffOp<K, V>];
 
 export enum DiffOption {
-	INCLUDE_UNCHANGED
+	INCLUDE_UNCHANGED,
+	NO_DUPLICATE_KEYS
 }
 
 export default function protoMapDiff<K, V>(a: jspb.Map<K, V>, b: jspb.Map<K, V>, ...opts: DiffOption[]): Diff<K, V> {
@@ -35,7 +36,10 @@ export default function protoMapDiff<K, V>(a: jspb.Map<K, V>, b: jspb.Map<K, V>,
 			});
 			return;
 		}
-		diff.push({ op: 'remove', key: ak }, { op: 'add', key: ak, value: bv });
+		if (!_opts.has(DiffOption.NO_DUPLICATE_KEYS)) {
+			diff.push({ op: 'remove', key: ak });
+		}
+		diff.push({ op: 'add', key: ak, value: bv });
 	});
 	b.forEach((bv: V, bk: K) => {
 		const av = a.get(bk);

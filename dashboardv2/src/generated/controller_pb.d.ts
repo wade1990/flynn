@@ -913,6 +913,9 @@ export class Formation extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
 
+  getScaleRequest(): string;
+  setScaleRequest(value: string): void;
+
   getState(): ScaleRequestState;
   setState(value: ScaleRequestState): void;
 
@@ -943,6 +946,7 @@ export class Formation extends jspb.Message {
 export namespace Formation {
   export type AsObject = {
     parent: string,
+    scaleRequest: string,
     state: ScaleRequestState,
     processesMap: Array<[string, number]>,
     tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,

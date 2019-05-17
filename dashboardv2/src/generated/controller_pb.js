@@ -6992,7 +6992,8 @@ proto.controller.Formation.prototype.toObject = function(opt_includeInstance) {
 proto.controller.Formation.toObject = function(includeInstance, msg) {
   var f, obj = {
     parent: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    state: jspb.Message.getFieldWithDefault(msg, 2, 0),
+    scaleRequest: jspb.Message.getFieldWithDefault(msg, 2, ""),
+    state: jspb.Message.getFieldWithDefault(msg, 3, 0),
     processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, undefined) : [],
     tagsMap: (f = msg.getTagsMap()) ? f.toObject(includeInstance, proto.controller.DeploymentProcessTags.toObject) : [],
     createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
@@ -7038,27 +7039,31 @@ proto.controller.Formation.deserializeBinaryFromReader = function(msg, reader) {
       msg.setParent(value);
       break;
     case 2:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setScaleRequest(value);
+      break;
+    case 3:
       var value = /** @type {!proto.controller.ScaleRequestState} */ (reader.readEnum());
       msg.setState(value);
       break;
-    case 3:
+    case 4:
       var value = msg.getProcessesMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readInt32, null, "");
          });
       break;
-    case 4:
+    case 5:
       var value = msg.getTagsMap();
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.controller.DeploymentProcessTags.deserializeBinaryFromReader, "");
          });
       break;
-    case 5:
+    case 6:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
       break;
-    case 6:
+    case 7:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setUpdateTime(value);
@@ -7099,25 +7104,32 @@ proto.controller.Formation.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
+  f = message.getScaleRequest();
+  if (f.length > 0) {
+    writer.writeString(
+      2,
+      f
+    );
+  }
   f = message.getState();
   if (f !== 0.0) {
     writer.writeEnum(
-      2,
+      3,
       f
     );
   }
   f = message.getProcessesMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
+    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeInt32);
   }
   f = message.getTagsMap(true);
   if (f && f.getLength() > 0) {
-    f.serializeBinary(4, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
+    f.serializeBinary(5, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.controller.DeploymentProcessTags.serializeBinaryToWriter);
   }
   f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      5,
+      6,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -7125,7 +7137,7 @@ proto.controller.Formation.serializeBinaryToWriter = function(message, writer) {
   f = message.getUpdateTime();
   if (f != null) {
     writer.writeMessage(
-      6,
+      7,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -7149,29 +7161,44 @@ proto.controller.Formation.prototype.setParent = function(value) {
 
 
 /**
- * optional ScaleRequestState state = 2;
+ * optional string scale_request = 2;
+ * @return {string}
+ */
+proto.controller.Formation.prototype.getScaleRequest = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.Formation.prototype.setScaleRequest = function(value) {
+  jspb.Message.setProto3StringField(this, 2, value);
+};
+
+
+/**
+ * optional ScaleRequestState state = 3;
  * @return {!proto.controller.ScaleRequestState}
  */
 proto.controller.Formation.prototype.getState = function() {
-  return /** @type {!proto.controller.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+  return /** @type {!proto.controller.ScaleRequestState} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
 
 /** @param {!proto.controller.ScaleRequestState} value */
 proto.controller.Formation.prototype.setState = function(value) {
-  jspb.Message.setProto3EnumField(this, 2, value);
+  jspb.Message.setProto3EnumField(this, 3, value);
 };
 
 
 /**
- * map<string, int32> processes = 3;
+ * map<string, int32> processes = 4;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,number>}
  */
 proto.controller.Formation.prototype.getProcessesMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,number>} */ (
-      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
       null));
 };
 
@@ -7185,14 +7212,14 @@ proto.controller.Formation.prototype.clearProcessesMap = function() {
 
 
 /**
- * map<string, DeploymentProcessTags> tags = 4;
+ * map<string, DeploymentProcessTags> tags = 5;
  * @param {boolean=} opt_noLazyCreate Do not create the map if
  * empty, instead returning `undefined`
  * @return {!jspb.Map<string,!proto.controller.DeploymentProcessTags>}
  */
 proto.controller.Formation.prototype.getTagsMap = function(opt_noLazyCreate) {
   return /** @type {!jspb.Map<string,!proto.controller.DeploymentProcessTags>} */ (
-      jspb.Message.getMapField(this, 4, opt_noLazyCreate,
+      jspb.Message.getMapField(this, 5, opt_noLazyCreate,
       proto.controller.DeploymentProcessTags));
 };
 
@@ -7206,18 +7233,18 @@ proto.controller.Formation.prototype.clearTagsMap = function() {
 
 
 /**
- * optional google.protobuf.Timestamp create_time = 5;
+ * optional google.protobuf.Timestamp create_time = 6;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.Formation.prototype.getCreateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 6));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.Formation.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 5, value);
+  jspb.Message.setWrapperField(this, 6, value);
 };
 
 
@@ -7234,23 +7261,23 @@ proto.controller.Formation.prototype.clearCreateTime = function() {
  * @return {boolean}
  */
 proto.controller.Formation.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 5) != null;
+  return jspb.Message.getField(this, 6) != null;
 };
 
 
 /**
- * optional google.protobuf.Timestamp update_time = 6;
+ * optional google.protobuf.Timestamp update_time = 7;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.Formation.prototype.getUpdateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 6));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 7));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.Formation.prototype.setUpdateTime = function(value) {
-  jspb.Message.setWrapperField(this, 6, value);
+  jspb.Message.setWrapperField(this, 7, value);
 };
 
 
@@ -7267,7 +7294,7 @@ proto.controller.Formation.prototype.clearUpdateTime = function() {
  * @return {boolean}
  */
 proto.controller.Formation.prototype.hasUpdateTime = function() {
-  return jspb.Message.getField(this, 6) != null;
+  return jspb.Message.getField(this, 7) != null;
 };
 
 

@@ -105,7 +105,7 @@ export default function AppComponent({ name }: Props) {
 				<AccordionPanel label="Release History">
 					<Box pad="medium">
 						<React.Suspense fallback={<Loading />}>
-							<ReleaseHistory appName={app.getName()} currentReleaseName={app.getRelease()} />
+							<ReleaseHistory appName={app.getName()} />
 						</React.Suspense>
 					</Box>
 				</AccordionPanel>

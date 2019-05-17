@@ -10,6 +10,8 @@ import ProcessScale from './ProcessScale';
 import RightOverlay from './RightOverlay';
 
 import useRouter from './useRouter';
+import useApp from './useApp';
+import useAppFormation from './useAppFormation';
 import { listDeploymentsRequestFilterType } from './client';
 import { ClientContext } from './withClient';
 import { handleError } from './withErrorHandler';
@@ -24,6 +26,7 @@ import {
 } from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
+import CreateScaleRequestComponent from './CreateScaleRequest';
 import ReleaseComponent from './Release';
 import { parseURLParams, urlParamsToString, URLParams } from './util/urlParams';
 import protoMapDiff, { Diff, DiffOp, DiffOption } from './util/protoMapDiff';
@@ -140,6 +143,7 @@ function ReleaseHistoryFilters({ location, history, urlParams, filters, ...boxPr
 
 interface ReleaseHistoryReleaseProps extends BoxProps {
 	selected: boolean;
+	isCurrent: boolean;
 	release: Release;
 	prevRelease: Release | null;
 	onChange: (isSelected: boolean) => void;
@@ -149,6 +153,7 @@ function ReleaseHistoryRelease({
 	release: r,
 	prevRelease: p,
 	selected,
+	isCurrent,
 	onChange,
 	...boxProps
 }: ReleaseHistoryReleaseProps) {
@@ -157,6 +162,7 @@ function ReleaseHistoryRelease({
 			<label>
 				<CheckBox
 					checked={selected}
+					indeterminate={!selected && isCurrent}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
 				/>
 				<ReleaseComponent release={r} prevRelease={p} />
@@ -167,11 +173,18 @@ function ReleaseHistoryRelease({
 
 interface ReleaseHistoryScaleProps extends BoxProps {
 	selected: boolean;
+	isCurrent: boolean;
 	scaleRequest: ScaleRequest;
 	onChange: (isSelected: boolean) => void;
 }
 
-function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps }: ReleaseHistoryScaleProps) {
+function ReleaseHistoryScale({
+	scaleRequest: s,
+	selected,
+	isCurrent,
+	onChange,
+	...boxProps
+}: ReleaseHistoryScaleProps) {
 	const releaseID = s.getParent().split('/')[3];
 	const diff = protoMapDiff(s.getOldProcessesMap(), s.getNewProcessesMap(), DiffOption.INCLUDE_UNCHANGED);
 	return (
@@ -179,6 +192,7 @@ function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps 
 			<label>
 				<CheckBox
 					checked={selected}
+					indeterminate={!selected && isCurrent}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
 				/>
 				<div>
@@ -217,7 +231,6 @@ function ReleaseHistoryScale({ scaleRequest: s, selected, onChange, ...boxProps 
 
 export interface Props {
 	appName: string;
-	currentReleaseName: string;
 }
 
 enum SelectedResourceType {
@@ -225,19 +238,35 @@ enum SelectedResourceType {
 	ScaleRequest
 }
 
-export default function ReleaseHistory({ appName, currentReleaseName: initialCurrentReleaseName }: Props) {
-	const [selectedItemName, setSelectedItemName] = React.useState<string>(initialCurrentReleaseName);
+export default function ReleaseHistory({ appName }: Props) {
+	const [isDeploying, setIsDeploying] = React.useState(false);
+
+	const { app, loading: appLoading, error: appError } = useApp(appName);
 	React.useEffect(
 		() => {
-			// select new app release when it changes
-			setSelectedItemName(initialCurrentReleaseName);
+			if (appError) {
+				handleError(appError);
+			}
 		},
-		[initialCurrentReleaseName]
+		[appError]
 	);
-	const [selectedResourceType, setSelectedResourceType] = React.useState<SelectedResourceType>(
-		SelectedResourceType.Release
+
+	const currentReleaseName = React.useMemo(
+		() => {
+			if (!app) return '';
+			return app.getRelease();
+		},
+		[app]
 	);
-	const [selectedScaleRequestDiff, setSelectedScaleRequestDiff] = React.useState<Diff<string, number> | null>(null);
+
+	const [selectedItemName, setSelectedItemName] = React.useState<string>('');
+	React.useEffect(
+		() => {
+			if (!currentReleaseName) return;
+			setSelectedItemName(currentReleaseName);
+		},
+		[currentReleaseName]
+	);
 
 	const { history, location } = useRouter();
 	const urlParams = React.useMemo(() => parseURLParams(location.search), [location.search]);
@@ -325,78 +354,92 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 	);
 
 	// Get current formation
-	const [currentFormation, setCurrentFormation] = React.useState<Formation>(new Formation());
-	const [currentFormationLoading, setCurrentFormationLoading] = React.useState(isScaleEnabled);
+	const {
+		formation: currentFormation,
+		loading: currentFormationLoading,
+		error: currentFormationError
+	} = useAppFormation(appName);
 	React.useEffect(
 		() => {
-			if (!isScaleEnabled) {
-				setCurrentFormationLoading(false);
-				return;
+			if (currentFormationError) {
+				handleError(currentFormationError);
 			}
-
-			const cancel = client.streamAppFormation(appName, (formation: Formation, error: Error | null) => {
-				if (error) {
-					setCurrentFormationLoading(false);
-					return handleError(error);
-				}
-
-				setCurrentFormation(formation);
-				setCurrentFormationLoading(false);
-			});
-			return cancel;
 		},
-		[appName, client, isScaleEnabled]
+		[currentFormationError]
 	);
 
-	const [isDeploying, setIsDeploying] = React.useState(false);
-	const [currentReleaseName, setCurrentReleaseName] = React.useState<string>(initialCurrentReleaseName);
+	const [selectedResourceType, setSelectedResourceType] = React.useState<SelectedResourceType>(
+		SelectedResourceType.Release
+	);
+	const [selectedScaleRequestDiff, setSelectedScaleRequestDiff] = React.useState<Diff<string, number>>([]);
+
+	// keep updated scale request diff
 	React.useEffect(
 		() => {
-			// If props.currentReleaseName changes, use the new value
-			setCurrentReleaseName(initialCurrentReleaseName);
+			if (isDeploying) return;
+
+			if (selectedResourceType === SelectedResourceType.ScaleRequest) {
+				const sr = scaleRequests.find((sr) => sr.getName() === selectedItemName);
+				if (sr) {
+					const diff = protoMapDiff((currentFormation as Formation).getProcessesMap(), sr.getNewProcessesMap());
+					setSelectedScaleRequestDiff(diff);
+					return;
+				}
+			}
+			setSelectedScaleRequestDiff([]);
 		},
-		[initialCurrentReleaseName]
+		[currentFormation, isDeploying, scaleRequests, selectedItemName, selectedResourceType]
 	);
+
 	const [nextFormation, setNextFormation] = React.useState<Formation | null>(null);
+	const [nextReleaseName, setNextReleaseName] = React.useState('');
 	const submitHandler = (e: React.SyntheticEvent) => {
 		e.preventDefault();
+
 		if (selectedItemName === '') {
 			return;
 		}
-		const itemName = selectedItemName;
-		if (itemName.includes('/scale/')) {
+
+		if (selectedResourceType === SelectedResourceType.ScaleRequest) {
 			// It's a scale request we're deploying
-			const sr = scaleRequests.find((sr) => sr.getName() === itemName);
+			const sr = scaleRequests.find((sr) => sr.getName() === selectedItemName);
 			const nextFormation = new Formation();
 			if (!sr) {
 				return;
 			}
+			nextFormation.setParent(sr.getParent());
 			protoMapReplace(nextFormation.getProcessesMap(), sr.getNewProcessesMap());
 			protoMapReplace(nextFormation.getTagsMap(), sr.getNewTagsMap());
-			setIsDeploying(true);
-			setCurrentReleaseName(sr.getParent());
 			setNextFormation(nextFormation);
+			if (selectedItemName.startsWith(currentReleaseName)) {
+				// We're scaling the current release
+				setNextReleaseName(currentReleaseName);
+			} else {
+				// We're deploying and scaling a release
+				setNextReleaseName(sr.getParent());
+			}
+			setIsDeploying(true);
 		} else {
 			// It's a release we're deploying
-			setIsDeploying(true);
-			setCurrentReleaseName(itemName);
+			setNextReleaseName(selectedItemName);
 			setNextFormation(null);
+			setIsDeploying(true);
 		}
 	};
 
 	const handleDeployCancel = () => {
 		setIsDeploying(false);
-		setCurrentReleaseName('');
+		setNextReleaseName('');
 		setNextFormation(null);
 	};
 
-	const handleDeploymentCreate = (deployment: Deployment) => {
+	const handleDeployComplete = (item: Deployment | ScaleRequest) => {
 		setIsDeploying(false);
-		setCurrentReleaseName('');
+		setNextReleaseName('');
 		setNextFormation(null);
 	};
 
-	if (deploymentsLoading || scaleRequestsLoading || currentFormationLoading) {
+	if (deploymentsLoading || scaleRequestsLoading || currentFormationLoading || appLoading) {
 		return <Loading />;
 	}
 
@@ -404,13 +447,25 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 		<>
 			{isDeploying ? (
 				<RightOverlay onClose={handleDeployCancel}>
-					<CreateDeployment
-						appName={appName}
-						releaseName={currentReleaseName}
-						newFormation={nextFormation || undefined}
-						onCancel={handleDeployCancel}
-						onCreate={handleDeploymentCreate}
-					/>
+					{selectedResourceType === SelectedResourceType.ScaleRequest &&
+					nextReleaseName &&
+					nextReleaseName === currentReleaseName &&
+					nextFormation ? (
+						<CreateScaleRequestComponent
+							appName={appName}
+							nextFormation={nextFormation}
+							onCancel={handleDeployCancel}
+							onCreate={handleDeployComplete}
+						/>
+					) : (
+						<CreateDeployment
+							appName={appName}
+							releaseName={nextReleaseName}
+							newFormation={nextFormation || undefined}
+							onCancel={handleDeployCancel}
+							onCreate={handleDeployComplete}
+						/>
+					)}
 				</RightOverlay>
 			) : null}
 
@@ -434,15 +489,14 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 								release={r}
 								prevRelease={p}
 								selected={selectedItemName === r.getName()}
+								isCurrent={currentReleaseName === r.getName()}
 								onChange={(isSelected) => {
 									if (isSelected) {
 										setSelectedItemName(r.getName());
 										setSelectedResourceType(SelectedResourceType.Release);
-										setSelectedScaleRequestDiff(null);
 									} else {
 										setSelectedItemName(currentReleaseName);
 										setSelectedResourceType(SelectedResourceType.Release);
-										setSelectedScaleRequestDiff(null);
 									}
 								}}
 							/>
@@ -454,19 +508,14 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 								margin={{ bottom: 'small' }}
 								scaleRequest={s}
 								selected={selectedItemName === s.getName()}
+								isCurrent={currentFormation ? currentFormation.getScaleRequest() === s.getName() : false}
 								onChange={(isSelected) => {
 									if (isSelected) {
-										const diff = protoMapDiff(
-											(currentFormation as Formation).getProcessesMap(),
-											s.getNewProcessesMap()
-										);
 										setSelectedItemName(s.getName());
 										setSelectedResourceType(SelectedResourceType.ScaleRequest);
-										setSelectedScaleRequestDiff(diff);
 									} else {
 										setSelectedItemName(currentReleaseName);
 										setSelectedResourceType(SelectedResourceType.Release);
-										setSelectedScaleRequestDiff(null);
 									}
 								}}
 							/>
@@ -474,13 +523,11 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 					)}
 				</Box>
 
-				{selectedItemName === currentReleaseName ? (
-					<Button disabled primary icon={<CheckmarkIcon />} label="Deploy Release" />
-				) : selectedResourceType === SelectedResourceType.ScaleRequest ? (
+				{selectedResourceType === SelectedResourceType.ScaleRequest ? (
 					selectedItemName.startsWith(currentReleaseName) ? (
 						<Button
 							type="submit"
-							disabled={(selectedScaleRequestDiff as Diff<string, number>).length > 0}
+							disabled={(selectedScaleRequestDiff as Diff<string, number>).length === 0}
 							primary
 							icon={<CheckmarkIcon />}
 							label="Scale Release"
@@ -489,7 +536,13 @@ export default function ReleaseHistory({ appName, currentReleaseName: initialCur
 						<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release / Scale" />
 					)
 				) : (
-					<Button type="submit" primary icon={<CheckmarkIcon />} label="Deploy Release" />
+					<Button
+						type="submit"
+						disabled={selectedItemName === currentReleaseName}
+						primary
+						icon={<CheckmarkIcon />}
+						label="Deploy Release"
+					/>
 				)}
 			</form>
 		</>

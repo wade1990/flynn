@@ -1,16 +1,17 @@
 import * as React from 'react';
 import { Checkmark as CheckmarkIcon } from 'grommet-icons';
 import { Box, Button } from 'grommet';
-import Value from './Value';
 
 import { Release, Formation, Deployment, CreateScaleRequest } from './generated/controller_pb';
 import { handleError } from './withErrorHandler';
 import useClient from './useClient';
 import useAppRelease from './useAppRelease';
+import useAppFormation from './useAppFormation';
 import useRelease from './useRelease';
 import useCallIfMounted from './useCallIfMounted';
 import Loading from './Loading';
 import ReleaseComponent from './Release';
+import ProcessesDiff from './ProcessesDiff';
 import protoMapReplace from './util/protoMapReplace';
 
 interface Props {
@@ -29,25 +30,30 @@ export default function CreateDeployment(props: Props) {
 	const { release: currentRelease, loading: currentReleaseLoading, error: currentReleaseError } = useAppRelease(
 		props.appName
 	);
+	const {
+		formation: currentFormation,
+		loading: currentFormationLoading,
+		error: currentFormationError
+	} = useAppFormation(props.appName);
 	const { release: nextRelease, loading: nextReleaseLoading, error: nextReleaseError } = useRelease(
 		props.releaseName || ''
 	);
 	const isLoading = React.useMemo(
 		() => {
-			return currentReleaseLoading || nextReleaseLoading;
+			return currentReleaseLoading || nextReleaseLoading || currentFormationLoading;
 		},
-		[currentReleaseLoading, nextReleaseLoading]
+		[currentReleaseLoading, nextReleaseLoading, currentFormationLoading]
 	);
 	const [isCreating, setIsCreating] = React.useState(false);
 
 	React.useEffect(
 		() => {
-			const error = currentReleaseError || nextReleaseError;
+			const error = currentReleaseError || nextReleaseError || currentFormationError;
 			if (error) {
 				handleError(error);
 			}
 		},
-		[currentReleaseError, nextReleaseError]
+		[currentReleaseError, nextReleaseError, currentFormationError]
 	);
 
 	const callIfMounted = useCallIfMounted();
@@ -122,7 +128,7 @@ export default function CreateDeployment(props: Props) {
 	if (isLoading) return <Loading />;
 
 	if (!(nextRelease || newRelease)) {
-		throw new Error('<CreateDeployment> Error: invalid `releaseName` or `newRelease` prop');
+		return null;
 	}
 
 	return (
@@ -130,7 +136,16 @@ export default function CreateDeployment(props: Props) {
 			<Box>
 				<h3>Review Changes</h3>
 				<ReleaseComponent release={(nextRelease || newRelease) as Release} prevRelease={currentRelease} />
-				{newFormation ? renderFormation(newFormation) : null}
+
+				{currentFormation && newFormation ? (
+					<ProcessesDiff
+						align="center"
+						direction="column"
+						margin="small"
+						formation={currentFormation}
+						nextFormation={newFormation}
+					/>
+				) : null}
 			</Box>
 
 			<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
@@ -150,23 +165,6 @@ export default function CreateDeployment(props: Props) {
 					}}
 				/>
 			</Box>
-		</Box>
-	);
-}
-
-function renderFormation(f: Formation): React.ReactNode {
-	return (
-		<Box direction="column">
-			{f
-				.getProcessesMap()
-				.toArray()
-				.map(([k, v]: [string, number]) => {
-					return (
-						<Box key={k} align="center" border="right">
-							<Value value={v} label={k} size="small" />
-						</Box>
-					);
-				})}
 		</Box>
 	);
 }

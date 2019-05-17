@@ -7,7 +7,8 @@ import useAppFormation from './useAppFormation';
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
 import ProcessScale from './ProcessScale';
-import protoMapDiff, { applyProtoMapDiff, Diff, DiffOp, DiffOption } from './util/protoMapDiff';
+import ProcessesDiff from './ProcessesDiff';
+import protoMapDiff, { applyProtoMapDiff, Diff } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { Formation, ScaleRequest, ScaleRequestState, CreateScaleRequest } from './generated/controller_pb';
 
@@ -21,17 +22,6 @@ interface Props {
 	appName: string;
 }
 
-interface State {
-	formation: Formation | null;
-	processes: [string, number][];
-	processesDiff: Diff<string, number>;
-	processesFullDiff: Diff<string, number>; // includes keep entries for rendering
-	hasChanges: boolean;
-	isLoading: boolean;
-	isConfirming: boolean;
-	isCreating: boolean;
-}
-
 export default function FormationEditor({ appName }: Props) {
 	const client = useClient();
 	const { formation, loading: isLoading, error: formationError } = useAppFormation(appName);
@@ -40,7 +30,6 @@ export default function FormationEditor({ appName }: Props) {
 	);
 	const [processes, setProcesses] = React.useState<[string, number][]>([]);
 	const [processesDiff, setProcessesDiff] = React.useState<Diff<string, number>>([]);
-	const [processesFullDiff, setProcessesFullDiff] = React.useState<Diff<string, number>>([]); // includes keep entries for rendering
 	const [hasChanges, setHasChanges] = React.useState(false);
 	const [isConfirming, setIsConfirming] = React.useState(false);
 	const [isCreating, setIsCreating] = React.useState(false);
@@ -75,16 +64,20 @@ export default function FormationEditor({ appName }: Props) {
 	React.useEffect(
 		() => {
 			const diff = protoMapDiff(initialProcesses, new jspb.Map(processes));
-			const fullDiff = protoMapDiff(
-				(formation || new Formation()).getProcessesMap(),
-				new jspb.Map(processes),
-				DiffOption.INCLUDE_UNCHANGED
-			);
 			setProcessesDiff(diff);
-			setProcessesFullDiff(fullDiff);
 			setHasChanges(diff.length > 0);
 		},
 		[processes] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+
+	// used to render diff
+	const nextFormation = React.useMemo(
+		() => {
+			const f = new Formation();
+			protoMapReplace(f.getProcessesMap(), new jspb.Map(processes));
+			return f;
+		},
+		[processes]
 	);
 
 	function handleProcessChange(key: string, val: number) {
@@ -134,44 +127,14 @@ export default function FormationEditor({ appName }: Props) {
 
 	return (
 		<form onSubmit={isConfirming ? handleConfirmSubmit : handleSubmit}>
-			<Box direction="row" gap="small">
-				{isConfirming || isCreating || isPending ? (
-					processesFullDiff.reduce(
-						(m: React.ReactNodeArray, op: DiffOp<string, number>) => {
-							const key = op.key;
-							let startVal = formation.getProcessesMap().get(key) || 0;
-							let val = op.value || 0;
-							if (op.op === 'remove') {
-								return m;
-							}
-							if (op.op === 'keep') {
-								val = startVal;
-							}
-							let delta = val - startVal;
-							let sign = '+';
-							if (delta < 0) {
-								sign = '-';
-							}
-							if (isPending) {
-								// don't show delta
-								delta = 0;
-							} else {
-								delta = Math.abs(delta);
-							}
-							m.push(
-								<Box align="center" key={key}>
-									<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
-								</Box>
-							);
-							return m;
-						},
-						[] as React.ReactNodeArray
-					)
-				) : processes.length === 0 ? (
-					<Text color="dark-2">&lt;No processes&gt;</Text>
-				) : (
-					processes.map(([key, val]: [string, number]) => {
-						return (
+			{isConfirming || isCreating || isPending ? (
+				<ProcessesDiff formation={formation} nextFormation={nextFormation} />
+			) : (
+				<Box direction="row" gap="small">
+					{processes.length === 0 ? (
+						<Text color="dark-2">&lt;No processes&gt;</Text>
+					) : (
+						processes.map(([key, val]: [string, number]) => (
 							<Box align="center" key={key}>
 								<ProcessScale
 									value={val}
@@ -182,10 +145,10 @@ export default function FormationEditor({ appName }: Props) {
 									}}
 								/>
 							</Box>
-						);
-					})
-				)}
-			</Box>
+						))
+					)}
+				</Box>
+			)}
 			<br />
 			<br />
 			{hasChanges && !isPending ? (
@@ -198,7 +161,7 @@ export default function FormationEditor({ appName }: Props) {
 							label="Cancel"
 							onClick={(e: React.SyntheticEvent) => {
 								e.preventDefault();
-								setIsConfirming(true);
+								setIsConfirming(false);
 							}}
 						/>
 					</>

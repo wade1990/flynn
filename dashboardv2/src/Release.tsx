@@ -41,7 +41,7 @@ export default function ReleaseComponent({ release, prevRelease: prev }: Release
 		.split('/')
 		.slice(-1)[0];
 	return (
-		<Box fill>
+		<Box flex="grow">
 			{releaseID ? (
 				<>
 					Release {releaseID}

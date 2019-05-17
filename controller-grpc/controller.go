@@ -713,6 +713,12 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 				formation.State = ScaleRequestState_SCALE_CANCELLED
 			}
 		}
+
+		var scaleReqID string
+		if err := s.DB.QueryRow(`SELECT scale_request_id from scale_requests as sr WHERE sr.app_id = $1 AND sr.release_id = $2 ORDER BY sr.updated_at DESC`, appID, releaseID).Scan(&scaleReqID); err != nil {
+			return fmt.Errorf("Error fetching scale request id: %v", err)
+		}
+		formation.ScaleRequest = fmt.Sprintf("apps/%s/releases/%s/scale/%s", appID, releaseID, scaleReqID)
 		return nil
 	}
 
