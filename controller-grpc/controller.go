@@ -264,30 +264,42 @@ func (s *server) StreamApp(req *GetAppRequest, stream Controller_StreamAppServer
 		return err
 	}
 
+	errChan := make(chan error, 1)
+	defer close(errChan)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			if err := refreshApp(); err != nil {
-				// TODO(jvatic): Handle error
-				fmt.Printf("StreamApp(%q): Error refreshing app: %s\n", req.Name, err)
+				errChan <- convertError(err, "Error refreshing app(%q): %s", req.Name, err)
+				return
 			} else {
 				sendResponse()
 			}
 
 			// wait for events before refreshing app and sending respond again
 			if _, ok := <-events; !ok {
+				errChan <- nil
 				break
 			}
 		}
 	}()
 	wg.Wait()
 
-	if err := eventStream.Close(); err != nil {
+	if err := <-errChan; err != nil {
+		eventStream.Close()
 		return err
 	}
 
-	return eventStream.Err()
+	if err := eventStream.Close(); err != nil {
+		return convertError(err, err.Error())
+	}
+
+	if err := eventStream.Err(); err != nil {
+		return convertError(err, err.Error())
+	}
+
+	return nil
 }
 
 func backConvertApp(a *App) *ct.App {
@@ -495,18 +507,16 @@ func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_S
 	}
 
 	errChan := make(chan error, 1)
+	defer close(errChan)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			if err := refreshRelease(); err != nil {
-				errCode := codes.Unknown
-				if err == controller.ErrNotFound {
-					errCode = codes.NotFound
-				} else {
+				if err != controller.ErrNotFound {
 					fmt.Printf("StreamAppRelease(%q): Error refreshing app release: %s\n", req.Parent, err)
 				}
-				errChan <- grpc.Errorf(errCode, "Error fetching app(%q) release: %s", req.Parent, err)
+				errChan <- convertError(err, "Error fetching app(%q) release: %s", req.Parent, err)
 				return
 			} else {
 				sendResponse()
@@ -527,10 +537,14 @@ func (s *server) StreamAppRelease(req *GetAppReleaseRequest, stream Controller_S
 	}
 
 	if err := eventStream.Close(); err != nil {
-		return err
+		return convertError(err, err.Error())
 	}
 
-	return eventStream.Err()
+	if err := eventStream.Err(); err != nil {
+		return convertError(err, err.Error())
+	}
+
+	return nil
 }
 
 func convertScaleRequest(ctScaleReq *ct.ScaleRequest) *ScaleRequest {
@@ -677,6 +691,14 @@ func convertFormation(ctFormation *ct.Formation) *Formation {
 	}
 }
 
+func convertError(err error, message string, args ...interface{}) error {
+	errCode := codes.Unknown
+	if err == controller.ErrNotFound {
+		errCode = codes.NotFound
+	}
+	return grpc.Errorf(errCode, fmt.Sprintf(message, args...))
+}
+
 func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controller_StreamAppFormationServer) error {
 	appID := parseIDFromName(req.Parent, "apps")
 
@@ -684,7 +706,7 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 	var releaseIDMtx sync.RWMutex
 	ctRelease, err := s.Client.GetAppRelease(appID)
 	if err != nil {
-		return err
+		return convertError(err, "Error fetching current app release(%q): %s", req.Parent, err)
 	}
 	releaseID = ctRelease.ID
 
@@ -738,20 +760,17 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest, ct.EventTypeAppRelease},
 	}, events)
 	if err != nil {
-		return err
+		return convertError(err, err.Error())
 	}
 
 	errChan := make(chan error, 1)
+	defer close(errChan)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			if err := refreshFormation(); err != nil {
-				errCode := codes.Unknown
-				if err == controller.ErrNotFound {
-					errCode = codes.NotFound
-				}
-				errChan <- grpc.Errorf(errCode, "Error fetching current app formation(\"apps/%s/releases/%s\"): %s", appID, releaseID, err)
+				errChan <- convertError(err, "Error fetching current app formation(%q): %s", req.Parent, err)
 				return
 			}
 			sendResponse()
@@ -778,10 +797,14 @@ func (s *server) StreamAppFormation(req *GetAppFormationRequest, stream Controll
 	}
 
 	if err := eventStream.Close(); err != nil {
-		return err
+		return convertError(err, err.Error())
 	}
 
-	return eventStream.Err()
+	if err := eventStream.Err(); err != nil {
+		return convertError(err, err.Error())
+	}
+
+	return nil
 }
 
 func (s *server) GetRelease(ctx context.Context, req *GetReleaseRequest) (*Release, error) {
