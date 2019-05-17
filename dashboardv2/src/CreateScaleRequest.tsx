@@ -25,6 +25,7 @@ export default function CreateScaleRequestComponent({ appName, nextFormation, on
 	const { formation, loading: isLoading, error: formationError } = useAppFormation(appName);
 	const [hasChanges, setHasChanges] = React.useState(true);
 	const [isCreating, setIsCreating] = React.useState(false);
+	const [isScaleToZeroConfirmed, setIsScaleToZeroConfirmed] = React.useState(false);
 
 	React.useEffect(
 		() => {
@@ -76,13 +77,19 @@ export default function CreateScaleRequestComponent({ appName, nextFormation, on
 			<Box>
 				<h3>Review Changes</h3>
 
-				<ProcessesDiff margin="small" align="center" formation={formation} nextFormation={nextFormation} />
+				<ProcessesDiff
+					margin="small"
+					align="center"
+					formation={formation}
+					nextFormation={nextFormation}
+					onConfirmScaleToZeroChange={(c) => setIsScaleToZeroConfirmed(c)}
+				/>
 			</Box>
 
 			<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
 				<Button
 					type="submit"
-					disabled={isCreating || !hasChanges}
+					disabled={isCreating || !hasChanges || !isScaleToZeroConfirmed}
 					primary
 					icon={<CheckmarkIcon />}
 					label={isCreating ? 'Creating Scale Request...' : 'Create Scale Request'}

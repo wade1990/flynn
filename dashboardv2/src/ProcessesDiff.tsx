@@ -8,9 +8,17 @@ import { Formation, ScaleRequestState } from './generated/controller_pb';
 interface Props extends BoxProps {
 	formation: Formation;
 	nextFormation: Formation;
+	confirmScaleToZero?: boolean;
+	onConfirmScaleToZeroChange?: (confirmed: boolean) => void;
 }
 
-export default function ProcessesDiff({ formation, nextFormation, ...boxProps }: Props) {
+export default function ProcessesDiff({
+	formation,
+	nextFormation,
+	confirmScaleToZero = true,
+	onConfirmScaleToZeroChange = () => {},
+	...boxProps
+}: Props) {
 	const [processesFullDiff, setProcessesFullDiff] = React.useState<Diff<string, number>>([]);
 	React.useEffect(
 		// keep up-to-date full diff of processes
@@ -28,6 +36,37 @@ export default function ProcessesDiff({ formation, nextFormation, ...boxProps }:
 
 	const isPending = formation.getState() === ScaleRequestState.SCALE_PENDING;
 
+	const [isScaleToZeroConfirmed, setIsScaleToZeroConfirmed] = React.useState<boolean | null>(null);
+	const [scaleToZeroConfirmed, setScaleToZeroConfirmed] = React.useState(new Map<string, boolean>());
+	const scaleToZeroConfirmationRequired = React.useMemo(
+		() => {
+			const keys = new Set<string>();
+			if (!confirmScaleToZero) return keys;
+			processesFullDiff.forEach((op) => {
+				if (op.op === 'remove' || op.value === 0) {
+					keys.add(op.key);
+				}
+			});
+			return keys;
+		},
+		[confirmScaleToZero, processesFullDiff]
+	);
+	React.useEffect(
+		() => {
+			let isConfirmed = true;
+			for (let k of scaleToZeroConfirmationRequired) {
+				if (scaleToZeroConfirmed.get(k) !== true) {
+					isConfirmed = false;
+				}
+			}
+			if (isScaleToZeroConfirmed !== isConfirmed || isScaleToZeroConfirmed === null) {
+				setIsScaleToZeroConfirmed(isConfirmed);
+				onConfirmScaleToZeroChange(isConfirmed);
+			}
+		},
+		[onConfirmScaleToZeroChange, scaleToZeroConfirmationRequired, scaleToZeroConfirmed] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+
 	return (
 		<Box direction="row" gap="small" {...boxProps}>
 			{processesFullDiff.reduce(
@@ -41,20 +80,21 @@ export default function ProcessesDiff({ formation, nextFormation, ...boxProps }:
 					if (op.op === 'keep') {
 						val = startVal;
 					}
-					let delta = val - startVal;
-					let sign = '+';
-					if (delta < 0) {
-						sign = '-';
-					}
-					if (isPending) {
-						// don't show delta
-						delta = 0;
-					} else {
-						delta = Math.abs(delta);
-					}
 					m.push(
 						<Box align="center" key={key}>
-							<ProcessScale value={val} label={delta !== 0 ? `${key} (${sign}${delta})` : key} />
+							<ProcessScale
+								confirmScaleToZero={confirmScaleToZero}
+								scaleToZeroConfirmed={scaleToZeroConfirmed.get(key)}
+								onConfirmChange={(isConfirmed) => {
+									const nextScaleToZeroConfirmed = new Map(scaleToZeroConfirmed);
+									nextScaleToZeroConfirmed.set(key, isConfirmed);
+									setScaleToZeroConfirmed(nextScaleToZeroConfirmed);
+								}}
+								value={val}
+								originalValue={startVal}
+								showDelta={!isPending}
+								label={key}
+							/>
 						</Box>
 					);
 					return m;

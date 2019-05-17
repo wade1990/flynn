@@ -2,7 +2,7 @@ import * as React from 'react';
 import { debounce } from 'lodash';
 import styled from 'styled-components';
 import { LinkUp as LinkUpIcon, LinkDown as LinkDownIcon } from 'grommet-icons';
-import { Text, Box, BoxProps, Button } from 'grommet';
+import { Text, Box, BoxProps, Button, CheckBox } from 'grommet';
 
 export const valueCSS = (size: string) => `
 	font-size: ${size === 'small' ? '2em' : '4em'};
@@ -37,10 +37,15 @@ export const LabelText = styled(Text)`
 
 export interface Props extends BoxProps {
 	value: number;
+	originalValue?: number;
+	showDelta?: boolean;
 	label: string;
 	size?: 'small' | 'large';
 	editable?: boolean;
 	onChange?: (value: number) => void;
+	onConfirmChange?: (scaleToZeroConfirmed: boolean) => void;
+	confirmScaleToZero?: boolean;
+	scaleToZeroConfirmed?: boolean;
 }
 
 /*
@@ -58,13 +63,31 @@ export interface Props extends BoxProps {
  */
 export default function ProcessScale({
 	value: initialValue,
+	originalValue = 0,
+	showDelta = false,
 	label,
 	size = 'large',
 	editable = false,
 	onChange = () => {},
+	onConfirmChange = () => {},
+	confirmScaleToZero = false,
+	scaleToZeroConfirmed = false,
 	...boxProps
 }: Props) {
 	const [value, setValue] = React.useState(initialValue);
+
+	const labelWithDelta = React.useMemo(
+		() => {
+			let delta = value - originalValue;
+			let sign = '+';
+			if (delta < 0) {
+				sign = '-';
+			}
+			delta = Math.abs(delta);
+			return delta !== 0 ? `${label} (${sign}${delta})` : label;
+		},
+		[label, originalValue, value]
+	);
 
 	// Handle rapid changes as single change
 	const onChangeDebounced = React.useMemo(
@@ -145,8 +168,16 @@ export default function ProcessScale({
 						<Button icon={<LinkDownIcon />} onClick={() => setValue(handleDecrement)} />
 					</Box>
 				) : null}
+				{confirmScaleToZero && value === 0 ? (
+					<Box>
+						<CheckBox
+							checked={scaleToZeroConfirmed}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => onConfirmChange(e.target.checked)}
+						/>
+					</Box>
+				) : null}
 			</Box>
-			<LabelText>{label}</LabelText>
+			<LabelText>{showDelta ? labelWithDelta : label}</LabelText>
 		</Box>
 	);
 }

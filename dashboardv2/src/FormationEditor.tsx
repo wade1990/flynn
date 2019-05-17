@@ -33,6 +33,7 @@ export default function FormationEditor({ appName }: Props) {
 	const [hasChanges, setHasChanges] = React.useState(false);
 	const [isConfirming, setIsConfirming] = React.useState(false);
 	const [isCreating, setIsCreating] = React.useState(false);
+	const [isScaleToZeroConfirmed, setIsScaleToZeroConfirmed] = React.useState(false);
 
 	React.useEffect(
 		() => {
@@ -128,7 +129,11 @@ export default function FormationEditor({ appName }: Props) {
 	return (
 		<form onSubmit={isConfirming ? handleConfirmSubmit : handleSubmit}>
 			{isConfirming || isCreating || isPending ? (
-				<ProcessesDiff formation={formation} nextFormation={nextFormation} />
+				<ProcessesDiff
+					formation={formation}
+					nextFormation={nextFormation}
+					onConfirmScaleToZeroChange={(c) => setIsScaleToZeroConfirmed(c)}
+				/>
 			) : (
 				<Box direction="row" gap="small">
 					{processes.length === 0 ? (
@@ -154,7 +159,12 @@ export default function FormationEditor({ appName }: Props) {
 			{hasChanges && !isPending ? (
 				isConfirming ? (
 					<>
-						<Button type="submit" primary={true} label="Confirm and Create Scale Request" />
+						<Button
+							type="submit"
+							primary={true}
+							label="Confirm and Create Scale Request"
+							disabled={!isScaleToZeroConfirmed}
+						/>
 						&nbsp;
 						<Button
 							type="button"

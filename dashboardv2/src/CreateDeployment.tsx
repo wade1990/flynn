@@ -45,6 +45,7 @@ export default function CreateDeployment(props: Props) {
 		[currentReleaseLoading, nextReleaseLoading, currentFormationLoading]
 	);
 	const [isCreating, setIsCreating] = React.useState(false);
+	const [isScaleToZeroConfirmed, setIsScaleToZeroConfirmed] = React.useState(!props.newFormation);
 
 	React.useEffect(
 		() => {
@@ -144,6 +145,7 @@ export default function CreateDeployment(props: Props) {
 						margin="small"
 						formation={currentFormation}
 						nextFormation={newFormation}
+						onConfirmScaleToZeroChange={(c) => setIsScaleToZeroConfirmed(c)}
 					/>
 				) : null}
 			</Box>
@@ -151,7 +153,7 @@ export default function CreateDeployment(props: Props) {
 			<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
 				<Button
 					type="submit"
-					disabled={isCreating}
+					disabled={isCreating || !isScaleToZeroConfirmed}
 					primary
 					icon={<CheckmarkIcon />}
 					label={isCreating ? 'Deploying...' : 'Deploy'}
