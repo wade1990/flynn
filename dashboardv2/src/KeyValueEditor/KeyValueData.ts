@@ -1,224 +1,524 @@
-import * as jspb from 'google-protobuf';
-import fz from 'fz';
-import protoMapDiff, { mergeProtoMapDiff, Diff, DiffOp, DiffConflict } from '../util/protoMapDiff';
-
-export type Entries = jspb.Map<string, string>;
-
-function entriesEqual(a: [string, string], b: [string, string]): boolean {
-	return a && b && a[0] === b[0] && a[1] === b[1];
+export interface EntryState {
+	originalKey?: string;
+	originalValue?: string;
+	deleted?: boolean;
+	_replaced?: boolean;
+	rebaseConflict?: [DiffEntry, DiffEntry];
+	rebaseConflictIndex?: number;
+}
+export type Entry = [string, string, EntryState]; // key, val, state
+export interface Data {
+	_entries: Entry[];
+	_indices: Set<number>;
+	_indicesMap: Map<string, number>;
+	_changedIndices: Set<number>;
+	_deletedLength: number;
+	_filterPattern?: string;
+	length: number;
+	hasChanges: boolean;
+	conflicts?: [DiffEntry, DiffEntry][];
 }
 
-interface KeyValueDataInternalState {
-	originalEntries: Entries;
-	uniqueKeyMap: { [key: string]: number };
-	filterText: string;
-	deletedIndices: { [key: number]: boolean };
-	changedIndices: { [key: number]: boolean };
-	conflicts: DiffConflict<string, string>[];
-	conflictKeys: Set<string>;
+export interface DiffEntry {
+	op: 'keep' | 'remove' | 'add' | 'replace';
+	// keep is used when an `Entry`'s originalKey/originalValue is equal to it's
+	// present key/val
+	//
+	// remove is used when an `Entry`'s state.deleted === true
+	// add is used when an `Entry`'s originalKey is undefined
+	//
+	// replace is used when an `Entry`'s originalKey or originalValue is not
+	// equal to it's present key/val
+
+	prev: [string, string]; // key, val
+	next: [string, string]; // key, val
+}
+export type Diff = DiffEntry[];
+
+export function buildData(base: [string, string][]): Data {
+	const _entries = [] as Entry[];
+	const _indices = new Set<number>();
+	const _indicesMap = new Map<string, number>();
+
+	base.forEach(([key, val]: [string, string], index: number) => {
+		_indices.add(index);
+		_indicesMap.set(key, index);
+		_entries.push([key, val, { originalKey: key, originalValue: val }]);
+	});
+
+	return {
+		_entries,
+		_indices,
+		_indicesMap,
+		_changedIndices: new Set<number>(),
+		_deletedLength: 0,
+		length: _entries.length,
+		hasChanges: false
+	};
 }
 
-export class KeyValueData {
-	public length: number;
-	public deletedLength: number;
-	public hasChanges: boolean;
-	private _entries: Entries;
-	private _state: KeyValueDataInternalState;
+// TODO(jvatic): actually make this apply
+export function filterData(data: Data, filterPattern: string): Data {
+	return Object.assign({}, data, { _filterPattern: filterPattern });
+}
 
-	constructor(entries: Entries, state: KeyValueDataInternalState | null = null) {
-		this._entries = entries;
-		this._state = state
-			? state
-			: {
-					originalEntries: entries,
-					changedIndices: {},
-					deletedIndices: {},
-					uniqueKeyMap: entries
-						.toArray()
-						.reduce((m: { [key: string]: number }, [key, value]: [string, string], index: number) => {
-							m[key] = index;
-							return m;
-						}, {}),
-					filterText: '',
-					conflicts: [],
-					conflictKeys: new Set<string>([])
-			  };
-		this.length = entries.getLength();
-		this.deletedLength = 0;
-		this.hasChanges = false;
-		this._setDeletedLength();
+export function setKeyAtIndex(data: Data, key: string, index: number): Data {
+	if (index === data._entries.length) {
+		return appendKey(data, key);
 	}
 
-	public rebase(entries: Entries): KeyValueData {
-		const [diff, conflicts, conflictKeys] = mergeProtoMapDiff(
-			protoMapDiff(this._state.originalEntries, entries),
-			this.getDiff()
-		);
-		const data = new KeyValueData(
-			this._entries,
-			Object.assign({}, this._state, { originalEntries: entries, conflicts, conflictKeys })
-		);
-		data.applyDiff(diff);
-		return data;
+	if (!data._indices.has(index)) throw new Error(`setKeyAtIndex Error: index "${index}" out of bounds`);
+
+	const isDeleted = key.length === 0;
+	let [prevKey, val, state] = data._entries[index];
+
+	if (state.deleted) return data;
+
+	// nothing to do, key is already set
+	if (key === prevKey) return data;
+
+	const originalIndex = data._indicesMap.has(key) ? data._indicesMap.get(key) : undefined;
+	const [originalKey = undefined, originalValue = undefined, originalState = undefined] =
+		originalIndex !== undefined ? data._entries[originalIndex] : [];
+	if (originalState) {
+		// we're using the same key as an existing entry, so inherit it's state
+		state = Object.assign({}, originalState);
+		delete state.deleted;
+		delete state._replaced;
 	}
 
-	public hasConflicts(): boolean {
-		return this._state.conflicts.length > 0;
+	const nextData = Object.assign(
+		{},
+		data,
+		{ hasChanges: true, _indicesMap: new Map(data._indicesMap), _changedIndices: new Set(data._changedIndices) },
+		isDeleted ? { length: data.length - 1, _deletedLength: data._deletedLength + 1 } : {}
+	);
+
+	nextData._indicesMap.set(key, index);
+
+	if (originalIndex !== undefined) {
+		nextData._changedIndices.delete(originalIndex);
+	}
+	if (key === originalKey && val === originalValue) {
+		// entry is at it's original state
+		nextData._changedIndices.delete(index);
+	} else {
+		// entry is changed
+		nextData._changedIndices.add(index);
+	}
+	nextData.hasChanges = nextData._changedIndices.size > 0;
+
+	nextData._entries = data._entries
+		.slice(0, index)
+		.concat([[key, val, Object.assign({}, state, isDeleted ? { deleted: true } : {})]])
+		.concat(data._entries.slice(index + 1));
+
+	if (originalIndex !== undefined && originalIndex !== index && originalState) {
+		// we're using the same key as an existing entry, so delete the existing entry
+		nextData._entries[originalIndex][2] = Object.assign({}, originalState, { deleted: true, _replaced: true });
 	}
 
-	public hasConflict(key: string): boolean {
-		return this._state.conflictKeys.has(key);
+	return nextData;
+}
+
+export function appendKey(data: Data, key: string): Data {
+	const [, val, state] = ['', '', {} as EntryState];
+	const nextData = Object.assign({}, data, { hasChanges: true, length: data.length + 1 });
+
+	const originalIndex = data._indicesMap.has(key) ? data._indicesMap.get(key) : undefined;
+	const [, value = undefined, originalState = undefined] =
+		originalIndex !== undefined ? data._entries[originalIndex] : [];
+	if (originalState) {
+		// we're using the same key as an existing entry, so inherit it's state
+		Object.assign(state, originalState);
+		delete state.deleted;
+		delete state._replaced;
 	}
 
-	public dup(): KeyValueData {
-		return new KeyValueData(this._entries, Object.assign({}, this._state));
+	const index = data._entries.length;
+	nextData._entries = data._entries.concat([[key, val, state]]);
+	nextData._indices = new Set(data._indices);
+	nextData._indices.add(index);
+	nextData._indicesMap = new Map(nextData._indicesMap);
+	nextData._indicesMap.set(key, index);
+	nextData._changedIndices = new Set(data._changedIndices);
+	nextData._changedIndices.add(index);
+
+	if (originalIndex !== undefined) {
+		nextData._changedIndices.delete(originalIndex);
+	}
+	nextData._changedIndices.add(index);
+
+	if (originalIndex !== undefined && originalState) {
+		// we're using the same key as an existing entry, so delete the existing entry
+		if (!originalState.deleted) {
+			nextData._entries[originalIndex][2] = Object.assign({}, originalState, { deleted: true, _replaced: true });
+			nextData.length--;
+		}
+
+		if (key === state.originalKey && value === state.originalValue) {
+			// entry is at it's original state
+			nextData._changedIndices.delete(index);
+		}
 	}
 
-	public filtered(filterText: string): KeyValueData {
-		return new KeyValueData(this._entries, Object.assign({}, this._state, { filterText }));
+	nextData.hasChanges = nextData._changedIndices.size > 0;
+
+	return nextData;
+}
+
+export function setValueAtIndex(data: Data, value: string, index: number): Data {
+	if (index === data._entries.length) {
+		return appendValue(data, value);
+	}
+	if (!data._indices.has(index)) throw new Error(`setValueAtIndex Error: index "${index}" out of bounds`);
+
+	let [key, , state] = data._entries[index];
+
+	if (state.deleted) return data;
+
+	const rebaseConflictIndex = state.rebaseConflictIndex;
+	if (state.rebaseConflict && value === state.originalValue) {
+		state = Object.assign({}, state);
+		delete state.rebaseConflict;
+		delete state.rebaseConflictIndex;
 	}
 
-	public get(key: string): string | undefined {
-		return this._entries.get(key);
+	const nextData = Object.assign({}, data, { hasChanges: true, _changedIndices: new Set(data._changedIndices) });
+
+	if (key === state.originalKey && value === state.originalValue) {
+		// entry is at it's original state
+		nextData._changedIndices.delete(index);
+	} else {
+		// entry is changed
+		nextData._changedIndices.add(index);
+	}
+	nextData.hasChanges = nextData._changedIndices.size > 0;
+
+	nextData._entries = data._entries
+		.slice(0, index)
+		.concat([[key, value, state]])
+		.concat(data._entries.slice(index + 1));
+
+	if (rebaseConflictIndex !== undefined && nextData.conflicts) {
+		nextData.conflicts = nextData.conflicts
+			.slice(0, rebaseConflictIndex)
+			.concat(nextData.conflicts.slice(rebaseConflictIndex + 1));
 	}
 
-	public getOriginal(key: string): string | undefined {
-		return this._state.originalEntries.get(key);
-	}
+	return nextData;
+}
 
-	public entries(filterEmpty: boolean = true): Entries {
-		return new jspb.Map(
-			this._entries.toArray().filter(
-				(entry: [string, string], index: number): boolean => {
-					return this._state.deletedIndices[index] !== true && (!filterEmpty || (entry[0] !== '' && entry[1] !== ''));
+export function appendValue(data: Data, value: string): Data {
+	const index = data._entries.length;
+	const nextData = Object.assign({}, data, {
+		hasChanges: true,
+		_changedIndices: new Set(data._changedIndices),
+		length: data.length + 1
+	});
+	const [key, , state] = ['', '', {}];
+	nextData._entries = data._entries.concat([[key, value, state]]);
+	nextData._indices = new Set(data._indices);
+	nextData._indices.add(index);
+	nextData._changedIndices.add(index);
+	return nextData;
+}
+
+export function appendEntry(data: Data, key: string, value: string): Data {
+	let nextData = appendKey(data, key);
+	nextData = setValueAtIndex(nextData, value, nextData._entries.length - 1);
+	return nextData;
+}
+
+export function removeEntryAtIndex(data: Data, index: number): Data {
+	if (!data._indices.has(index)) throw new Error(`removeEntryAtIndex Error: index "${index}" out of bounds`);
+
+	const nextData = Object.assign({}, data, {
+		hasChanges: true,
+		_changedIndices: new Set(data._changedIndices),
+		length: data.length - 1,
+		_deletedLength: data._deletedLength + 1
+	});
+	const [key, value, state] = data._entries[index] || ['', '', {}];
+
+	if (state.originalKey === undefined && state.originalValue === undefined) {
+		// entry is at it's original state of not existing
+		nextData._changedIndices.delete(index);
+	} else {
+		// entry is changed
+		nextData._changedIndices.add(index);
+	}
+	nextData.hasChanges = nextData._changedIndices.size > 0;
+
+	nextData._entries = data._entries
+		.slice(0, index)
+		.concat([[key, value, Object.assign({}, state, { deleted: true })]])
+		.concat(data._entries.slice(index + 1));
+	return nextData;
+}
+
+export function getEntries(data: Data): [string, string][] {
+	return mapEntries(data, ([key, value]: Entry) => {
+		return [key, value] as [string, string];
+	});
+}
+
+export enum MapEntriesOption {
+	APPEND_EMPTY_ENTRY,
+	DELETED_ONLY
+}
+
+export function mapEntries<T>(data: Data, fn: (entry: Entry, index: number) => T, ...opts: MapEntriesOption[]): T[] {
+	const _opts = new Set(opts);
+	const deletedOnly = _opts.has(MapEntriesOption.DELETED_ONLY);
+	return data._entries
+		.reduce(
+			(m: T[], [key, value, state]: Entry, index: number) => {
+				if (state._replaced) return m;
+				if ((deletedOnly && !state.deleted) || (!deletedOnly && state.deleted)) return m;
+				m.push(fn([key, value, state], index));
+				return m;
+			},
+			[] as T[]
+		)
+		.concat(_opts.has(MapEntriesOption.APPEND_EMPTY_ENTRY) ? [fn(['', '', {}], data._entries.length)] : []);
+}
+
+export function entriesDiff(data: Data): Diff {
+	const diffMap = new Map<string, number>();
+	return data._entries.reduce(
+		(m: Diff, [key, value, state]: Entry, index: number) => {
+			if (state._replaced) return m;
+			const hasChanges = !(key === state.originalKey && value === state.originalValue);
+			if (state.deleted && state.originalKey !== undefined && state.originalValue !== undefined) {
+				// check if it's already in the diff
+				const ode = diffMap.has(state.originalKey || '')
+					? m[diffMap.get(state.originalKey || '') as number]
+					: undefined;
+				if (ode && ode.op === 'remove' && ode.prev[0] === state.originalKey && ode.prev[1] === state.originalValue) {
+					return m;
 				}
+
+				// append remove op to diff for entry
+				const de = { op: 'remove', prev: [state.originalKey, state.originalValue] } as DiffEntry;
+				diffMap.set(state.originalKey, m.length);
+				return m.concat(de);
+			} else if (state.deleted) {
+				// deleted entries with no original key/val don't go in the diff
+				return m;
+			}
+
+			if (hasChanges && state.originalKey === undefined && state.originalValue === undefined) {
+				// check to see if a remove operation for this entry is already in the diff
+				const ode = diffMap.has(key) ? m[diffMap.get(key) as number] : undefined;
+				if (ode && ode.op === 'remove' && ode.prev[0] === key && ode.prev[1] === value) {
+					ode.op = 'keep';
+					return m;
+				}
+
+				// append add op to diff for entry
+				const de = { op: 'add', next: [key, value] } as DiffEntry;
+				diffMap.set(key, m.length);
+				return m.concat(de);
+			} else if (!hasChanges) {
+				// check to see if a remove operation for this entry is already in the diff
+				const ode = diffMap.has(key) ? m[diffMap.get(key) as number] : undefined;
+				if (ode && ode.op === 'remove' && ode.prev[0] === key && ode.prev[1] === value) {
+					ode.op = 'keep';
+					return m;
+				}
+
+				// append keep op to diff for entry
+				const de = { op: 'keep', prev: [key, value] } as DiffEntry;
+				diffMap.set(key, m.length);
+				return m.concat(de);
+			}
+
+			// check to see if a remove operation for this entry is already in the diff
+			const ode = diffMap.has(state.originalKey || '') ? m[diffMap.get(state.originalKey || '') as number] : undefined;
+			if (ode && ode.op === 'remove' && ode.prev[0] === state.originalKey && ode.prev[1] === state.originalValue) {
+				ode.op = 'replace';
+				ode.next = [key, value];
+				return m;
+			}
+
+			// append replace op to diff for entry
+			const de = {
+				op: 'replace',
+				prev: [state.originalKey, state.originalValue],
+				next: [key, value]
+			} as DiffEntry;
+			diffMap.set(state.originalKey as string, m.length);
+			return m.concat(de);
+		},
+		[] as Diff
+	);
+}
+
+export function rebaseData(data: Data, base: [string, string][]): Data {
+	const baseMap = new Map<string, string>(base);
+	const processedKeys = new Set<string>();
+	const nextData = Object.assign({}, data, {
+		conflicts: [],
+		_indicesMap: new Map(data._indicesMap),
+		_indices: new Set(data._indices),
+		_changedIndices: new Set<number>()
+	});
+	nextData._entries = data._entries
+		.map(([key, value, state]: Entry, index: number) => {
+			if (state._replaced) {
+				return [key, value, state] as Entry;
+			}
+			const hasOriginalKeyVal = key === state.originalKey && value === state.originalValue;
+			const hasChanges = !hasOriginalKeyVal || state.deleted;
+
+			if (!hasChanges && baseMap.has(key) && baseMap.get(key) !== value) {
+				// entry has new value in base and was not changed in data, so take the
+				// new value
+				processedKeys.add(key);
+				const nextValue = baseMap.get(key);
+				return [key, nextValue, Object.assign({}, state, { originalKey: key, originalValue: nextValue })] as Entry;
+			}
+
+			if (!hasChanges && !baseMap.has(key)) {
+				// entry doesn't exists in base and was not changed, so mark it as
+				// deleted
+				processedKeys.add(key);
+				nextData._deletedLength++;
+				nextData.length--;
+				return [key, value, Object.assign({}, state, { deleted: true })] as Entry;
+			}
+
+			if (hasChanges && state.originalKey && baseMap.has(state.originalKey)) {
+				const baseValue = baseMap.get(state.originalKey);
+				if (key !== state.originalKey && baseMap.has(key)) {
+					// entry exists in base and was changed to match another entry in base
+					const baseValue2 = baseMap.get(key);
+
+					if (value === baseValue2) {
+						// values are the same, so take the base key/val as the original
+						processedKeys.add(key);
+						processedKeys.add(state.originalKey);
+						nextData._changedIndices.add(index);
+						return [key, value, Object.assign({}, state, { originalKey: key, originalValue: baseValue2 })] as Entry;
+					} else {
+						// values are conflicting, so take the base key/val as the original
+						// and add to conflicts
+						const conflict = [
+							{ op: 'add', next: [key, baseValue2] } as DiffEntry,
+							{ op: 'replace', prev: [state.originalKey, state.originalValue], next: [key, value] } as DiffEntry
+						] as [DiffEntry, DiffEntry];
+						nextData.conflicts.push(conflict);
+						processedKeys.add(key);
+						processedKeys.add(state.originalKey);
+						nextData._changedIndices.add(index);
+						return [
+							key,
+							value,
+							Object.assign({}, state, {
+								originalKey: key,
+								originalValue: baseValue2,
+								rebaseConflict: conflict,
+								rebaseConflictIndex: nextData.conflicts.length - 1
+							})
+						] as Entry;
+					}
+				}
+
+				if (baseValue === state.originalValue) {
+					// entry exists in base and was changed only in data, so take the new
+					// base value as the originalValue
+					processedKeys.add(state.originalKey);
+					if (hasChanges) {
+						nextData._changedIndices.add(index);
+					}
+					return [key, value, Object.assign({}, state, { originalValue: baseValue })] as Entry;
+				} else if (state.deleted) {
+					// entry was changed in base and was deleted in data, so take the new
+					// base value as the original and add to conflicts
+					const conflict = [
+						{ op: 'replace', prev: [state.originalKey, state.originalValue], next: [key, baseValue] } as DiffEntry,
+						{ op: 'remove', prev: [state.originalKey, state.originalValue] } as DiffEntry
+					] as [DiffEntry, DiffEntry];
+					nextData.conflicts.push(conflict);
+					processedKeys.add(state.originalKey);
+					nextData._changedIndices.add(index);
+					return [
+						key,
+						value,
+						Object.assign({}, state, {
+							originalValue: baseValue,
+							rebaseConflict: conflict,
+							rebaseConflictIndex: nextData.conflicts.length - 1
+						})
+					] as Entry;
+				}
+			}
+
+			if (hasChanges && baseMap.get(key) === value) {
+				// changes to entry align with base key/val, so take the new value as
+				// the originalValue
+				processedKeys.add(key);
+				nextData._changedIndices.add(index);
+				return [key, value, Object.assign({}, state, { originalValue: value })] as Entry;
+			}
+
+			if (hasChanges && baseMap.has(key)) {
+				// changes to entry conflict with base key/val, so take the base value
+				// as the original and add to conflicts
+				const baseValue = baseMap.get(key) as string;
+				processedKeys.add(key);
+				nextData._changedIndices.add(index);
+				const conflict = [
+					{ op: 'add', next: [key, baseValue] } as DiffEntry,
+					(state.originalKey === undefined
+						? { op: 'add', next: [key, value] }
+						: { op: 'replace', prev: [state.originalKey, state.originalValue || ''], next: [key, value] }) as DiffEntry
+				] as [DiffEntry, DiffEntry];
+				nextData.conflicts.push(conflict);
+				return [
+					key,
+					value,
+					Object.assign({}, state, {
+						originalKey: key,
+						originalValue: baseValue,
+						rebaseConflict: conflict,
+						rebaseConflictIndex: nextData.conflicts.length - 1
+					})
+				] as Entry;
+			}
+
+			if (!baseMap.has(key)) {
+				// entry is not in base
+				if (!state.deleted) {
+					nextData._changedIndices.add(index);
+				}
+				processedKeys.add(key);
+				const nextState = Object.assign({}, state);
+				delete nextState.originalKey;
+				delete nextState.originalValue;
+				return [key, value, nextState] as Entry;
+			}
+
+			// entry is completely unchanged, so keep it's current state
+			processedKeys.add(key);
+			return [key, value, state] as Entry;
+		})
+		.concat(
+			base.reduce(
+				(m: Entry[], [key, value]: [string, string]) => {
+					// append new entries from base
+					if (processedKeys.has(key)) return m;
+					nextData.length++;
+					const index = m.length + nextData._entries.length;
+					nextData._indices.add(index);
+					nextData._indicesMap.set(key, index);
+					m.push([key, value, { originalKey: key, originalValue: value }]);
+					return m;
+				},
+				[] as Entry[]
 			)
 		);
-	}
-
-	public map<T>(fn: (entry: [string, string], index: number) => T, appendEmpty: boolean = true): T[] {
-		const filterText = this._state.filterText;
-		return (
-			this._entries
-				.toArray()
-				.reduce<T[]>(
-					(prev: T[], entry: [string, string], index: number): T[] => {
-						if (this._state.deletedIndices[index] === true) {
-							return prev;
-						}
-						if (filterText && !fz(entry[0], filterText)) {
-							return prev;
-						}
-						return prev.concat(fn(entry, index));
-					},
-					[] as Array<T>
-				)
-				// there's always an empty entry at the end for adding new env
-				.concat(appendEmpty ? fn(['', ''], this.length + this.deletedLength) : [])
-		);
-	}
-
-	public mapDeleted<T>(fn: (entry: [string, string], index: number) => T): T[] {
-		return this._entries.toArray().reduce<T[]>(
-			(prev: T[], entry: [string, string], index: number): T[] => {
-				if (this._state.deletedIndices[index] !== true) {
-					return prev;
-				}
-				return prev.concat(fn(entry, index));
-			},
-			[] as Array<T>
-		);
-	}
-
-	public getDiff(): Diff<string, string> {
-		return protoMapDiff(this._state.originalEntries, this.entries(false));
-	}
-
-	public applyDiff(diff: Diff<string, string>) {
-		diff.forEach((op: DiffOp<string, string>) => {
-			let index = this._entries.toArray().findIndex(([key, value]: [string, string]) => {
-				return key === op.key;
-			});
-			switch (op.op) {
-				case 'add':
-					if (index === -1) {
-						index = this._entries.toArray().length;
-					}
-					this.setKeyAtIndex(index, op.key);
-					if (op.value) {
-						this.setValueAtIndex(index, op.value);
-					}
-					break;
-				case 'remove':
-					if (index !== -1) {
-						this.removeEntryAtIndex(index);
-					}
-					break;
-				default:
-					break;
-			}
-		});
-	}
-
-	public setKeyAtIndex(index: number, key: string) {
-		delete this._state.deletedIndices[index]; // allow restoring an item
-		this._setDeletedLength();
-		const entries = this._entries.toArray().slice(); // don't modify old map
-		entries[index] = [key, (entries[index] || [])[1] || ''];
-		this.length = entries.length;
-		this._entries = new jspb.Map(entries);
-		this._trackChanges(index);
-		if (this._state.uniqueKeyMap[key] > -1 && this._state.uniqueKeyMap[key] !== index && index < entries.length) {
-			// duplicate key, remove old one
-			this.removeEntryAtIndex(this._state.uniqueKeyMap[key]);
-			this._state.uniqueKeyMap[key] = index;
-		}
-	}
-
-	public setValueAtIndex(index: number, val: string) {
-		const entries = this._entries.toArray().slice(); // don't modify old map
-		const key = (entries[index] || [])[0];
-		entries[index] = [(entries[index] || [])[0] || '', val];
-		this.length = entries.length;
-		this._entries = new jspb.Map(entries);
-		if (this.hasConflict(key) && val === this.getOriginal(key)) {
-			// if value is being set to the original and there was a conflict,
-			// remove the conflict (resolved)
-			this._state.conflictKeys.delete(key);
-			this._state.conflicts = this._state.conflicts.filter((c) => c[0].key !== key);
-		}
-		if (val === '' && key === '') {
-			// if there's no key or value, remove it
-			this.removeEntryAtIndex(index);
-		} else {
-			this._trackChanges(index);
-		}
-	}
-
-	public removeEntryAtIndex(index: number) {
-		this._state.deletedIndices[index] = true;
-		this._setDeletedLength();
-		this._trackChanges(index);
-	}
-
-	private _trackChanges(index: number) {
-		const { deletedIndices, changedIndices, originalEntries } = this._state;
-		if (deletedIndices[index] === true) {
-			if (index < originalEntries.getLength()) {
-				changedIndices[index] = true;
-			} else {
-				delete changedIndices[index];
-			}
-		} else if (entriesEqual(originalEntries.toArray()[index], this._entries.toArray()[index])) {
-			delete changedIndices[index];
-		} else {
-			changedIndices[index] = true;
-		}
-		this.hasChanges = Object.keys(changedIndices).length > 0;
-		this.length = this._entries.getLength() - this.deletedLength;
-	}
-
-	private _setDeletedLength() {
-		this.deletedLength = Object.keys(this._state.deletedIndices).length;
-	}
+	nextData.hasChanges = nextData._changedIndices.size > 0;
+	return nextData;
 }

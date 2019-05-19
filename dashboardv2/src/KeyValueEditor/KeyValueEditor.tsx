@@ -4,13 +4,24 @@ import { Checkmark as CheckmarkIcon, Copy as CopyIcon, StatusWarning as WarningI
 import { Box, Button, TextInput } from 'grommet';
 import Notification from '../Notification';
 import copyToClipboard from '../util/copyToClipboard';
-import { KeyValueData } from './KeyValueData';
+import {
+	Data,
+	Entry,
+	setKeyAtIndex,
+	setValueAtIndex,
+	appendEntry,
+	removeEntryAtIndex,
+	getEntries,
+	filterData,
+	mapEntries,
+	MapEntriesOption
+} from './KeyValueData';
 import { KeyValueInput } from './KeyValueInput';
 
-type DataCallback = (data: KeyValueData) => void;
+type DataCallback = (data: Data) => void;
 
 export interface Props {
-	data: KeyValueData;
+	data: Data;
 	onChange: DataCallback;
 	onSubmit: DataCallback;
 	keyPlaceholder?: string;
@@ -28,49 +39,43 @@ export default function KeyValueEditor({
 	submitLabel = 'Review Changes',
 	conflictsMessage = 'Some entries have conflicts'
 }: Props) {
-	const hasConflicts = React.useMemo(() => data.hasConflicts(), [data]);
+	const hasConflicts = React.useMemo(() => (data.conflicts || []).length > 0, [data.conflicts]);
 
 	function keyChangeHandler(index: number, key: string) {
-		let nextEntries = data.dup();
+		let nextData: Data;
 		if (key.length > 0) {
-			nextEntries.setKeyAtIndex(index, key);
+			nextData = setKeyAtIndex(data, key, index);
 		} else {
-			nextEntries.removeEntryAtIndex(index);
+			nextData = removeEntryAtIndex(data, index);
 		}
-		onChange(nextEntries);
+		onChange(nextData);
 	}
 
 	function valueChangeHandler(index: number, value: string) {
-		let nextEntries = data.dup();
-		nextEntries.setValueAtIndex(index, value);
-		onChange(nextEntries);
+		onChange(setValueAtIndex(data, value, index));
 	}
 
 	function handlePaste(event: React.ClipboardEvent) {
 		// Detect key=value paste
 		const text = event.clipboardData.getData('text/plain');
 		if (text.match(/^(\S+=\S+\n?)+$/)) {
-			const nextEntries = data.dup();
+			let nextData = data;
 			event.preventDefault();
 			text
 				.trim()
 				.split('\n')
 				.forEach((line) => {
 					const [key, val] = line.split('=');
-					const index = nextEntries.length;
-					nextEntries.setKeyAtIndex(index, key);
-					nextEntries.setValueAtIndex(index, val);
+					nextData = appendEntry(data, key, val);
 				});
-			onChange(nextEntries);
+			onChange(nextData);
 		}
 	}
 
 	function handleCopyButtonClick(event: React.SyntheticEvent) {
 		event.preventDefault();
 
-		const text = data
-			.entries()
-			.toArray()
+		const text = getEntries(data)
 			.map(([key, val]: [string, string]) => {
 				return `${key}=${val}`;
 			})
@@ -81,7 +86,7 @@ export default function KeyValueEditor({
 
 	function searchInputHandler(e: React.ChangeEvent<HTMLInputElement>) {
 		const value = e.target.value || '';
-		onChange(data.filtered(value));
+		onChange(filterData(data, value));
 	}
 
 	return (
@@ -94,27 +99,31 @@ export default function KeyValueEditor({
 			<Box direction="column" gap="xsmall">
 				{hasConflicts ? <Notification status="warning" message={conflictsMessage} /> : null}
 				<TextInput type="search" onChange={searchInputHandler} />
-				{data.map(([key, value]: [string, string], index: number) => {
-					const hasConflict = data.hasConflict(key);
-					return (
-						<Box key={index} direction="row" gap="xsmall">
-							<KeyValueInput
-								placeholder={keyPlaceholder}
-								value={key}
-								hasConflict={hasConflict}
-								onChange={keyChangeHandler.bind(null, index)}
-								onPaste={handlePaste}
-							/>
-							<KeyValueInput
-								placeholder={valuePlaceholder}
-								value={value}
-								newValue={hasConflict ? data.getOriginal(key) : undefined}
-								onChange={valueChangeHandler.bind(null, index)}
-								onPaste={handlePaste}
-							/>
-						</Box>
-					);
-				})}
+				{mapEntries(
+					data,
+					([key, value, { rebaseConflict, originalValue }]: Entry, index: number) => {
+						const hasConflict = rebaseConflict !== undefined;
+						return (
+							<Box key={index} direction="row" gap="xsmall">
+								<KeyValueInput
+									placeholder={keyPlaceholder}
+									value={key}
+									hasConflict={hasConflict}
+									onChange={keyChangeHandler.bind(null, index)}
+									onPaste={handlePaste}
+								/>
+								<KeyValueInput
+									placeholder={valuePlaceholder}
+									value={value}
+									newValue={hasConflict ? originalValue : undefined}
+									onChange={valueChangeHandler.bind(null, index)}
+									onPaste={handlePaste}
+								/>
+							</Box>
+						);
+					},
+					MapEntriesOption.APPEND_EMPTY_ENTRY
+				)}
 			</Box>
 			<Button
 				disabled={!data.hasChanges}

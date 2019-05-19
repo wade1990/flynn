@@ -1,7 +1,8 @@
 import * as React from 'react';
+import * as jspb from 'google-protobuf';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
-import KeyValueEditor, { KeyValueData } from './KeyValueEditor';
+import KeyValueEditor, { Data as KeyValueData, getEntries, rebaseData, buildData } from './KeyValueEditor';
 import protoMapDiff, { applyProtoMapDiff } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { handleError } from './withErrorHandler';
@@ -29,7 +30,7 @@ export default function EnvEditor({ appName }: Props) {
 	const newRelease = React.useMemo(
 		() => {
 			if (!release) return new Release();
-			const diff = data ? protoMapDiff(release.getEnvMap(), data.entries()) : [];
+			const diff = data ? protoMapDiff(release.getEnvMap(), new jspb.Map(getEntries(data))) : [];
 			const newRelease = new Release();
 			newRelease.setArtifactsList(release.getArtifactsList());
 			protoMapReplace(newRelease.getLabelsMap(), release.getLabelsMap());
@@ -49,7 +50,7 @@ export default function EnvEditor({ appName }: Props) {
 
 			// maintain any non-conflicting changes made when new release arrives
 			if (!release || !release.getName() || !data) return;
-			const nextData = data.rebase(release.getEnvMap());
+			const nextData = rebaseData(data, release.getEnvMap().toArray());
 			setData(nextData);
 		},
 		[release, releaseError] // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,7 +89,7 @@ export default function EnvEditor({ appName }: Props) {
 				</RightOverlay>
 			) : null}
 			<KeyValueEditor
-				data={data || new KeyValueData(release.getEnvMap())}
+				data={data || buildData(release.getEnvMap().toArray())}
 				keyPlaceholder="ENV key"
 				valuePlaceholder="ENV value"
 				onChange={(data) => {

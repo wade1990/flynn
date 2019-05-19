@@ -7,7 +7,7 @@ import useClient from './useClient';
 import useCallIfMounted from './useCallIfMounted';
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
-import KeyValueEditor, { KeyValueData } from './KeyValueEditor';
+import KeyValueEditor, { Data as KeyValueData, buildData, rebaseData, getEntries } from './KeyValueEditor';
 import KeyValueDiff from './KeyValueDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { App } from './generated/controller_pb';
@@ -39,12 +39,12 @@ export default function MetadataEditor({ appName }: Props) {
 
 			// handle setting initial data
 			if (!data) {
-				setData(new KeyValueData(app.getLabelsMap()));
+				setData(buildData(app.getLabelsMap().toArray()));
 				return;
 			}
 
 			// handle app labels being updated elsewhere
-			setData(data.rebase(app.getLabelsMap()));
+			setData(rebaseData(data, app.getLabelsMap().toArray()));
 		},
 		[app] // eslint-disable-line react-hooks/exhaustive-deps
 	);
@@ -53,7 +53,7 @@ export default function MetadataEditor({ appName }: Props) {
 		event.preventDefault();
 		const app = new App();
 		app.setName(appName);
-		protoMapReplace(app.getLabelsMap(), (data as KeyValueData).entries());
+		protoMapReplace(app.getLabelsMap(), new jspb.Map(getEntries(data as KeyValueData)));
 		setIsDeploying(true);
 		client.updateAppMeta(app, (app: App, error: Error | null) => {
 			callIfMounted(() => {
@@ -64,7 +64,7 @@ export default function MetadataEditor({ appName }: Props) {
 				}
 				setIsConfirming(false);
 				setIsDeploying(false);
-				setData(new KeyValueData(app.getLabelsMap()));
+				setData(buildData(app.getLabelsMap().toArray()));
 			});
 		});
 	}
@@ -82,7 +82,7 @@ export default function MetadataEditor({ appName }: Props) {
 			<Box tag="form" fill direction="column" onSubmit={handleConfirmSubmit}>
 				<Box flex="grow">
 					<h3>Review Changes</h3>
-					<KeyValueDiff prev={app.getLabelsMap()} next={data.entries()} />
+					<KeyValueDiff prev={app.getLabelsMap()} next={new jspb.Map(getEntries(data))} />
 				</Box>
 				<Box fill="horizontal" direction="row" align="end" gap="small" justify="between">
 					<Button
@@ -106,7 +106,7 @@ export default function MetadataEditor({ appName }: Props) {
 		<>
 			{isConfirming ? <RightOverlay onClose={handleCancelBtnClick}>{renderDeployMetadata()}</RightOverlay> : null}
 			<KeyValueEditor
-				data={data || new KeyValueData(new jspb.Map<string, string>([]))}
+				data={data || buildData([])}
 				onChange={(data) => setData(data)}
 				onSubmit={(data) => {
 					setData(data);
