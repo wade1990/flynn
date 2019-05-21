@@ -66,7 +66,7 @@ export default function KeyValueEditor({
 				.split('\n')
 				.forEach((line) => {
 					const [key, val] = line.split('=');
-					nextData = appendEntry(data, key, val);
+					nextData = appendEntry(nextData, key, val);
 				});
 			onChange(nextData);
 		}
