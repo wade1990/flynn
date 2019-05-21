@@ -17,6 +17,7 @@ import {
 	MapEntriesOption
 } from './KeyValueData';
 import { KeyValueInput } from './KeyValueInput';
+import useDebouncedInputOnChange from '../useDebouncedInputOnChange';
 
 type DataCallback = (data: Data) => void;
 
@@ -40,6 +41,13 @@ export default function KeyValueEditor({
 	conflictsMessage = 'Some entries have conflicts'
 }: Props) {
 	const hasConflicts = React.useMemo(() => (data.conflicts || []).length > 0, [data.conflicts]);
+	const [searchInputValue, searchInputHandler] = useDebouncedInputOnChange(
+		'',
+		(value: string) => {
+			onChange(filterData(data, value));
+		},
+		300
+	);
 
 	function keyChangeHandler(index: number, key: string) {
 		let nextData: Data;
@@ -84,11 +92,6 @@ export default function KeyValueEditor({
 		copyToClipboard(text);
 	}
 
-	function searchInputHandler(e: React.ChangeEvent<HTMLInputElement>) {
-		const value = e.target.value || '';
-		onChange(filterData(data, value));
-	}
-
 	return (
 		<form
 			onSubmit={(e: React.SyntheticEvent) => {
@@ -98,7 +101,7 @@ export default function KeyValueEditor({
 		>
 			<Box direction="column" gap="xsmall">
 				{hasConflicts ? <Notification status="warning" message={conflictsMessage} /> : null}
-				<TextInput type="search" onChange={searchInputHandler} />
+				<TextInput type="search" value={searchInputValue} onChange={searchInputHandler} />
 				{mapEntries(
 					data,
 					([key, value, { rebaseConflict, originalValue }]: Entry, index: number) => {

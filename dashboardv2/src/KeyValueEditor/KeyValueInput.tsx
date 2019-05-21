@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { debounce } from 'lodash';
 import { StatusWarning as WarningIcon, Update as UpdateIcon } from 'grommet-icons';
 import { Stack, Box, Button, TextInput, TextArea } from 'grommet';
+import useDebouncedInputOnChange from '../useDebouncedInputOnChange';
 
 export interface KeyValueInputProps {
 	placeholder: string;
@@ -15,19 +15,10 @@ export interface KeyValueInputProps {
 }
 
 export function KeyValueInput(props: KeyValueInputProps) {
-	const onChange = React.useMemo(() => debounce(props.onChange, 300), [props.onChange]);
 	const [expanded, setExpanded] = React.useState(false);
-	const [value, setValue] = React.useState(props.value);
 	const multiline = React.useMemo<boolean>(() => props.value.indexOf('\n') >= 0, [props.value]);
 	const textarea = React.useRef(null) as string & React.RefObject<HTMLTextAreaElement>;
-
-	// handle new props.value
-	React.useEffect(
-		() => {
-			setValue(props.value);
-		},
-		[props.value] // eslint-disable-line react-hooks/exhaustive-deps
-	);
+	const [value, changeHandler] = useDebouncedInputOnChange(props.value, props.onChange, 300);
 
 	// focus textarea when expanded toggled to true
 	React.useLayoutEffect(
@@ -38,13 +29,6 @@ export function KeyValueInput(props: KeyValueInputProps) {
 		},
 		[expanded] // eslint-disable-line react-hooks/exhaustive-deps
 	);
-
-	function changeHandler(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-		onChange.cancel();
-		const value = e.target.value || '';
-		setValue(value);
-		onChange(value);
-	}
 
 	function renderInput() {
 		const { placeholder, hasConflict, disabled, onChange, value: _value, ...rest } = props;
