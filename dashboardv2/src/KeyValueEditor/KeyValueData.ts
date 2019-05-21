@@ -4,13 +4,12 @@ export interface EntryState {
 	originalKey?: string;
 	originalValue?: string;
 	deleted?: boolean;
-	_replaced?: boolean;
 	rebaseConflict?: [DiffEntry, DiffEntry];
 	rebaseConflictIndex?: number;
 }
 export type Entry = [string, string, EntryState]; // key, val, state
 export interface Data {
-	_entries: Entry[];
+	_entries: Array<Entry | undefined>;
 	_indices: Set<number>;
 	_indicesMap: Map<string, number>;
 	_changedIndices: Set<number>;
@@ -71,21 +70,18 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 	if (!data._indices.has(index)) throw new Error(`setKeyAtIndex Error: index "${index}" out of bounds`);
 
 	const isDeleted = key.length === 0;
-	let [prevKey, val, state] = data._entries[index];
-
-	if (state.deleted) return data;
+	let [prevKey, val, state] = data._entries[index] as Entry;
 
 	// nothing to do, key is already set
 	if (key === prevKey) return data;
 
 	const originalIndex = data._indicesMap.has(key) ? data._indicesMap.get(key) : undefined;
 	const [originalKey = undefined, originalValue = undefined, originalState = undefined] =
-		originalIndex !== undefined ? data._entries[originalIndex] : [];
+		originalIndex !== undefined ? data._entries[originalIndex] || [] : [];
 	if (originalState) {
 		// we're using the same key as an existing entry, so inherit it's state
 		state = Object.assign({}, originalState);
 		delete state.deleted;
-		delete state._replaced;
 	}
 
 	const nextData = Object.assign(
@@ -115,9 +111,9 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 		.concat([[key, val, Object.assign({}, state, isDeleted ? { deleted: true } : {})]])
 		.concat(data._entries.slice(index + 1));
 
-	if (originalIndex !== undefined && originalIndex !== index && originalState) {
-		// we're using the same key as an existing entry, so delete the existing entry
-		nextData._entries[originalIndex][2] = Object.assign({}, originalState, { deleted: true, _replaced: true });
+	if (originalIndex !== undefined && originalIndex !== index) {
+		// we're using the same key as an existing entry, so remove the existing entry
+		nextData._entries[originalIndex] = undefined;
 	}
 
 	return nextData;
@@ -129,12 +125,11 @@ export function appendKey(data: Data, key: string): Data {
 
 	const originalIndex = data._indicesMap.has(key) ? data._indicesMap.get(key) : undefined;
 	const [, value = undefined, originalState = undefined] =
-		originalIndex !== undefined ? data._entries[originalIndex] : [];
+		originalIndex !== undefined ? data._entries[originalIndex] || [] : [];
 	if (originalState) {
 		// we're using the same key as an existing entry, so inherit it's state
 		Object.assign(state, originalState);
 		delete state.deleted;
-		delete state._replaced;
 	}
 
 	const index = data._entries.length;
@@ -152,9 +147,9 @@ export function appendKey(data: Data, key: string): Data {
 	nextData._changedIndices.add(index);
 
 	if (originalIndex !== undefined && originalState) {
-		// we're using the same key as an existing entry, so delete the existing entry
+		// we're using the same key as an existing entry, so remove the existing entry
+		nextData._entries[originalIndex] = undefined;
 		if (!originalState.deleted) {
-			nextData._entries[originalIndex][2] = Object.assign({}, originalState, { deleted: true, _replaced: true });
 			nextData.length--;
 		}
 
@@ -175,9 +170,7 @@ export function setValueAtIndex(data: Data, value: string, index: number): Data 
 	}
 	if (!data._indices.has(index)) throw new Error(`setValueAtIndex Error: index "${index}" out of bounds`);
 
-	let [key, , state] = data._entries[index];
-
-	if (state.deleted) return data;
+	let [key, , state] = data._entries[index] || ['', '', {}];
 
 	const rebaseConflictIndex = state.rebaseConflictIndex;
 	if (state.rebaseConflict && value === state.originalValue) {
@@ -276,8 +269,9 @@ export function mapEntries<T>(data: Data, fn: (entry: Entry, index: number) => T
 	const filterPattern = data._filterPattern;
 	return data._entries
 		.reduce(
-			(m: T[], [key, value, state]: Entry, index: number) => {
-				if (state._replaced) return m;
+			(m: T[], entry: Entry | undefined, index: number) => {
+				if (entry === undefined) return m;
+				const [key, value, state] = entry;
 				if ((deletedOnly && !state.deleted) || (!deletedOnly && state.deleted)) return m;
 				if (filterPattern && !fz(key, filterPattern)) return m;
 				m.push(fn([key, value, state], index));
@@ -291,8 +285,9 @@ export function mapEntries<T>(data: Data, fn: (entry: Entry, index: number) => T
 export function entriesDiff(data: Data): Diff {
 	const diffMap = new Map<string, number>();
 	return data._entries.reduce(
-		(m: Diff, [key, value, state]: Entry, index: number) => {
-			if (state._replaced) return m;
+		(m: Diff, entry: Entry | undefined, index: number) => {
+			if (entry === undefined) return m;
+			const [key, value, state] = entry;
 			const hasChanges = !(key === state.originalKey && value === state.originalValue);
 			if (state.deleted && state.originalKey !== undefined && state.originalValue !== undefined) {
 				// check if it's already in the diff
@@ -369,10 +364,9 @@ export function rebaseData(data: Data, base: [string, string][]): Data {
 		_changedIndices: new Set<number>()
 	});
 	nextData._entries = data._entries
-		.map(([key, value, state]: Entry, index: number) => {
-			if (state._replaced) {
-				return [key, value, state] as Entry;
-			}
+		.map((entry: Entry | undefined, index: number) => {
+			if (entry === undefined) return undefined;
+			const [key, value, state] = entry;
 			const hasOriginalKeyVal = key === state.originalKey && value === state.originalValue;
 			const hasChanges = !hasOriginalKeyVal || state.deleted;
 

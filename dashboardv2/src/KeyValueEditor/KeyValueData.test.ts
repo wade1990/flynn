@@ -350,10 +350,6 @@ it('mulitple edits work as expected', () => {
 	expect(data.hasChanges).toEqual(true);
 	expect(data.length).toEqual(3);
 
-	// setting key/val at removed index is a no-op
-	expect(setKeyAtIndex(data, 'second-2', 1)).toStrictEqual(data);
-	expect(setValueAtIndex(data, 'second-val-2', 1)).toStrictEqual(data);
-
 	data = appendEntry(data, 'fourth', '4');
 	expect(
 		mapEntries(data, ([key, val]: Entry, index: number) => {
