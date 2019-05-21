@@ -1,3 +1,5 @@
+import fz from 'fz';
+
 export interface EntryState {
 	originalKey?: string;
 	originalValue?: string;
@@ -57,7 +59,6 @@ export function buildData(base: [string, string][]): Data {
 	};
 }
 
-// TODO(jvatic): actually make this apply
 export function filterData(data: Data, filterPattern: string): Data {
 	return Object.assign({}, data, { _filterPattern: filterPattern });
 }
@@ -94,6 +95,7 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 		isDeleted ? { length: data.length - 1, _deletedLength: data._deletedLength + 1 } : {}
 	);
 
+	nextData._indicesMap.delete(prevKey);
 	nextData._indicesMap.set(key, index);
 
 	if (originalIndex !== undefined) {
@@ -271,11 +273,13 @@ export enum MapEntriesOption {
 export function mapEntries<T>(data: Data, fn: (entry: Entry, index: number) => T, ...opts: MapEntriesOption[]): T[] {
 	const _opts = new Set(opts);
 	const deletedOnly = _opts.has(MapEntriesOption.DELETED_ONLY);
+	const filterPattern = data._filterPattern;
 	return data._entries
 		.reduce(
 			(m: T[], [key, value, state]: Entry, index: number) => {
 				if (state._replaced) return m;
 				if ((deletedOnly && !state.deleted) || (!deletedOnly && state.deleted)) return m;
+				if (filterPattern && !fz(key, filterPattern)) return m;
 				m.push(fn([key, value, state], index));
 				return m;
 			},

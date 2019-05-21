@@ -1,6 +1,8 @@
 import {
 	buildData,
+	filterData,
 	mapEntries,
+	getEntries,
 	MapEntriesOption,
 	Entry,
 	setKeyAtIndex,
@@ -44,6 +46,19 @@ it('mapEntries with APPEND_EMPTY_ENTRY iterates over entries with an extra empty
 	).toEqual([['first', 'first-val', 0], ['', '', 1]]);
 });
 
+it('filterData returns Data with filter applied for mapEntires and getEntries', () => {
+	const a = buildData([['first', 'first-val'], ['second', 'second-val'], ['third', 'third-val']]);
+	const filtered = filterData(a, 'ir');
+
+	expect(
+		mapEntries(filtered, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 0], ['third', 'third-val', 2]]);
+
+	expect(getEntries(filtered)).toEqual([['first', 'first-val'], ['third', 'third-val']]);
+});
+
 it('setKeyAtIndex sets entry key at given index', () => {
 	const a = buildData([['first', 'first-val'], ['second', 'second-val'], ['third', 'third-val']]);
 
@@ -70,6 +85,27 @@ it('setKeyAtIndex removes existing entry with given key', () => {
 			return [key, val, index];
 		})
 	).toEqual([['first', 'second-val', 1], ['third', 'third-val', 2]]);
+});
+
+it('setKeyAtIndex correctly identifies key to remove', () => {
+	const a = buildData([['one.one', '1.1'], ['one.two', '1.2']]);
+
+	const b = appendKey(a, 'one.');
+	expect(b.length).toEqual(a.length + 1);
+	expect(b.hasChanges).toEqual(true);
+
+	const c = setKeyAtIndex(b, 'one.three', 2);
+	expect(c.length).toEqual(b.length);
+	expect(c.hasChanges).toEqual(true);
+
+	const d = appendKey(c, 'one.');
+	expect(
+		mapEntries(d, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['one.one', '1.1', 0], ['one.two', '1.2', 1], ['one.three', '', 2], ['one.', '', 3]]);
+	expect(d.length).toEqual(c.length + 1);
+	expect(d.hasChanges).toEqual(true);
 });
 
 it('setKeyAtIndex appends entry with given key if index is _entries.length', () => {
