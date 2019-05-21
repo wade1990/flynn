@@ -10,7 +10,6 @@ import {
 	setKeyAtIndex,
 	setValueAtIndex,
 	appendEntry,
-	removeEntryAtIndex,
 	getEntries,
 	filterData,
 	mapEntries,
@@ -51,11 +50,7 @@ export default function KeyValueEditor({
 
 	function keyChangeHandler(index: number, key: string) {
 		let nextData: Data;
-		if (key.length > 0) {
-			nextData = setKeyAtIndex(data, key, index);
-		} else {
-			nextData = removeEntryAtIndex(data, index);
-		}
+		nextData = setKeyAtIndex(data, key, index);
 		onChange(nextData);
 	}
 

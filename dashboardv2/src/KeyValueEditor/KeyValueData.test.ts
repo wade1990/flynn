@@ -122,18 +122,24 @@ it('setKeyAtIndex appends entry with given key if index is _entries.length', () 
 	).toEqual([['first', 'first-val', 0], ['two', '', 1]]);
 });
 
-it('setKeyAtIndex removes entry if key is empty', () => {
-	const a = buildData([['first', 'first-val'], ['second', 'second-val'], ['third', 'third-val']]);
+it('setKeyAtIndex removes entry if given key is empty and value is also empty', () => {
+	const a = setKeyAtIndex(buildData([['first', 'first-val'], ['second', ''], ['third', 'third-val']]), '', 1);
+	expect(
+		mapEntries(a, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 0], ['third', 'third-val', 2]]);
+	expect(a.length).toEqual(2);
+	expect(a.hasChanges).toEqual(true);
 
-	const b = setKeyAtIndex(a, '', 1);
-	expect(b.length).toEqual(a.length - 1);
-	expect(b.hasChanges).toEqual(true);
-
+	const b = setKeyAtIndex(buildData([['first', 'first-val'], ['second', 'second-val'], ['third', 'third-val']]), '', 1);
 	expect(
 		mapEntries(b, ([key, val]: Entry, index: number) => {
 			return [key, val, index];
 		})
-	).toEqual([['first', 'first-val', 0], ['third', 'third-val', 2]]);
+	).toEqual([['first', 'first-val', 0], ['', 'second-val', 1], ['third', 'third-val', 2]]);
+	expect(b.length).toEqual(3);
+	expect(b.hasChanges).toEqual(true);
 });
 
 it('setKeyAtIndex throws an error if index out of bounds', () => {
@@ -172,6 +178,30 @@ it('setValueAtIndex sets entry value at given index', () => {
 			return [key, val, index];
 		})
 	).toEqual([['first', 'first-val', 0], ['second', 'second-val', 1], ['third', '3', 2]]);
+});
+
+it('setValueAtIndex removes entry if key and given value are empty', () => {
+	const a = setValueAtIndex(buildData([['first', 'first-val'], ['', 'second-val'], ['third', 'third-val']]), '', 1);
+	expect(
+		mapEntries(a, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 0], ['third', 'third-val', 2]]);
+	expect(a.length).toEqual(2);
+	expect(a.hasChanges).toEqual(true);
+
+	const b = setValueAtIndex(
+		buildData([['first', 'first-val'], ['second', 'second-val'], ['third', 'third-val']]),
+		'',
+		1
+	);
+	expect(
+		mapEntries(b, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 0], ['second', '', 1], ['third', 'third-val', 2]]);
+	expect(b.length).toEqual(3);
+	expect(b.hasChanges).toEqual(true);
 });
 
 it('setValueAtIndex appends entry with given value if index is _entries.length', () => {

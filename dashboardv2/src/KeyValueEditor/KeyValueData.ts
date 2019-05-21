@@ -69,8 +69,10 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 
 	if (!data._indices.has(index)) throw new Error(`setKeyAtIndex Error: index "${index}" out of bounds`);
 
-	const isDeleted = key.length === 0;
 	let [prevKey, val, state] = data._entries[index] as Entry;
+	if (key.length === 0 && val.length === 0) {
+		return removeEntryAtIndex(data, index);
+	}
 
 	// nothing to do, key is already set
 	if (key === prevKey) return data;
@@ -84,15 +86,16 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 		delete state.deleted;
 	}
 
-	const nextData = Object.assign(
-		{},
-		data,
-		{ hasChanges: true, _indicesMap: new Map(data._indicesMap), _changedIndices: new Set(data._changedIndices) },
-		isDeleted ? { length: data.length - 1, _deletedLength: data._deletedLength + 1 } : {}
-	);
+	const nextData = Object.assign({}, data, {
+		hasChanges: true,
+		_indicesMap: new Map(data._indicesMap),
+		_changedIndices: new Set(data._changedIndices)
+	});
 
-	nextData._indicesMap.delete(prevKey);
-	nextData._indicesMap.set(key, index);
+	if (key.length > 0) {
+		nextData._indicesMap.delete(prevKey);
+		nextData._indicesMap.set(key, index);
+	}
 
 	if (originalIndex !== undefined) {
 		nextData._changedIndices.delete(originalIndex);
@@ -108,7 +111,7 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 
 	nextData._entries = data._entries
 		.slice(0, index)
-		.concat([[key, val, Object.assign({}, state, isDeleted ? { deleted: true } : {})]])
+		.concat([[key, val, state]])
 		.concat(data._entries.slice(index + 1));
 
 	if (originalIndex !== undefined && originalIndex !== index) {
@@ -136,8 +139,10 @@ export function appendKey(data: Data, key: string): Data {
 	nextData._entries = data._entries.concat([[key, val, state]]);
 	nextData._indices = new Set(data._indices);
 	nextData._indices.add(index);
-	nextData._indicesMap = new Map(nextData._indicesMap);
-	nextData._indicesMap.set(key, index);
+	if (key.length > 0) {
+		nextData._indicesMap = new Map(nextData._indicesMap);
+		nextData._indicesMap.set(key, index);
+	}
 	nextData._changedIndices = new Set(data._changedIndices);
 	nextData._changedIndices.add(index);
 
@@ -171,6 +176,9 @@ export function setValueAtIndex(data: Data, value: string, index: number): Data 
 	if (!data._indices.has(index)) throw new Error(`setValueAtIndex Error: index "${index}" out of bounds`);
 
 	let [key, , state] = data._entries[index] || ['', '', {}];
+	if (key.length === 0 && value.length === 0) {
+		return removeEntryAtIndex(data, index);
+	}
 
 	const rebaseConflictIndex = state.rebaseConflictIndex;
 	if (state.rebaseConflict && value === state.originalValue) {
