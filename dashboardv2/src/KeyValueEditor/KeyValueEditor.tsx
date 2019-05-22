@@ -7,6 +7,8 @@ import copyToClipboard from '../util/copyToClipboard';
 import {
 	Data,
 	Entry,
+	hasIndex as hasDataIndex,
+	nextIndex as nextDataIndex,
 	setKeyAtIndex,
 	setValueAtIndex,
 	appendEntry,
@@ -15,7 +17,7 @@ import {
 	mapEntries,
 	MapEntriesOption
 } from './KeyValueData';
-import { KeyValueInput } from './KeyValueInput';
+import { KeyValueInput, Selection as InputSelection } from './KeyValueInput';
 import useDebouncedInputOnChange from '../useDebouncedInputOnChange';
 
 type DataCallback = (data: Data) => void;
@@ -28,6 +30,11 @@ export interface Props {
 	valuePlaceholder?: string;
 	submitLabel?: string;
 	conflictsMessage?: string;
+}
+
+interface Selection extends InputSelection {
+	entryIndex: number;
+	entryInnerIndex: 0 | 1; // key | val
 }
 
 export default function KeyValueEditor({
@@ -48,6 +55,41 @@ export default function KeyValueEditor({
 		300
 	);
 
+	const inputs = React.useMemo(
+		() => {
+			return {
+				currentSelection: null as Selection | null,
+				refs: [] as [HTMLInputElement | HTMLTextAreaElement | null, HTMLInputElement | HTMLTextAreaElement | null][]
+			};
+		},
+		[] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+	inputs.refs = [];
+	const setCurrentSelection = (s: Selection) => {
+		inputs.currentSelection = s;
+	};
+
+	// focus next entry's input when entry deleted
+	React.useLayoutEffect(
+		() => {
+			if (!inputs.currentSelection) return;
+			const { entryIndex, entryInnerIndex } = inputs.currentSelection;
+			if (!hasDataIndex(data, entryIndex)) {
+				const nextIndex = nextDataIndex(data, entryIndex);
+				const ref = (inputs.refs[nextIndex] || [])[entryInnerIndex];
+				if (ref) {
+					const length = ref.value.length;
+					const selectionStart = length;
+					const selectionEnd = length;
+					const selectionDirection = 'forward';
+					ref.focus();
+					ref.setSelectionRange(selectionStart, selectionEnd, selectionDirection);
+				}
+			}
+		},
+		[data] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+
 	function keyChangeHandler(index: number, key: string) {
 		let nextData: Data;
 		nextData = setKeyAtIndex(data, key, index);
@@ -56,6 +98,24 @@ export default function KeyValueEditor({
 
 	function valueChangeHandler(index: number, value: string) {
 		onChange(setValueAtIndex(data, value, index));
+	}
+
+	function selectionChangeHandler(entryIndex: number, entryInnerIndex: 0 | 1, selection: InputSelection) {
+		setCurrentSelection({
+			entryIndex,
+			entryInnerIndex,
+			...selection
+		});
+	}
+
+	function inputRefHandler(entryIndex: number, entryInnerIndex: 0 | 1, ref: any) {
+		let entryRefs = inputs.refs[entryIndex] || [null, null];
+		if (entryInnerIndex === 0) {
+			entryRefs = [ref as HTMLInputElement | HTMLTextAreaElement | null, entryRefs[1]];
+		} else {
+			entryRefs = [entryRefs[0], ref as HTMLInputElement | HTMLTextAreaElement | null];
+		}
+		inputs.refs[entryIndex] = entryRefs;
 	}
 
 	function handlePaste(event: React.ClipboardEvent) {
@@ -104,17 +164,21 @@ export default function KeyValueEditor({
 						return (
 							<Box key={index} direction="row" gap="xsmall">
 								<KeyValueInput
+									refHandler={inputRefHandler.bind(null, index, 0)}
 									placeholder={keyPlaceholder}
 									value={key}
 									hasConflict={hasConflict}
 									onChange={keyChangeHandler.bind(null, index)}
+									onSelectionChange={selectionChangeHandler.bind(null, index, 0)}
 									onPaste={handlePaste}
 								/>
 								<KeyValueInput
+									refHandler={inputRefHandler.bind(null, index, 1)}
 									placeholder={valuePlaceholder}
 									value={value}
 									newValue={hasConflict ? originalValue : undefined}
 									onChange={valueChangeHandler.bind(null, index)}
+									onSelectionChange={selectionChangeHandler.bind(null, index, 1)}
 									onPaste={handlePaste}
 								/>
 							</Box>

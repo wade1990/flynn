@@ -62,6 +62,17 @@ export function filterData(data: Data, filterPattern: string): Data {
 	return Object.assign({}, data, { _filterPattern: filterPattern });
 }
 
+export function hasIndex(data: Data, index: number): boolean {
+	return (data._entries[index] || false) && !(data._entries[index] as Entry)[2].deleted;
+}
+
+export function nextIndex(data: Data, index: number): number {
+	for (let i = index; i < data._entries.length; i++) {
+		if (hasIndex(data, i)) return i;
+	}
+	return data._entries.length;
+}
+
 export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 	if (index === data._entries.length) {
 		return appendKey(data, key);
