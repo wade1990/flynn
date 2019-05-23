@@ -1,6 +1,5 @@
 import * as React from 'react';
 import * as timestamp_pb from 'google-protobuf/google/protobuf/timestamp_pb';
-import { RouteComponentProps } from 'react-router-dom';
 import styled from 'styled-components';
 
 import { Checkmark as CheckmarkIcon } from 'grommet-icons';
@@ -9,7 +8,7 @@ import { Omit } from 'grommet/utils';
 import ProcessScale from './ProcessScale';
 import RightOverlay from './RightOverlay';
 
-import useRouter from './useRouter';
+import { default as useRouter, UseRouterObejct } from './useRouter';
 import useApp from './useApp';
 import useAppFormation from './useAppFormation';
 import { listDeploymentsRequestFilterType } from './client';
@@ -81,7 +80,7 @@ const SelectableBox = styled(Box)`
 	${(props: SelectableBoxProps) => (props.selected ? selectedBoxCSS : '')};
 `;
 
-interface ReleaseHistoryFiltersProps extends Omit<RouteComponentProps<{}>, 'match'>, BoxProps {
+interface ReleaseHistoryFiltersProps extends Omit<UseRouterObejct<{}>, 'match'>, BoxProps {
 	urlParams: URLSearchParams;
 	filters: string[];
 }

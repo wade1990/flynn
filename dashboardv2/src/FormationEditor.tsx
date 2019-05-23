@@ -4,6 +4,7 @@ import { Box, Button, Text } from 'grommet';
 
 import useClient from './useClient';
 import useAppFormation from './useAppFormation';
+import useNavProtection from './useNavProtection';
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
 import ProcessScale from './ProcessScale';
@@ -42,6 +43,18 @@ export default function FormationEditor({ appName }: Props) {
 			}
 		},
 		[formationError]
+	);
+
+	const [enableNavProtection, disableNavProtection] = useNavProtection();
+	React.useEffect(
+		() => {
+			if (hasChanges) {
+				enableNavProtection();
+			} else {
+				disableNavProtection();
+			}
+		},
+		[hasChanges] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
 	React.useEffect(

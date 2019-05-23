@@ -10,6 +10,7 @@ import { Release } from './generated/controller_pb';
 import RightOverlay from './RightOverlay';
 import { isNotFoundError } from './client';
 import useAppRelease from './useAppRelease';
+import useNavProtection from './useNavProtection';
 
 interface Props {
 	appName: string;
@@ -25,6 +26,19 @@ export default function EnvEditor({ appName }: Props) {
 
 	const [data, setData] = React.useState<KeyValueData | null>(null);
 	const [isDeploying, setIsDeploying] = React.useState(false);
+
+	const [enableNavProtection, disableNavProtection] = useNavProtection();
+	React.useEffect(
+		() => {
+			if (!data) return;
+			if (data.hasChanges) {
+				enableNavProtection();
+			} else {
+				disableNavProtection();
+			}
+		},
+		[data && data.hasChanges] // eslint-disable-line react-hooks/exhaustive-deps
+	);
 
 	// newRelease is used to create a deployment
 	const newRelease = React.useMemo(

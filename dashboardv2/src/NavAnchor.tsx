@@ -37,7 +37,9 @@ export default function NavAnchor({ path, search, onClick, onNav, children, ...a
 				e.preventDefault();
 
 				// TODO(jvatic): Handle both path and search containing query params
-				history.push(path + search);
+				if (!history.push(path + search)) {
+					return;
+				}
 				if (onNav) {
 					onNav(path);
 				}

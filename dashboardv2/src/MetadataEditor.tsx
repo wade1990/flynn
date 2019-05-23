@@ -5,6 +5,7 @@ import { Box, Button } from 'grommet';
 import useApp from './useApp';
 import useClient from './useClient';
 import useCallIfMounted from './useCallIfMounted';
+import useNavProtection from './useNavProtection';
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
 import KeyValueEditor, { Data as KeyValueData, buildData, rebaseData, getEntries } from './KeyValueEditor';
@@ -31,6 +32,19 @@ export default function MetadataEditor({ appName }: Props) {
 			handleError(appError);
 		},
 		[appError]
+	);
+
+	const [enableNavProtection, disableNavProtection] = useNavProtection();
+	React.useEffect(
+		() => {
+			if (!data) return;
+			if (data.hasChanges) {
+				enableNavProtection();
+			} else {
+				disableNavProtection();
+			}
+		},
+		[data && data.hasChanges] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
 	React.useEffect(

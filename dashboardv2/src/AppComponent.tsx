@@ -5,6 +5,7 @@ import { Box, Heading, Accordion, AccordionPanel } from 'grommet';
 import { isNotFoundError } from './client';
 import useApp from './useApp';
 import useRouter from './useRouter';
+import { NavProtectionContext, buildNavProtectionContext } from './useNavProtection';
 
 import { handleError } from './withErrorHandler';
 import Loading from './Loading';
@@ -69,6 +70,11 @@ export default function AppComponent({ name }: Props) {
 		[app]
 	);
 
+	const formationEditorNavProtectionContext = React.useMemo(() => buildNavProtectionContext('s=0'), []);
+	const releaseHistoryNavProtectionContext = React.useMemo(() => buildNavProtectionContext('s=1'), []);
+	const envEditorNavProtectionContext = React.useMemo(() => buildNavProtectionContext('s=2'), []);
+	const metadataEditorNavProtectionContext = React.useMemo(() => buildNavProtectionContext('s=3'), []);
+
 	const { history, location, urlParams } = useRouter();
 	const activePanelIndices = urlParams.getAll('s').map((i: string) => parseInt(i, 10));
 	const handlePanelSectionChange = (activePanelIndices: number[]) => {
@@ -106,7 +112,9 @@ export default function AppComponent({ name }: Props) {
 				<AccordionPanel label="Scale">
 					<Box pad="medium">
 						<React.Suspense fallback={<Loading />}>
-							<FormationEditor appName={app.getName()} />
+							<NavProtectionContext.Provider value={formationEditorNavProtectionContext}>
+								<FormationEditor appName={app.getName()} />
+							</NavProtectionContext.Provider>
 						</React.Suspense>
 					</Box>
 				</AccordionPanel>
@@ -114,7 +122,9 @@ export default function AppComponent({ name }: Props) {
 				<AccordionPanel label="Release History">
 					<Box pad="medium">
 						<React.Suspense fallback={<Loading />}>
-							<ReleaseHistory appName={app.getName()} />
+							<NavProtectionContext.Provider value={releaseHistoryNavProtectionContext}>
+								<ReleaseHistory appName={app.getName()} />
+							</NavProtectionContext.Provider>
 						</React.Suspense>
 					</Box>
 				</AccordionPanel>
@@ -122,7 +132,9 @@ export default function AppComponent({ name }: Props) {
 				<AccordionPanel label="Environment">
 					<Box pad="medium">
 						<React.Suspense fallback={<Loading />}>
-							<EnvEditor appName={app.getName()} />
+							<NavProtectionContext.Provider value={envEditorNavProtectionContext}>
+								<EnvEditor appName={app.getName()} />
+							</NavProtectionContext.Provider>
 						</React.Suspense>
 					</Box>
 				</AccordionPanel>
@@ -130,7 +142,9 @@ export default function AppComponent({ name }: Props) {
 				<AccordionPanel label="Metadata">
 					<Box pad="medium">
 						<React.Suspense fallback={<Loading />}>
-							<MetadataEditor appName={app.getName()} />
+							<NavProtectionContext.Provider value={metadataEditorNavProtectionContext}>
+								<MetadataEditor appName={app.getName()} />
+							</NavProtectionContext.Provider>
 						</React.Suspense>
 					</Box>
 				</AccordionPanel>
