@@ -142,6 +142,27 @@ it('setKeyAtIndex removes entry if given key is empty and value is also empty', 
 	expect(b.hasChanges).toEqual(true);
 });
 
+it('setKeyAtIndex changing key then changing back results in no changes', () => {
+	const a = setKeyAtIndex(setKeyAtIndex(buildData([['first', 'first-val']]), 'other', 0), 'first', 0);
+	expect(
+		mapEntries(a, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 0]]);
+	expect(a.length).toEqual(1);
+	expect(a.hasChanges).toEqual(false);
+
+	// append key of same name
+	const b = setKeyAtIndex(setKeyAtIndex(appendEntry(a, 'first', 'first-val'), 'other', 1), 'first', 1);
+	expect(
+		mapEntries(b, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 1]]);
+	expect(b.length).toEqual(1);
+	expect(b.hasChanges).toEqual(false);
+});
+
 it('setKeyAtIndex throws an error if index out of bounds', () => {
 	const a = buildData([['first', 'first-val']]);
 
@@ -216,6 +237,17 @@ it('setValueAtIndex appends entry with given value if index is _entries.length',
 			return [key, val, index];
 		})
 	).toEqual([['first', 'first-val', 0], ['', '2', 1]]);
+});
+
+it('setValueAtIndex changing value then changing back results in no changes', () => {
+	const a = setValueAtIndex(setValueAtIndex(buildData([['first', 'first-val']]), 'other', 0), 'first-val', 0);
+	expect(
+		mapEntries(a, ([key, val]: Entry, index: number) => {
+			return [key, val, index];
+		})
+	).toEqual([['first', 'first-val', 0]]);
+	expect(a.length).toEqual(1);
+	expect(a.hasChanges).toEqual(false);
 });
 
 it('setValueAtIndex throws an error if index out of bounds', () => {

@@ -89,13 +89,14 @@ export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 	if (key === prevKey) return data;
 
 	const originalIndex = data._indicesMap.has(key) ? data._indicesMap.get(key) : undefined;
-	const [originalKey = undefined, originalValue = undefined, originalState = undefined] =
-		originalIndex !== undefined ? data._entries[originalIndex] || [] : [];
+	const [, , originalState = undefined] = originalIndex !== undefined ? data._entries[originalIndex] || [] : [];
 	if (originalState) {
 		// we're using the same key as an existing entry, so inherit it's state
 		state = Object.assign({}, originalState);
 		delete state.deleted;
 	}
+
+	const { originalKey, originalValue } = state;
 
 	const nextData = Object.assign({}, data, {
 		hasChanges: true,
