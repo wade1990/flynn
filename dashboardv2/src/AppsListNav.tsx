@@ -3,7 +3,7 @@ import { Box } from 'grommet';
 
 import useRouter from './useRouter';
 import useAppsList from './useAppsList';
-import { handleError } from './withErrorHandler';
+import useErrorHandler from './useErrorHandler';
 
 import Loading from './Loading';
 import NavAnchor from './NavAnchor';
@@ -13,6 +13,7 @@ export interface Props {
 }
 
 export default function AppsListNav({ onNav }: Props) {
+	const handleError = useErrorHandler();
 	const { location, urlParams } = useRouter();
 	const { apps, loading: isLoading, error: appsError } = useAppsList();
 	React.useEffect(
@@ -21,7 +22,7 @@ export default function AppsListNav({ onNav }: Props) {
 				handleError(appsError);
 			}
 		},
-		[appsError]
+		[appsError, handleError]
 	);
 
 	if (isLoading) {

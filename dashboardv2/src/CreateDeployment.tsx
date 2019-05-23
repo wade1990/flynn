@@ -3,12 +3,12 @@ import { Checkmark as CheckmarkIcon } from 'grommet-icons';
 import { Box, Button } from 'grommet';
 
 import { Release, Formation, Deployment, CreateScaleRequest } from './generated/controller_pb';
-import { handleError } from './withErrorHandler';
 import useClient from './useClient';
 import useAppRelease from './useAppRelease';
 import useAppFormation from './useAppFormation';
 import useRelease from './useRelease';
 import useCallIfMounted from './useCallIfMounted';
+import { ErrorHandler } from './useErrorHandler';
 import Loading from './Loading';
 import ReleaseComponent from './Release';
 import ProcessesDiff from './ProcessesDiff';
@@ -21,6 +21,7 @@ interface Props {
 	newFormation?: Formation;
 	onCancel: () => void;
 	onCreate: (deployment: Deployment) => void;
+	handleError: ErrorHandler;
 }
 
 export default function CreateDeployment(props: Props) {
@@ -46,6 +47,7 @@ export default function CreateDeployment(props: Props) {
 	);
 	const [isCreating, setIsCreating] = React.useState(false);
 	const [isScaleToZeroConfirmed, setIsScaleToZeroConfirmed] = React.useState(!props.newFormation);
+	const handleError = props.handleError;
 
 	React.useEffect(
 		() => {
@@ -54,7 +56,7 @@ export default function CreateDeployment(props: Props) {
 				handleError(error);
 			}
 		},
-		[currentReleaseError, nextReleaseError, currentFormationError]
+		[currentReleaseError, nextReleaseError, currentFormationError, handleError]
 	);
 
 	const callIfMounted = useCallIfMounted();

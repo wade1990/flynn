@@ -6,7 +6,7 @@ import useApp from './useApp';
 import useClient from './useClient';
 import useCallIfMounted from './useCallIfMounted';
 import useNavProtection from './useNavProtection';
-import { handleError } from './withErrorHandler';
+import useErrorHandler from './useErrorHandler';
 import Loading from './Loading';
 import KeyValueEditor, { Data as KeyValueData, buildData, rebaseData, getEntries } from './KeyValueEditor';
 import KeyValueDiff from './KeyValueDiff';
@@ -25,13 +25,14 @@ export default function MetadataEditor({ appName }: Props) {
 	const [isDeploying, setIsDeploying] = React.useState(false);
 	const client = useClient();
 	const callIfMounted = useCallIfMounted();
+	const handleError = useErrorHandler();
 
 	React.useEffect(
 		() => {
 			if (!appError) return;
 			handleError(appError);
 		},
-		[appError]
+		[appError, handleError]
 	);
 
 	const [enableNavProtection, disableNavProtection] = useNavProtection();

@@ -11,9 +11,9 @@ import RightOverlay from './RightOverlay';
 import { default as useRouter, UseRouterObejct } from './useRouter';
 import useApp from './useApp';
 import useAppFormation from './useAppFormation';
+import useErrorHandler from './useErrorHandler';
 import { listDeploymentsRequestFilterType } from './client';
 import { ClientContext } from './withClient';
-import { handleError } from './withErrorHandler';
 import {
 	Release,
 	ReleaseType,
@@ -235,6 +235,7 @@ enum SelectedResourceType {
 }
 
 export default function ReleaseHistory({ appName }: Props) {
+	const handleError = useErrorHandler();
 	const [isDeploying, setIsDeploying] = React.useState(false);
 
 	const { app, loading: appLoading, error: appError } = useApp(appName);
@@ -244,7 +245,7 @@ export default function ReleaseHistory({ appName }: Props) {
 				handleError(appError);
 			}
 		},
-		[appError]
+		[appError, handleError]
 	);
 
 	const currentReleaseName = React.useMemo(
@@ -321,7 +322,7 @@ export default function ReleaseHistory({ appName }: Props) {
 			);
 			return cancel;
 		},
-		[appName, client, isCodeReleaseEnabled, isConfigReleaseEnabled]
+		[appName, client, handleError, isCodeReleaseEnabled, isConfigReleaseEnabled]
 	);
 
 	// Get scale requests
@@ -345,7 +346,7 @@ export default function ReleaseHistory({ appName }: Props) {
 			});
 			return cancel;
 		},
-		[appName, client, isScaleEnabled]
+		[appName, client, handleError, isScaleEnabled]
 	);
 
 	// Get current formation
@@ -360,7 +361,7 @@ export default function ReleaseHistory({ appName }: Props) {
 				handleError(currentFormationError);
 			}
 		},
-		[currentFormationError]
+		[currentFormationError, handleError]
 	);
 
 	const [selectedResourceType, setSelectedResourceType] = React.useState<SelectedResourceType>(
@@ -451,6 +452,7 @@ export default function ReleaseHistory({ appName }: Props) {
 							nextFormation={nextFormation}
 							onCancel={handleDeployCancel}
 							onCreate={handleDeployComplete}
+							handleError={handleError}
 						/>
 					) : (
 						<CreateDeployment
@@ -459,6 +461,7 @@ export default function ReleaseHistory({ appName }: Props) {
 							newFormation={nextFormation || undefined}
 							onCancel={handleDeployCancel}
 							onCreate={handleDeployComplete}
+							handleError={handleError}
 						/>
 					)}
 				</RightOverlay>

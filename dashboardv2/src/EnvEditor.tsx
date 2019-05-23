@@ -5,7 +5,7 @@ import CreateDeployment from './CreateDeployment';
 import KeyValueEditor, { Data as KeyValueData, getEntries, rebaseData, buildData } from './KeyValueEditor';
 import protoMapDiff, { applyProtoMapDiff } from './util/protoMapDiff';
 import protoMapReplace from './util/protoMapReplace';
-import { handleError } from './withErrorHandler';
+import useErrorHandler from './useErrorHandler';
 import { Release } from './generated/controller_pb';
 import RightOverlay from './RightOverlay';
 import { isNotFoundError } from './client';
@@ -17,6 +17,7 @@ interface Props {
 }
 
 export default function EnvEditor({ appName }: Props) {
+	const handleError = useErrorHandler();
 	// Stream app release
 	const { release: currentRelease, loading: releaseIsLoading, error: releaseError } = useAppRelease(appName);
 	// handle app not having a release (useMemo so it uses the same value over
@@ -99,6 +100,7 @@ export default function EnvEditor({ appName }: Props) {
 						newRelease={newRelease || new Release()}
 						onCancel={handleDeployDismiss}
 						onCreate={handleDeployComplete}
+						handleError={handleError}
 					/>
 				</RightOverlay>
 			) : null}

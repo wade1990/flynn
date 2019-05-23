@@ -6,10 +6,9 @@ import { aruba } from 'grommet-theme-aruba';
 
 import Split from './Split';
 import Loading from './Loading';
-import Notification from './Notification';
 import AppsListNav from './AppsListNav';
 import ExternalAnchor from './ExternalAnchor';
-import { registerErrorHandler } from './withErrorHandler';
+import { DisplayErrors } from './useErrorHandler';
 
 // DEBUG:
 import { default as client, Client } from './client';
@@ -42,14 +41,6 @@ export default function Dashboard() {
 		[currentPath]
 	);
 
-	const [error, setError] = React.useState<Error | null>(null);
-	React.useEffect(() => {
-		const discardErrorHandler = registerErrorHandler((error: Error) => {
-			setError(error);
-		});
-		return discardErrorHandler;
-	}, []);
-
 	return (
 		<Grommet full theme={aruba} cssVars>
 			<Router>
@@ -76,8 +67,8 @@ export default function Dashboard() {
 						</Box>
 					</Box>
 
-					<Box pad="medium" fill overflow="scroll">
-						{error ? <Notification message={error.message} status="warning" onClose={() => setError(null)} /> : null}
+					<Box pad="medium" fill overflow="scroll" gap="small">
+						<DisplayErrors />
 						<React.Suspense fallback={<Loading />}>
 							<Switch>
 								<Route path="/apps/:appID">

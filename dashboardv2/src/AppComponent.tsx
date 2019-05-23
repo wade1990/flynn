@@ -7,7 +7,7 @@ import useApp from './useApp';
 import useRouter from './useRouter';
 import { NavProtectionContext, buildNavProtectionContext } from './useNavProtection';
 
-import { handleError } from './withErrorHandler';
+import { default as useErrorHandler, ErrorHandlerOption } from './useErrorHandler';
 import Loading from './Loading';
 import ExternalAnchor from './ExternalAnchor';
 const FormationEditor = React.lazy(() => import('./FormationEditor'));
@@ -35,6 +35,7 @@ export interface Props {
  *
  */
 export default function AppComponent({ name }: Props) {
+	const handleError = useErrorHandler(ErrorHandlerOption.PERSIST_AFTER_UNMOUNT);
 	// Stream app
 	const { app, loading: appLoading, error: appError } = useApp(name);
 	const isAppDeleted = React.useMemo(
@@ -52,7 +53,7 @@ export default function AppComponent({ name }: Props) {
 					handleError(new Error(`"${app.getDisplayName()}" has been deleted!`));
 					history.push('/' + location.search);
 				} else {
-					handleError(appError);
+					handleError(new Error(`${app ? app.getDisplayName() : 'App(' + name + ')'}: ${appError.message}`));
 				}
 			}
 		},

@@ -5,7 +5,7 @@ import { Checkmark as CheckmarkIcon } from 'grommet-icons';
 import useClient from './useClient';
 import useAppFormation from './useAppFormation';
 import useCallIfMounted from './useCallIfMounted';
-import { handleError } from './withErrorHandler';
+import { ErrorHandler } from './useErrorHandler';
 import Loading from './Loading';
 import ProcessesDiff from './ProcessesDiff';
 import protoMapDiff from './util/protoMapDiff';
@@ -17,9 +17,16 @@ interface Props {
 	nextFormation: Formation;
 	onCancel: () => void;
 	onCreate: (scaleRequest: ScaleRequest) => void;
+	handleError: ErrorHandler;
 }
 
-export default function CreateScaleRequestComponent({ appName, nextFormation, onCancel, onCreate }: Props) {
+export default function CreateScaleRequestComponent({
+	appName,
+	nextFormation,
+	onCancel,
+	onCreate,
+	handleError
+}: Props) {
 	const client = useClient();
 	const callIfMounted = useCallIfMounted();
 	const { formation, loading: isLoading, error: formationError } = useAppFormation(appName);
@@ -33,7 +40,7 @@ export default function CreateScaleRequestComponent({ appName, nextFormation, on
 				handleError(formationError);
 			}
 		},
-		[formationError]
+		[formationError, handleError]
 	);
 
 	// keep track of if selected formation actually changes anything

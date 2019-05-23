@@ -5,7 +5,7 @@ import { Box, Button, Text } from 'grommet';
 import useClient from './useClient';
 import useAppFormation from './useAppFormation';
 import useNavProtection from './useNavProtection';
-import { handleError } from './withErrorHandler';
+import useErrorHandler from './useErrorHandler';
 import Loading from './Loading';
 import ProcessScale from './ProcessScale';
 import ProcessesDiff from './ProcessesDiff';
@@ -24,6 +24,7 @@ interface Props {
 }
 
 export default function FormationEditor({ appName }: Props) {
+	const handleError = useErrorHandler();
 	const client = useClient();
 	const { formation, loading: isLoading, error: formationError } = useAppFormation(appName);
 	const [initialProcesses, setInitialProcesses] = React.useState<jspb.Map<string, number>>(
@@ -42,7 +43,7 @@ export default function FormationEditor({ appName }: Props) {
 				handleError(formationError);
 			}
 		},
-		[formationError]
+		[formationError, handleError]
 	);
 
 	const [enableNavProtection, disableNavProtection] = useNavProtection();
