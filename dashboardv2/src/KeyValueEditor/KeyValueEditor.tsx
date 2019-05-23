@@ -65,7 +65,7 @@ export default function KeyValueEditor({
 		[] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 	inputs.refs = [];
-	const setCurrentSelection = (s: Selection) => {
+	const setCurrentSelection = (s: Selection | null) => {
 		inputs.currentSelection = s;
 	};
 
@@ -75,6 +75,7 @@ export default function KeyValueEditor({
 			if (!inputs.currentSelection) return;
 			const { entryIndex, entryInnerIndex } = inputs.currentSelection;
 			if (!hasDataIndex(data, entryIndex)) {
+				// focus next input down when entry removed
 				const nextIndex = nextDataIndex(data, entryIndex);
 				const ref = (inputs.refs[nextIndex] || [])[entryInnerIndex];
 				if (ref) {
@@ -84,6 +85,14 @@ export default function KeyValueEditor({
 					const selectionDirection = 'forward';
 					ref.focus();
 					ref.setSelectionRange(selectionStart, selectionEnd, selectionDirection);
+				}
+			} else {
+				// maintain current focus/selection
+				const ref = (inputs.refs[entryIndex] || [])[entryInnerIndex];
+				if (ref) {
+					const { selectionStart, selectionEnd, direction } = inputs.currentSelection;
+					ref.focus();
+					ref.setSelectionRange(selectionStart, selectionEnd, direction);
 				}
 			}
 		},
@@ -98,6 +107,16 @@ export default function KeyValueEditor({
 
 	function valueChangeHandler(index: number, value: string) {
 		onChange(setValueAtIndex(data, value, index));
+	}
+
+	function inputBlurHandler(entryIndex: number, entryInnerIndex: number, e: React.SyntheticEvent) {
+		if (
+			inputs.currentSelection &&
+			inputs.currentSelection.entryIndex === entryIndex &&
+			inputs.currentSelection.entryInnerIndex === entryInnerIndex
+		) {
+			setCurrentSelection(null);
+		}
 	}
 
 	function selectionChangeHandler(entryIndex: number, entryInnerIndex: 0 | 1, selection: InputSelection) {
@@ -169,6 +188,7 @@ export default function KeyValueEditor({
 									value={key}
 									hasConflict={hasConflict}
 									onChange={keyChangeHandler.bind(null, index)}
+									onBlur={inputBlurHandler.bind(null, index, 0)}
 									onSelectionChange={selectionChangeHandler.bind(null, index, 0)}
 									onPaste={handlePaste}
 								/>
@@ -178,6 +198,7 @@ export default function KeyValueEditor({
 									value={value}
 									newValue={hasConflict ? originalValue : undefined}
 									onChange={valueChangeHandler.bind(null, index)}
+									onBlur={inputBlurHandler.bind(null, index, 1)}
 									onSelectionChange={selectionChangeHandler.bind(null, index, 1)}
 									onPaste={handlePaste}
 								/>

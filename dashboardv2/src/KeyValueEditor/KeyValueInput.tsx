@@ -16,6 +16,7 @@ export interface KeyValueInputProps {
 	newValue?: string;
 	hasConflict?: boolean;
 	onChange: (value: string) => void;
+	onBlur?: (e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 	disabled?: boolean;
 
 	refHandler?: (ref: any) => void;
@@ -70,7 +71,12 @@ export function KeyValueInput(props: KeyValueInputProps) {
 					onChange={changeHandler}
 					onInput={selectionChangeHandler}
 					onSelect={selectionChangeHandler}
-					onBlur={() => (expanded ? setExpanded(false) : void 0)}
+					onBlur={(e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+						expanded ? setExpanded(false) : void 0;
+						if (props.onBlur) {
+							props.onBlur(e);
+						}
+					}}
 					resize="vertical"
 					style={{ height: 500, paddingRight: hasConflict ? '2em' : undefined }}
 					ref={textarea}
