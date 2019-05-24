@@ -38,14 +38,13 @@ export default function MetadataEditor({ appName }: Props) {
 	const [enableNavProtection, disableNavProtection] = useNavProtection();
 	React.useEffect(
 		() => {
-			if (!data) return;
-			if (data.hasChanges) {
+			if (data && data.hasChanges) {
 				enableNavProtection();
 			} else {
 				disableNavProtection();
 			}
 		},
-		[data && data.hasChanges] // eslint-disable-line react-hooks/exhaustive-deps
+		[data] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
 	React.useEffect(

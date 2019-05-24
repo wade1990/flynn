@@ -31,14 +31,13 @@ export default function EnvEditor({ appName }: Props) {
 	const [enableNavProtection, disableNavProtection] = useNavProtection();
 	React.useEffect(
 		() => {
-			if (!data) return;
-			if (data.hasChanges) {
+			if (data && data.hasChanges) {
 				enableNavProtection();
 			} else {
 				disableNavProtection();
 			}
 		},
-		[data && data.hasChanges] // eslint-disable-line react-hooks/exhaustive-deps
+		[data] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
 	// newRelease is used to create a deployment
