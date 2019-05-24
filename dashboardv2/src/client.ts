@@ -27,13 +27,13 @@ import {
 } from './generated/controller_pb';
 
 export interface Client {
-	listAppsStream: (cb: ListAppsStreamCallback) => CancelFunc;
-	streamApp: (name: string, cb: StreamAppCallback) => CancelFunc;
-	updateAppMeta: (app: App, cb: UpdateAppCallback) => CancelFunc;
+	streamApps: (cb: AppsCallback) => CancelFunc;
+	streamApp: (name: string, cb: AppCallback) => CancelFunc;
+	updateApp: (app: App, cb: AppCallback) => CancelFunc;
 	streamAppRelease: (appName: string, cb: ReleaseCallback) => CancelFunc;
 	streamAppFormation: (appName: string, cb: FormationCallback) => CancelFunc;
 	createScale: (req: CreateScaleRequest, cb: CreateScaleCallback) => CancelFunc;
-	listScaleRequestsStream: (appName: string, cb: ScaleRequestListCallback) => CancelFunc;
+	streamScaleRequests: (appName: string, cb: ScaleRequestListCallback) => CancelFunc;
 	getRelease: (name: string, cb: ReleaseCallback) => CancelFunc;
 	createRelease: (parentName: string, release: Release, cb: ReleaseCallback) => CancelFunc;
 	streamDeployments: (
@@ -52,9 +52,8 @@ export interface Client {
 
 export type ErrorWithCode = Error & ServiceError;
 export type CancelFunc = () => void;
-export type ListAppsStreamCallback = (apps: App[], error: ErrorWithCode | null) => void;
-export type StreamAppCallback = (app: App, error: ErrorWithCode | null) => void;
-export type UpdateAppCallback = (app: App, error: ErrorWithCode | null) => void;
+export type AppsCallback = (apps: App[], error: ErrorWithCode | null) => void;
+export type AppCallback = (app: App, error: ErrorWithCode | null) => void;
 export type CreateScaleCallback = (sr: ScaleRequest, error: ErrorWithCode | null) => void;
 export type ReleaseCallback = (release: Release, error: ErrorWithCode | null) => void;
 export type DeploymentCallback = (deployment: Deployment, error: ErrorWithCode | null) => void;
@@ -165,8 +164,8 @@ class _Client implements Client {
 		this._cc = cc;
 	}
 
-	public listAppsStream(cb: ListAppsStreamCallback): CancelFunc {
-		const stream = this._cc.listAppsStream(new ListAppsRequest());
+	public streamApps(cb: AppsCallback): CancelFunc {
+		const stream = this._cc.streamApps(new ListAppsRequest());
 		stream.on('data', (response: ListAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
@@ -176,7 +175,7 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public streamApp(name: string, cb: StreamAppCallback): CancelFunc {
+	public streamApp(name: string, cb: AppCallback): CancelFunc {
 		const [stream, lastResponse] = memoizedStream('streamApp', name, () => {
 			const getAppRequest = new GetAppRequest();
 			getAppRequest.setName(name);
@@ -195,11 +194,12 @@ class _Client implements Client {
 		return buildCancelFunc(stream);
 	}
 
-	public updateAppMeta(app: App, cb: UpdateAppCallback): CancelFunc {
+	public updateApp(app: App, cb: AppCallback): CancelFunc {
+		// TODO(jvatic): implement update_mask to include only changed fields
 		const req = new UpdateAppRequest();
 		req.setApp(app);
 		return buildCancelFunc(
-			this._cc.updateAppMeta(req, (error: ServiceError | null, response: App | null) => {
+			this._cc.updateApp(req, (error: ServiceError | null, response: App | null) => {
 				if (response && error === null) {
 					cb(response, null);
 				} else if (error) {
@@ -256,10 +256,10 @@ class _Client implements Client {
 		);
 	}
 
-	public listScaleRequestsStream(appName: string, cb: ScaleRequestListCallback): CancelFunc {
+	public streamScaleRequests(appName: string, cb: ScaleRequestListCallback): CancelFunc {
 		const req = new ListScaleRequestsRequest();
 		req.setParent(appName);
-		const stream = this._cc.listScaleRequestsStream(req);
+		const stream = this._cc.streamScaleRequests(req);
 		stream.on('data', (response: ListScaleRequestsResponse) => {
 			cb(response.getScaleRequestsList(), null);
 		});

@@ -335,7 +335,7 @@ export default function ReleaseHistory({ appName }: Props) {
 				return;
 			}
 
-			const cancel = client.listScaleRequestsStream(appName, (scaleRequests: ScaleRequest[], error: Error | null) => {
+			const cancel = client.streamScaleRequests(appName, (scaleRequests: ScaleRequest[], error: Error | null) => {
 				if (error) {
 					handleError(error);
 					return;

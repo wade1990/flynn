@@ -8,19 +8,17 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
 
 service Controller {
-  // TODO(jvatic): Rename to StreamApps
-  rpc ListAppsStream (ListAppsRequest) returns (stream ListAppsResponse) {};
+  rpc StreamApps (ListAppsRequest) returns (stream ListAppsResponse) {};
 
   rpc StreamApp (GetAppRequest) returns (stream App) {};
 
-  rpc UpdateAppMeta (UpdateAppRequest) returns (App) {};
+  rpc UpdateApp (UpdateAppRequest) returns (App) {};
 
   rpc StreamAppRelease(GetAppReleaseRequest) returns (stream Release) {};
 
   rpc CreateScale (CreateScaleRequest) returns (ScaleRequest) {};
 
-  // TODO(jvatic): Rename to StreamScaleRequests
-  rpc ListScaleRequestsStream (ListScaleRequestsRequest) returns (stream ListScaleRequestsResponse) {};
+  rpc StreamScaleRequests (ListScaleRequestsRequest) returns (stream ListScaleRequestsResponse) {};
 
   rpc StreamAppFormation(GetAppFormationRequest) returns (stream Formation) {};
 

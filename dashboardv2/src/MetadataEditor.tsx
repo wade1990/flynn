@@ -70,7 +70,7 @@ export default function MetadataEditor({ appName }: Props) {
 		app.setName(appName);
 		protoMapReplace(app.getLabelsMap(), new jspb.Map(getEntries(data as KeyValueData)));
 		setIsDeploying(true);
-		client.updateAppMeta(app, (app: App, error: Error | null) => {
+		client.updateApp(app, (app: App, error: Error | null) => {
 			callIfMounted(() => {
 				if (error) {
 					setIsConfirming(false);

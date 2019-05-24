@@ -10,8 +10,8 @@ var Controller = (function () {
   return Controller;
 }());
 
-Controller.ListAppsStream = {
-  methodName: "ListAppsStream",
+Controller.StreamApps = {
+  methodName: "StreamApps",
   service: Controller,
   requestStream: false,
   responseStream: true,
@@ -28,8 +28,8 @@ Controller.StreamApp = {
   responseType: controller_pb.App
 };
 
-Controller.UpdateAppMeta = {
-  methodName: "UpdateAppMeta",
+Controller.UpdateApp = {
+  methodName: "UpdateApp",
   service: Controller,
   requestStream: false,
   responseStream: false,
@@ -55,8 +55,8 @@ Controller.CreateScale = {
   responseType: controller_pb.ScaleRequest
 };
 
-Controller.ListScaleRequestsStream = {
-  methodName: "ListScaleRequestsStream",
+Controller.StreamScaleRequests = {
+  methodName: "StreamScaleRequests",
   service: Controller,
   requestStream: false,
   responseStream: true,
@@ -125,13 +125,13 @@ function ControllerClient(serviceHost, options) {
   this.options = options || {};
 }
 
-ControllerClient.prototype.listAppsStream = function listAppsStream(requestMessage, metadata) {
+ControllerClient.prototype.streamApps = function streamApps(requestMessage, metadata) {
   var listeners = {
     data: [],
     end: [],
     status: []
   };
-  var client = grpc.invoke(Controller.ListAppsStream, {
+  var client = grpc.invoke(Controller.StreamApps, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -203,11 +203,11 @@ ControllerClient.prototype.streamApp = function streamApp(requestMessage, metada
   };
 };
 
-ControllerClient.prototype.updateAppMeta = function updateAppMeta(requestMessage, metadata, callback) {
+ControllerClient.prototype.updateApp = function updateApp(requestMessage, metadata, callback) {
   if (arguments.length === 2) {
     callback = arguments[1];
   }
-  var client = grpc.unary(Controller.UpdateAppMeta, {
+  var client = grpc.unary(Controller.UpdateApp, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,
@@ -304,13 +304,13 @@ ControllerClient.prototype.createScale = function createScale(requestMessage, me
   };
 };
 
-ControllerClient.prototype.listScaleRequestsStream = function listScaleRequestsStream(requestMessage, metadata) {
+ControllerClient.prototype.streamScaleRequests = function streamScaleRequests(requestMessage, metadata) {
   var listeners = {
     data: [],
     end: [],
     status: []
   };
-  var client = grpc.invoke(Controller.ListScaleRequestsStream, {
+  var client = grpc.invoke(Controller.StreamScaleRequests, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,

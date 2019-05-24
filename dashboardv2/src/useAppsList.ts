@@ -9,7 +9,7 @@ export default function useAppsList() {
 	const [error, setError] = React.useState<Error | null>(null);
 	React.useEffect(
 		() => {
-			const cancel = client.listAppsStream((apps: App[], error: Error | null) => {
+			const cancel = client.streamApps((apps: App[], error: Error | null) => {
 				setAppLoading(false);
 				if (error) {
 					setError(error);

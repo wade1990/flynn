@@ -165,7 +165,7 @@ func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsR
 	}, nil
 }
 
-func (s *server) ListAppsStream(req *ListAppsRequest, stream Controller_ListAppsStreamServer) error {
+func (s *server) StreamApps(req *ListAppsRequest, stream Controller_StreamAppsServer) error {
 	var apps []*App
 	var appsMtx sync.RWMutex
 	refreshApps := func() error {
@@ -200,7 +200,7 @@ func (s *server) ListAppsStream(req *ListAppsRequest, stream Controller_ListApps
 		defer wg.Done()
 		for {
 			if err := refreshApps(); err != nil {
-				fmt.Printf("ListAppsStream: Error refreshing apps: %s\n", err)
+				fmt.Printf("StreamApps: Error refreshing apps: %s\n", err)
 				continue
 			}
 			sendResponse()
@@ -317,14 +317,7 @@ func backConvertApp(a *App) *ct.App {
 
 func (s *server) UpdateApp(ctx context.Context, req *UpdateAppRequest) (*App, error) {
 	ctApp := backConvertApp(req.App)
-	if err := s.Client.UpdateApp(ctApp); err != nil {
-		return nil, err
-	}
-	return convertApp(ctApp), nil
-}
-
-func (s *server) UpdateAppMeta(ctx context.Context, req *UpdateAppRequest) (*App, error) {
-	ctApp := backConvertApp(req.App)
+	// TODO(jvatic): implement req.UpdateMask
 	if err := s.Client.UpdateAppMeta(ctApp); err != nil {
 		return nil, err
 	}
@@ -595,7 +588,7 @@ func (s *server) CreateScale(ctx context.Context, req *CreateScaleRequest) (*Sca
 	return scaleReq, nil
 }
 
-func (s *server) ListScaleRequestsStream(req *ListScaleRequestsRequest, stream Controller_ListScaleRequestsStreamServer) error {
+func (s *server) StreamScaleRequests(req *ListScaleRequestsRequest, stream Controller_StreamScaleRequestsServer) error {
 	appID := parseIDFromName(req.Parent, "apps")
 
 	events := make(chan *ct.Event)

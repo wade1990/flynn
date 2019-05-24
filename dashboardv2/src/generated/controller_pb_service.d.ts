@@ -4,7 +4,7 @@
 import * as controller_pb from "./controller_pb";
 import {grpc} from "@improbable-eng/grpc-web";
 
-type ControllerListAppsStream = {
+type ControllerStreamApps = {
   readonly methodName: string;
   readonly service: typeof Controller;
   readonly requestStream: false;
@@ -22,7 +22,7 @@ type ControllerStreamApp = {
   readonly responseType: typeof controller_pb.App;
 };
 
-type ControllerUpdateAppMeta = {
+type ControllerUpdateApp = {
   readonly methodName: string;
   readonly service: typeof Controller;
   readonly requestStream: false;
@@ -49,7 +49,7 @@ type ControllerCreateScale = {
   readonly responseType: typeof controller_pb.ScaleRequest;
 };
 
-type ControllerListScaleRequestsStream = {
+type ControllerStreamScaleRequests = {
   readonly methodName: string;
   readonly service: typeof Controller;
   readonly requestStream: false;
@@ -114,12 +114,12 @@ type ControllerCreateDeployment = {
 
 export class Controller {
   static readonly serviceName: string;
-  static readonly ListAppsStream: ControllerListAppsStream;
+  static readonly StreamApps: ControllerStreamApps;
   static readonly StreamApp: ControllerStreamApp;
-  static readonly UpdateAppMeta: ControllerUpdateAppMeta;
+  static readonly UpdateApp: ControllerUpdateApp;
   static readonly StreamAppRelease: ControllerStreamAppRelease;
   static readonly CreateScale: ControllerCreateScale;
-  static readonly ListScaleRequestsStream: ControllerListScaleRequestsStream;
+  static readonly StreamScaleRequests: ControllerStreamScaleRequests;
   static readonly StreamAppFormation: ControllerStreamAppFormation;
   static readonly GetRelease: ControllerGetRelease;
   static readonly StreamAppLog: ControllerStreamAppLog;
@@ -160,14 +160,14 @@ export class ControllerClient {
   readonly serviceHost: string;
 
   constructor(serviceHost: string, options?: grpc.RpcOptions);
-  listAppsStream(requestMessage: controller_pb.ListAppsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListAppsResponse>;
+  streamApps(requestMessage: controller_pb.ListAppsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListAppsResponse>;
   streamApp(requestMessage: controller_pb.GetAppRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.App>;
-  updateAppMeta(
+  updateApp(
     requestMessage: controller_pb.UpdateAppRequest,
     metadata: grpc.Metadata,
     callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
   ): UnaryResponse;
-  updateAppMeta(
+  updateApp(
     requestMessage: controller_pb.UpdateAppRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.App|null) => void
   ): UnaryResponse;
@@ -181,7 +181,7 @@ export class ControllerClient {
     requestMessage: controller_pb.CreateScaleRequest,
     callback: (error: ServiceError|null, responseMessage: controller_pb.ScaleRequest|null) => void
   ): UnaryResponse;
-  listScaleRequestsStream(requestMessage: controller_pb.ListScaleRequestsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListScaleRequestsResponse>;
+  streamScaleRequests(requestMessage: controller_pb.ListScaleRequestsRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.ListScaleRequestsResponse>;
   streamAppFormation(requestMessage: controller_pb.GetAppFormationRequest, metadata?: grpc.Metadata): ResponseStream<controller_pb.Formation>;
   getRelease(
     requestMessage: controller_pb.GetReleaseRequest,
