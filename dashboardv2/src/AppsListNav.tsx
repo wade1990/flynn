@@ -1,9 +1,11 @@
 import * as React from 'react';
-import { Box } from 'grommet';
+import { Box, CheckBox } from 'grommet';
 
 import useRouter from './useRouter';
 import useAppsList from './useAppsList';
 import useErrorHandler from './useErrorHandler';
+
+import { excludeAppsWithLabels } from './client';
 
 import Loading from './Loading';
 import NavAnchor from './NavAnchor';
@@ -14,8 +16,14 @@ export interface Props {
 
 export default function AppsListNav({ onNav }: Props) {
 	const handleError = useErrorHandler();
-	const { location, urlParams } = useRouter();
-	const { apps, loading: isLoading, error: appsError } = useAppsList();
+	const { history, location, urlParams } = useRouter();
+	const excludeSystemAppsFilter = React.useMemo(() => excludeAppsWithLabels([['flynn-system-app', 'true']]), []);
+	const showSystemApps = urlParams.get('show-system-apps') === 'true';
+	const appsListFilters = React.useMemo(() => (showSystemApps ? [] : [excludeSystemAppsFilter]), [
+		excludeSystemAppsFilter,
+		showSystemApps
+	]);
+	const { apps, loading: isLoading, error: appsError } = useAppsList(appsListFilters);
 	React.useEffect(
 		() => {
 			if (appsError) {
@@ -25,13 +33,9 @@ export default function AppsListNav({ onNav }: Props) {
 		[appsError, handleError]
 	);
 
-	if (isLoading) {
-		return <Loading />;
-	}
-
 	// some query params are persistent, make sure they're passed along if present
 	const persistedUrlParams = new URLSearchParams();
-	['rhf', 's'].forEach((k) => {
+	['rhf', 's', 'show-system-apps'].forEach((k) => {
 		urlParams.getAll(k).forEach((v) => {
 			persistedUrlParams.append(k, v);
 		});
@@ -55,27 +59,54 @@ export default function AppsListNav({ onNav }: Props) {
 		onNav(path);
 	};
 
+	const setShowSystemApps = (showSystemApps: boolean) => {
+		const nextUrlParams = new URLSearchParams(urlParams);
+		if (showSystemApps) {
+			nextUrlParams.set('show-system-apps', 'true');
+		} else {
+			nextUrlParams.delete('show-system-apps');
+		}
+		history.replace(
+			Object.assign({}, location, {
+				search: nextUrlParams.toString()
+			})
+		);
+	};
+
 	return (
 		<Box tag="ul" margin="none" pad="none" flex={true} overflow="auto">
-			{appRoutes.map((r) => {
-				return (
-					<NavAnchor path={r.path} search={search} key={r.path} onNav={navHandler}>
-						<Box
-							tag="li"
-							direction="row"
-							justify="between"
-							align="center"
-							border="bottom"
-							pad={{ horizontal: 'medium', vertical: 'small' }}
-							basis="auto"
-							flex={false}
-							background={r.selected ? 'accent-1' : 'neutral-1'}
-						>
-							{r.displayName}
-						</Box>
-					</NavAnchor>
-				);
-			})}
+			<Box margin="medium">
+				<CheckBox
+					toggle
+					checked={showSystemApps}
+					label="Show system apps"
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowSystemApps(e.target.checked)}
+				/>
+			</Box>
+
+			{isLoading ? <Loading /> : null}
+
+			<Box>
+				{appRoutes.map((r) => {
+					return (
+						<NavAnchor path={r.path} search={search} key={r.path} onNav={navHandler}>
+							<Box
+								tag="li"
+								direction="row"
+								justify="between"
+								align="center"
+								border="bottom"
+								pad={{ horizontal: 'medium', vertical: 'small' }}
+								basis="auto"
+								flex={false}
+								background={r.selected ? 'accent-1' : 'neutral-1'}
+							>
+								{r.displayName}
+							</Box>
+						</NavAnchor>
+					);
+				})}
+			</Box>
 		</Box>
 	);
 }
