@@ -1,4 +1,5 @@
 import { grpc } from '@improbable-eng/grpc-web';
+import * as jspb from 'google-protobuf';
 
 import Config from './config';
 import { ControllerClient, ServiceError, Status, ResponseStream } from './generated/controller_pb_service';
@@ -26,8 +27,10 @@ import {
 	Event
 } from './generated/controller_pb';
 
+import protoMapReplace from './util/protoMapReplace';
+
 export interface Client {
-	streamApps: (cb: AppsCallback) => CancelFunc;
+	streamApps: (cb: AppsCallback, ...reqModifiers: ListAppsRequestModifier[]) => CancelFunc;
 	streamApp: (name: string, cb: AppCallback) => CancelFunc;
 	updateApp: (app: App, cb: AppCallback) => CancelFunc;
 	streamAppRelease: (appName: string, cb: ReleaseCallback) => CancelFunc;
@@ -63,8 +66,31 @@ export type ListDeploymentsCallback = (res: ListDeploymentsResponse, error: Erro
 
 export type ListDeploymentsRequestModifier = {
 	(req: ListDeploymentsRequest): void;
-	displayName: string;
+	key: string;
 };
+
+export function listDeploymentsRequestFilterType(filterType: ReleaseType): ListDeploymentsRequestModifier {
+	return Object.assign(
+		(req: ListDeploymentsRequest) => {
+			req.setFilterType(filterType);
+		},
+		{ key: `filterType--${filterType}` }
+	);
+}
+
+export type ListAppsRequestModifier = {
+	(req: ListAppsRequest): void;
+	key: string;
+};
+
+export function excludeAppsWithLabels(labels: [string, string][]): ListAppsRequestModifier {
+	return Object.assign(
+		(req: ListAppsRequest) => {
+			protoMapReplace(req.getLabelsExclusionFilterMap(), new jspb.Map(labels));
+		},
+		{ key: `excludeAppsWithLabels--${JSON.stringify(labels)}` }
+	);
+}
 
 const UnknownError: ErrorWithCode = Object.assign(new Error('Unknown error'), {
 	code: grpc.Code.Unknown,
@@ -74,17 +100,6 @@ const UnknownError: ErrorWithCode = Object.assign(new Error('Unknown error'), {
 export function isNotFoundError(error: Error): boolean {
 	return (error as ErrorWithCode).code === grpc.Code.NotFound;
 }
-
-export function listDeploymentsRequestFilterType(filterType: ReleaseType): ListDeploymentsRequestModifier {
-	return Object.assign(
-		(req: ListDeploymentsRequest) => {
-			req.setFilterType(filterType);
-		},
-		{ displayName: `filterType--${filterType}` }
-	);
-}
-
-export interface StreamEventsOptions {}
 
 interface Cancellable {
 	cancel(): void;
@@ -164,8 +179,10 @@ class _Client implements Client {
 		this._cc = cc;
 	}
 
-	public streamApps(cb: AppsCallback): CancelFunc {
-		const stream = this._cc.streamApps(new ListAppsRequest());
+	public streamApps(cb: AppsCallback, ...reqModifiers: ListAppsRequestModifier[]): CancelFunc {
+		const req = new ListAppsRequest();
+		reqModifiers.forEach((m) => m(req));
+		const stream = this._cc.streamApps(req);
 		stream.on('data', (response: ListAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
@@ -307,7 +324,7 @@ class _Client implements Client {
 		cb: ListDeploymentsCallback,
 		...reqModifiers: ListDeploymentsRequestModifier[]
 	): CancelFunc {
-		const streamKey = `${appName}:${reqModifiers.map((m) => m.displayName).join(':')}`;
+		const streamKey = `${appName}:${reqModifiers.map((m) => m.key).join(':')}`;
 		const [stream, lastResponse] = memoizedStream('streamDeployments', streamKey, () => {
 			const req = new ListDeploymentsRequest();
 			req.setParent(appName);

@@ -41,6 +41,9 @@ service Controller {
 message ListAppsRequest {
   int32 page_size = 1;
   string page_token = 2;
+
+  // filter out apps containing the following labels
+  map<string, string> labels_exclusion_filter = 3;
 }
 
 message ListAppsResponse {

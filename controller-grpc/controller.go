@@ -142,20 +142,31 @@ func convertApp(a *ct.App) *App {
 	}
 }
 
-func (s *server) listApps() ([]*App, error) {
+func (s *server) listApps(req *ListAppsRequest) ([]*App, error) {
+	labelsExclusionFilter := req.GetLabelsExclusionFilter()
 	ctApps, err := s.Client.AppList()
 	if err != nil {
 		return nil, err
 	}
-	apps := make([]*App, len(ctApps))
-	for i, a := range ctApps {
-		apps[i] = convertApp(a)
+	apps := make([]*App, 0, len(ctApps))
+
+outer:
+	for _, a := range ctApps {
+		for ek, ev := range labelsExclusionFilter {
+			for k, v := range a.Meta {
+				if ek == k && ev == v {
+					continue outer
+				}
+			}
+		}
+		apps = append(apps, convertApp(a))
 	}
+
 	return apps, nil
 }
 
 func (s *server) ListApps(ctx context.Context, req *ListAppsRequest) (*ListAppsResponse, error) {
-	apps, err := s.listApps()
+	apps, err := s.listApps(req)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +183,7 @@ func (s *server) StreamApps(req *ListAppsRequest, stream Controller_StreamAppsSe
 		appsMtx.Lock()
 		defer appsMtx.Unlock()
 		var err error
-		apps, err = s.listApps()
+		apps, err = s.listApps(req)
 		return err
 	}
 

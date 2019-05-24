@@ -14,6 +14,8 @@ export class ListAppsRequest extends jspb.Message {
   getPageToken(): string;
   setPageToken(value: string): void;
 
+  getLabelsExclusionFilterMap(): jspb.Map<string, string>;
+  clearLabelsExclusionFilterMap(): void;
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ListAppsRequest.AsObject;
   static toObject(includeInstance: boolean, msg: ListAppsRequest): ListAppsRequest.AsObject;
@@ -28,6 +30,7 @@ export namespace ListAppsRequest {
   export type AsObject = {
     pageSize: number,
     pageToken: string,
+    labelsExclusionFilterMap: Array<[string, string]>,
   }
 }
 

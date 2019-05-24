@@ -804,7 +804,8 @@ proto.controller.ListAppsRequest.prototype.toObject = function(opt_includeInstan
 proto.controller.ListAppsRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     pageSize: jspb.Message.getFieldWithDefault(msg, 1, 0),
-    pageToken: jspb.Message.getFieldWithDefault(msg, 2, "")
+    pageToken: jspb.Message.getFieldWithDefault(msg, 2, ""),
+    labelsExclusionFilterMap: (f = msg.getLabelsExclusionFilterMap()) ? f.toObject(includeInstance, undefined) : []
   };
 
   if (includeInstance) {
@@ -849,6 +850,12 @@ proto.controller.ListAppsRequest.deserializeBinaryFromReader = function(msg, rea
       var value = /** @type {string} */ (reader.readString());
       msg.setPageToken(value);
       break;
+    case 3:
+      var value = msg.getLabelsExclusionFilterMap();
+      reader.readMessage(value, function(message, reader) {
+        jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readString, null, "");
+         });
+      break;
     default:
       reader.skipField();
       break;
@@ -892,6 +899,10 @@ proto.controller.ListAppsRequest.serializeBinaryToWriter = function(message, wri
       f
     );
   }
+  f = message.getLabelsExclusionFilterMap(true);
+  if (f && f.getLength() > 0) {
+    f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
+  }
 };
 
 
@@ -922,6 +933,27 @@ proto.controller.ListAppsRequest.prototype.getPageToken = function() {
 /** @param {string} value */
 proto.controller.ListAppsRequest.prototype.setPageToken = function(value) {
   jspb.Message.setProto3StringField(this, 2, value);
+};
+
+
+/**
+ * map<string, string> labels_exclusion_filter = 3;
+ * @param {boolean=} opt_noLazyCreate Do not create the map if
+ * empty, instead returning `undefined`
+ * @return {!jspb.Map<string,string>}
+ */
+proto.controller.ListAppsRequest.prototype.getLabelsExclusionFilterMap = function(opt_noLazyCreate) {
+  return /** @type {!jspb.Map<string,string>} */ (
+      jspb.Message.getMapField(this, 3, opt_noLazyCreate,
+      null));
+};
+
+
+/**
+ * Clears values from the map. The map will be non-null.
+ */
+proto.controller.ListAppsRequest.prototype.clearLabelsExclusionFilterMap = function() {
+  this.getLabelsExclusionFilterMap().clear();
 };
 
 
