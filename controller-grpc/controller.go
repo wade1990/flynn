@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	fmt "fmt"
 	"net/http"
 	"os"
@@ -14,12 +15,14 @@ import (
 	"github.com/flynn/flynn/controller-grpc/protobuf"
 	"github.com/flynn/flynn/controller-grpc/utils"
 	controller "github.com/flynn/flynn/controller/client"
+	"github.com/flynn/flynn/controller/data"
 	controllerschema "github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/pkg/cors"
 	"github.com/flynn/flynn/pkg/httphelper"
 	"github.com/flynn/flynn/pkg/postgres"
 	"github.com/flynn/flynn/pkg/shutdown"
+	routerc "github.com/flynn/flynn/router/client"
 	que "github.com/flynn/que-go"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"golang.org/x/net/context"
@@ -57,11 +60,11 @@ func main() {
 	shutdown.BeforeExit(func() { db.Close() })
 	q := que.NewClient(db.ConnPool)
 
-	s := NewServer(&Config{
+	s := NewServer(configureRepos(&Config{
 		Client: client,
 		DB:     db,
 		q:      q,
-	})
+	}))
 
 	wrappedServer := grpcweb.WrapServer(s)
 
@@ -88,9 +91,35 @@ func main() {
 }
 
 type Config struct {
-	Client controller.Client
-	DB     *postgres.DB
-	q      *que.Client
+	Client           controller.Client
+	DB               *postgres.DB
+	q                *que.Client
+	appRepo          *data.AppRepo
+	artifactRepo     *data.ArtifactRepo
+	releaseRepo      *data.ReleaseRepo
+	formationRepo    *data.FormationRepo
+	eventRepo        *data.EventRepo
+	eventListenerMtx sync.Mutex
+	eventListener    *data.EventListener
+}
+
+func configureRepos(c *Config) *Config {
+	c.appRepo = data.NewAppRepo(c.DB, os.Getenv("DEFAULT_ROUTE_DOMAIN"), routerc.New())
+	c.artifactRepo = data.NewArtifactRepo(c.DB)
+	c.releaseRepo = data.NewReleaseRepo(c.DB, c.artifactRepo, c.q)
+	c.formationRepo = data.NewFormationRepo(c.DB, c.appRepo, c.releaseRepo, c.artifactRepo)
+	c.eventRepo = data.NewEventRepo(c.DB)
+	return c
+}
+
+func (c *Config) maybeStartEventListener() (*data.EventListener, error) {
+	c.eventListenerMtx.Lock()
+	defer c.eventListenerMtx.Unlock()
+	if c.eventListener != nil && !c.eventListener.IsClosed() {
+		return c.eventListener, nil
+	}
+	c.eventListener = data.NewEventListener(c.eventRepo)
+	return c.eventListener, c.eventListener.Listen()
 }
 
 func corsHandler(main http.Handler) http.Handler {
@@ -121,14 +150,14 @@ type server struct {
 
 func (s *server) listApps(req *protobuf.ListAppsRequest) ([]*protobuf.App, error) {
 	labelsExclusionFilter := req.GetLabelsExclusionFilter()
-	ctApps, err := s.Client.AppList()
+	ctApps, err := s.appRepo.List()
 	if err != nil {
 		return nil, err
 	}
-	apps := make([]*protobuf.App, 0, len(ctApps))
+	apps := make([]*protobuf.App, 0, len(ctApps.([]*ct.App)))
 
 outer:
-	for _, a := range ctApps {
+	for _, a := range ctApps.([]*ct.App) {
 		for ek, ev := range labelsExclusionFilter {
 			for k, v := range a.Meta {
 				if ek == k && ev == v {
@@ -164,13 +193,18 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 
 	var wg sync.WaitGroup
 
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		ObjectTypes: []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease},
-	}, events)
+	eventListener, err := s.maybeStartEventListener()
 	if err != nil {
+		// TODO(jvatic): return proper error code
 		return err
 	}
+
+	sub, err := eventListener.Subscribe("", []string{string(ct.EventTypeApp), string(ct.EventTypeAppDeletion), string(ct.EventTypeAppRelease)}, "")
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	defer sub.Close()
 
 	wg.Add(1)
 	go func() {
@@ -182,18 +216,18 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 			}
 			sendResponse()
 
-			if _, ok := <-events; !ok {
+			if _, ok := <-sub.Events; !ok {
 				break
 			}
 		}
 	}()
 	wg.Wait()
 
-	if err := eventStream.Close(); err != nil {
-		return err
+	if err := sub.Err; err != nil {
+		return utils.ConvertError(err, err.Error())
 	}
 
-	return eventStream.Err()
+	return nil
 }
 
 func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controller_StreamAppServer) error {
@@ -208,11 +242,11 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 	refreshApp := func() error {
 		appMtx.Lock()
 		defer appMtx.Unlock()
-		ctApp, err := s.Client.GetApp(appID)
+		ctApp, err := s.appRepo.Get(appID)
 		if err != nil {
 			return err
 		}
-		app = utils.ConvertApp(ctApp)
+		app = utils.ConvertApp(ctApp.(*ct.App))
 		return nil
 	}
 
@@ -224,14 +258,18 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 
 	var wg sync.WaitGroup
 
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       appID,
-		ObjectTypes: []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease},
-	}, events)
+	eventListener, err := s.maybeStartEventListener()
 	if err != nil {
+		// TODO(jvatic): return proper error code
 		return err
 	}
+
+	sub, err := eventListener.Subscribe(appID, []string{string(ct.EventTypeApp), string(ct.EventTypeAppDeletion), string(ct.EventTypeAppRelease)}, "")
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	defer sub.Close()
 
 	errChan := make(chan error, 1)
 	defer close(errChan)
@@ -247,7 +285,7 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 			}
 
 			// wait for events before refreshing app and sending respond again
-			if _, ok := <-events; !ok {
+			if _, ok := <-sub.Events; !ok {
 				errChan <- nil
 				break
 			}
@@ -256,15 +294,10 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 	wg.Wait()
 
 	if err := <-errChan; err != nil {
-		eventStream.Close()
 		return err
 	}
 
-	if err := eventStream.Close(); err != nil {
-		return utils.ConvertError(err, err.Error())
-	}
-
-	if err := eventStream.Err(); err != nil {
+	if err := sub.Err; err != nil {
 		return utils.ConvertError(err, err.Error())
 	}
 
@@ -272,12 +305,26 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 }
 
 func (s *server) UpdateApp(ctx context.Context, req *protobuf.UpdateAppRequest) (*protobuf.App, error) {
-	ctApp := utils.BackConvertApp(req.App)
-	// TODO(jvatic): implement req.UpdateMask
-	if err := s.Client.UpdateAppMeta(ctApp); err != nil {
-		return nil, err
+	data := map[string]interface{}{
+		"strategy":       req.App.Strategy,
+		"meta":           req.App.Labels,
+		"deploy_timeout": req.App.DeployTimeout,
 	}
-	return utils.ConvertApp(ctApp), nil
+	if mask := req.GetUpdateMask(); mask != nil {
+		for _, path := range mask.GetPaths() {
+			if path == "labels" {
+				path = "meta"
+			}
+			if _, ok := data[path]; ok {
+				delete(data, path)
+			}
+		}
+	}
+	ctApp, err := s.appRepo.Update(utils.ParseIDFromName(req.App.Name, "apps"), data)
+	if err != nil {
+		return nil, utils.ConvertError(err, err.Error())
+	}
+	return utils.ConvertApp(ctApp.(*ct.App)), nil
 }
 
 func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream protobuf.Controller_StreamAppReleaseServer) error {
@@ -287,7 +334,7 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 	refreshRelease := func() error {
 		releaseMtx.Lock()
 		defer releaseMtx.Unlock()
-		ctRelease, err := s.Client.GetAppRelease(appID)
+		ctRelease, err := s.appRepo.GetRelease(appID)
 		if err != nil {
 			return err
 		}
@@ -303,14 +350,18 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 
 	var wg sync.WaitGroup
 
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       appID,
-		ObjectTypes: []ct.EventType{ct.EventTypeAppRelease},
-	}, events)
+	eventListener, err := s.maybeStartEventListener()
 	if err != nil {
+		// TODO(jvatic): return proper error code
 		return err
 	}
+
+	sub, err := eventListener.Subscribe(appID, []string{string(ct.EventTypeAppRelease)}, "")
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	defer sub.Close()
 
 	errChan := make(chan error, 1)
 	defer close(errChan)
@@ -329,7 +380,7 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 			}
 
 			// wait for events before refreshing release and sending respond again
-			if _, ok := <-events; !ok {
+			if _, ok := <-sub.Events; !ok {
 				errChan <- nil
 				break
 			}
@@ -338,15 +389,10 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 	wg.Wait()
 
 	if err := <-errChan; err != nil {
-		eventStream.Close()
 		return err
 	}
 
-	if err := eventStream.Close(); err != nil {
-		return utils.ConvertError(err, err.Error())
-	}
-
-	if err := eventStream.Err(); err != nil {
+	if err := sub.Err; err != nil {
 		return utils.ConvertError(err, err.Error())
 	}
 
@@ -356,17 +402,74 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 func (s *server) CreateScale(ctx context.Context, req *protobuf.CreateScaleRequest) (*protobuf.ScaleRequest, error) {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
 	releaseID := utils.ParseIDFromName(req.Parent, "releases")
-	var scaleReq *protobuf.ScaleRequest
-	if err := s.Client.ScaleAppRelease(appID, releaseID, ct.ScaleOptions{
-		Processes: parseDeploymentProcesses(req.Processes),
-		Tags:      parseDeploymentTags(req.Tags),
-		ScaleRequestCallback: func(r *ct.ScaleRequest) {
-			scaleReq = utils.ConvertScaleRequest(r)
-		},
-	}); err != nil {
+	processes := parseDeploymentProcesses(req.Processes)
+	tags := parseDeploymentTags(req.Tags)
+
+	eventListener, err := s.maybeStartEventListener()
+	if err != nil {
+		// TODO(jvatic): return proper error code
 		return nil, err
 	}
-	return scaleReq, nil
+
+	sub, err := eventListener.Subscribe(appID, []string{string(ct.EventTypeScaleRequest)}, "")
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return nil, err
+	}
+	defer sub.Close()
+
+	scaleReq := &ct.ScaleRequest{
+		AppID:     appID,
+		ReleaseID: releaseID,
+		State:     ct.ScaleRequestStatePending,
+	}
+	if processes != nil {
+		scaleReq.NewProcesses = &processes
+	}
+	if tags != nil {
+		scaleReq.NewTags = &tags
+	}
+	if _, err := s.formationRepo.AddScaleRequest(scaleReq, false); err != nil {
+		// TODO(jvatic): return proper error code
+		return nil, err
+	}
+
+	timeout := time.After(ct.DefaultScaleTimeout)
+outer:
+	for {
+		select {
+		case event, ok := <-sub.Events:
+			if !ok {
+				break outer
+			}
+			switch event.ObjectType {
+			case ct.EventTypeScaleRequest:
+				var req ct.ScaleRequest
+				if err := json.Unmarshal(event.Data, &req); err != nil {
+					continue
+				}
+				if req.ID != scaleReq.ID {
+					continue
+				}
+				switch req.State {
+				case ct.ScaleRequestStateCancelled:
+					// TODO(jvatic): return proper error code
+					return nil, errors.New("scale request cancelled")
+				case ct.ScaleRequestStateComplete:
+					break outer
+				}
+			}
+		case <-timeout:
+			// TODO(jvatic): return proper error code
+			return nil, fmt.Errorf("timed out waiting for scale to complete (waited %.f seconds)", ct.DefaultScaleTimeout.Seconds())
+		}
+	}
+
+	if err := sub.Err; err != nil {
+		return nil, utils.ConvertError(err, err.Error())
+	}
+
+	return utils.ConvertScaleRequest(scaleReq), nil
 }
 
 func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, stream protobuf.Controller_StreamScaleRequestsServer) error {

@@ -694,6 +694,7 @@
     "release": {
       "env": {
         "CONTROLLER_DOMAIN": "http://controller.{{ getenv \"CLUSTER_DOMAIN\" }}",
+        "DEFAULT_ROUTE_DOMAIN": "{{ getenv \"CLUSTER_DOMAIN\" }}",
         "CONTROLLER_AUTH_KEY": "{{ (index .StepData \"controller-key\").Data }}",
         "DATABASE_URL": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"DATABASE_URL\") }}",
         "FLYNN_POSTGRES": "{{ (index (index (index .StepData \"controller\").Resources 0).Env \"FLYNN_POSTGRES\") }}",
