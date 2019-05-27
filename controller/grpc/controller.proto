@@ -1,6 +1,6 @@
 syntax = 'proto3';
 package controller;
-option go_package = 'main';
+option go_package = 'protobuf';
 
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
