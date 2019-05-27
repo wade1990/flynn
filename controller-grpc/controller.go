@@ -142,17 +142,6 @@ outer:
 	return apps, nil
 }
 
-func (s *server) ListApps(ctx context.Context, req *protobuf.ListAppsRequest) (*protobuf.ListAppsResponse, error) {
-	apps, err := s.listApps(req)
-	if err != nil {
-		return nil, err
-	}
-	return &protobuf.ListAppsResponse{
-		Apps:          apps,
-		NextPageToken: "", // TODO(jvatic): pagination
-	}, nil
-}
-
 func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Controller_StreamAppsServer) error {
 	var apps []*protobuf.App
 	var appsMtx sync.RWMutex
@@ -205,14 +194,6 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 	}
 
 	return eventStream.Err()
-}
-
-func (s *server) GetApp(ctx context.Context, req *protobuf.GetAppRequest) (*protobuf.App, error) {
-	ctApp, err := s.Client.GetApp(utils.ParseIDFromName(req.Name, "apps"))
-	if err != nil {
-		return nil, err
-	}
-	return utils.ConvertApp(ctApp), nil
 }
 
 func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controller_StreamAppServer) error {
@@ -297,18 +278,6 @@ func (s *server) UpdateApp(ctx context.Context, req *protobuf.UpdateAppRequest) 
 		return nil, err
 	}
 	return utils.ConvertApp(ctApp), nil
-}
-
-func (s *server) GetAppRelease(ctx context.Context, req *protobuf.GetAppReleaseRequest) (*protobuf.Release, error) {
-	appID := utils.ParseIDFromName(req.Parent, "apps")
-	if appID == "" {
-		return nil, controller.ErrNotFound
-	}
-	release, err := s.Client.GetAppRelease(appID)
-	if err != nil {
-		return nil, err
-	}
-	return utils.ConvertRelease(release), nil
 }
 
 func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream protobuf.Controller_StreamAppReleaseServer) error {
@@ -606,6 +575,24 @@ func (s *server) GetRelease(ctx context.Context, req *protobuf.GetReleaseRequest
 	return utils.ConvertRelease(release), nil
 }
 
+func (s *server) StreamAppLog(*protobuf.StreamAppLogRequest, protobuf.Controller_StreamAppLogServer) error {
+	return nil
+}
+
+func (s *server) CreateRelease(ctx context.Context, req *protobuf.CreateReleaseRequest) (*protobuf.Release, error) {
+	r := req.Release
+	ctRelease := &ct.Release{
+		ArtifactIDs: r.Artifacts,
+		Env:         r.Env,
+		Meta:        r.Labels,
+		Processes:   utils.BackConvertProcesses(r.Processes),
+	}
+	if err := s.Client.CreateRelease(utils.ParseIDFromName(req.Parent, "apps"), ctRelease); err != nil {
+		return nil, err
+	}
+	return utils.ConvertRelease(ctRelease), nil
+}
+
 func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*protobuf.ExpandedDeployment, error) {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
 	ctDeployments, err := s.Client.DeploymentList(appID)
@@ -791,24 +778,6 @@ func (s *server) StreamDeployments(req *protobuf.ListDeploymentsRequest, srv pro
 	}
 
 	return eventStream.Err()
-}
-
-func (s *server) StreamAppLog(*protobuf.StreamAppLogRequest, protobuf.Controller_StreamAppLogServer) error {
-	return nil
-}
-
-func (s *server) CreateRelease(ctx context.Context, req *protobuf.CreateReleaseRequest) (*protobuf.Release, error) {
-	r := req.Release
-	ctRelease := &ct.Release{
-		ArtifactIDs: r.Artifacts,
-		Env:         r.Env,
-		Meta:        r.Labels,
-		Processes:   utils.BackConvertProcesses(r.Processes),
-	}
-	if err := s.Client.CreateRelease(utils.ParseIDFromName(req.Parent, "apps"), ctRelease); err != nil {
-		return nil, err
-	}
-	return utils.ConvertRelease(ctRelease), nil
 }
 
 func parseDeploymentTags(from map[string]*protobuf.DeploymentProcessTags) map[string]map[string]string {
