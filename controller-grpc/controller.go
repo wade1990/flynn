@@ -539,7 +539,11 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		// TODO(jvatic): return proper error code
 		return err
 	}
-	for _, event := range list {
+	for i, event := range list {
+		if i == 0 {
+			// list is in descending order
+			currID = event.ID
+		}
 		req, err := unmarshalScaleRequest(event)
 		if err != nil {
 			// TODO(jvatic): Handle error
