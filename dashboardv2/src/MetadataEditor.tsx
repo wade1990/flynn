@@ -8,7 +8,7 @@ import useCallIfMounted from './useCallIfMounted';
 import useNavProtection from './useNavProtection';
 import useErrorHandler from './useErrorHandler';
 import Loading from './Loading';
-import KeyValueEditor, { Data as KeyValueData, buildData, rebaseData, getEntries } from './KeyValueEditor';
+import KeyValueEditor, { Data as KeyValueData, Suggestion, buildData, rebaseData, getEntries } from './KeyValueEditor';
 import KeyValueDiff from './KeyValueDiff';
 import protoMapReplace from './util/protoMapReplace';
 import { App } from './generated/controller_pb';
@@ -62,6 +62,21 @@ export default function MetadataEditor({ appName }: Props) {
 		},
 		[app] // eslint-disable-line react-hooks/exhaustive-deps
 	);
+
+	const suggestions = React.useMemo(() => {
+		return [
+			{
+				key: 'github.url',
+				validateValue: (value: string) => true,
+				valueTemplate: {
+					value: 'https://github.com/ORG/REPO',
+					selectionStart: 19,
+					selectionEnd: 27,
+					direction: 'forward'
+				}
+			} as Suggestion
+		];
+	}, []);
 
 	function handleConfirmSubmit(event: React.SyntheticEvent) {
 		event.preventDefault();
@@ -126,6 +141,7 @@ export default function MetadataEditor({ appName }: Props) {
 					setData(data);
 					setIsConfirming(true);
 				}}
+				suggestions={suggestions}
 			/>
 		</>
 	);

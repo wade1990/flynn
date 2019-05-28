@@ -7,6 +7,7 @@ import copyToClipboard from '../util/copyToClipboard';
 import {
 	Data,
 	Entry,
+	hasKey as hasDataKey,
 	hasIndex as hasDataIndex,
 	nextIndex as nextDataIndex,
 	setKeyAtIndex,
@@ -22,6 +23,16 @@ import useDebouncedInputOnChange from '../useDebouncedInputOnChange';
 
 type DataCallback = (data: Data) => void;
 
+export interface SuggestionValueTemplate extends InputSelection {
+	value: string;
+}
+
+export interface Suggestion {
+	key: string;
+	validateValue: (value: string) => boolean;
+	valueTemplate: SuggestionValueTemplate;
+}
+
 export interface Props {
 	data: Data;
 	onChange: DataCallback;
@@ -30,6 +41,7 @@ export interface Props {
 	valuePlaceholder?: string;
 	submitLabel?: string;
 	conflictsMessage?: string;
+	suggestions?: Suggestion[];
 }
 
 interface Selection extends InputSelection {
@@ -44,7 +56,8 @@ export default function KeyValueEditor({
 	keyPlaceholder = 'Key',
 	valuePlaceholder = 'Value',
 	submitLabel = 'Review Changes',
-	conflictsMessage = 'Some entries have conflicts'
+	conflictsMessage = 'Some entries have conflicts',
+	suggestions = []
 }: Props) {
 	const hasConflicts = React.useMemo(() => (data.conflicts || []).length > 0, [data.conflicts]);
 	const [searchInputValue, searchInputHandler] = useDebouncedInputOnChange(
@@ -53,6 +66,20 @@ export default function KeyValueEditor({
 			onChange(filterData(data, value));
 		},
 		300
+	);
+
+	const [selectedSuggestion, setSelectedSuggestion] = React.useState<Suggestion | null>(null);
+	const keyInputSuggestions = React.useMemo(
+		() => {
+			return suggestions.reduce(
+				(m: string[], s: Suggestion) => {
+					if (hasDataKey(data, s.key)) return m;
+					return m.concat(s.key);
+				},
+				[] as string[]
+			);
+		},
+		[suggestions, data]
 	);
 
 	const inputs = React.useMemo(
@@ -88,20 +115,40 @@ export default function KeyValueEditor({
 				}
 			} else {
 				// maintain current focus/selection
-				const ref = (inputs.refs[entryIndex] || [])[entryInnerIndex];
-				if (ref) {
-					const { selectionStart, selectionEnd, direction } = inputs.currentSelection;
-					ref.focus();
-					ref.setSelectionRange(selectionStart, selectionEnd, direction);
-				}
+				// ref.value isn't set yet if we don't use setTimeout [TODO(jvatic): figure out why]
+				setTimeout(() => {
+					const ref = (inputs.refs[entryIndex] || [])[entryInnerIndex];
+					if (ref && inputs.currentSelection) {
+						const { selectionStart, selectionEnd, direction } = inputs.currentSelection;
+						ref.focus();
+						ref.setSelectionRange(selectionStart, selectionEnd, direction);
+					}
+				}, 10);
 			}
 		},
 		[data] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
-	function keyChangeHandler(index: number, key: string) {
+	function keyChangeHandler(entryIndex: number, key: string) {
 		let nextData: Data;
-		nextData = setKeyAtIndex(data, key, index);
+		nextData = setKeyAtIndex(data, key, entryIndex);
+		const s = suggestions.find((s) => s.key === key);
+		if (s) {
+			nextData = setValueAtIndex(nextData, s.valueTemplate.value, entryIndex);
+			const { selectionStart, selectionEnd, direction } = s.valueTemplate;
+			const valueInput = (inputs.refs[entryIndex] || [])[1];
+			if (valueInput) {
+				valueInput.value = s.valueTemplate.value;
+				setCurrentSelection({
+					entryIndex,
+					entryInnerIndex: 1,
+					selectionStart,
+					selectionEnd,
+					direction
+				});
+			}
+			setSelectedSuggestion(s);
+		}
 		onChange(nextData);
 	}
 
@@ -190,12 +237,15 @@ export default function KeyValueEditor({
 									onChange={keyChangeHandler.bind(null, index)}
 									onBlur={inputBlurHandler.bind(null, index, 0)}
 									onSelectionChange={selectionChangeHandler.bind(null, index, 0)}
+									suggestions={keyInputSuggestions}
+									onSuggestionSelect={keyChangeHandler.bind(null, index)}
 									onPaste={handlePaste}
 								/>
 								<KeyValueInput
 									refHandler={inputRefHandler.bind(null, index, 1)}
 									placeholder={valuePlaceholder}
 									value={value}
+									validateValue={selectedSuggestion ? selectedSuggestion.validateValue : undefined}
 									newValue={hasConflict ? originalValue : undefined}
 									onChange={valueChangeHandler.bind(null, index)}
 									onBlur={inputBlurHandler.bind(null, index, 1)}

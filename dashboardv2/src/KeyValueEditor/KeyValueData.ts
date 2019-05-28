@@ -66,6 +66,14 @@ export function hasIndex(data: Data, index: number): boolean {
 	return (data._entries[index] || false) && !(data._entries[index] as Entry)[2].deleted;
 }
 
+export function hasKey(data: Data, key: string): boolean {
+	const index = data._indicesMap.get(key);
+	if (index === undefined) {
+		return false;
+	}
+	return hasIndex(data, index);
+}
+
 export function nextIndex(data: Data, index: number): number {
 	for (let i = index; i < data._entries.length; i++) {
 		if (hasIndex(data, i)) return i;

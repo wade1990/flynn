@@ -7,6 +7,7 @@ import { TextInput as OriginalTextInput } from 'grommet';
 // See https://github.com/grommet/grommet/issues/3118
 export const TextInput = React.forwardRef(
 	({ onSelect = () => {}, onSuggestionSelect = () => {}, ...rest }: any, _ref: any) => {
+		const [dropTarget, setDropTarget] = React.useState<HTMLInputElement | null>(null);
 		const ref = React.useMemo(
 			() => {
 				return { current: null as HTMLInputElement | null };
@@ -27,13 +28,15 @@ export const TextInput = React.forwardRef(
 			<OriginalTextInput
 				onSelect={onSuggestionSelect}
 				{...rest}
+				dropTarget={dropTarget}
 				ref={(input: any) => {
-					if (_ref) {
+					if (typeof _ref === 'function') {
 						_ref(input);
 					}
 					if (input) {
 						ref.current = input;
 						input.addEventListener('select', onSelect);
+						setDropTarget(input);
 					}
 				}}
 			/>

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import fz from 'fz';
 import { StatusWarning as WarningIcon, Update as UpdateIcon } from 'grommet-icons';
 import { Stack, Box, Button, TextArea } from 'grommet';
 import { TextInput } from '../GrommetTextInput';
@@ -13,11 +14,14 @@ export interface Selection {
 export interface KeyValueInputProps {
 	placeholder: string;
 	value: string;
+	validateValue?: (value: string) => boolean;
 	newValue?: string;
 	hasConflict?: boolean;
 	onChange: (value: string) => void;
 	onBlur?: (e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 	disabled?: boolean;
+	suggestions?: string[];
+	onSuggestionSelect?: (suggestion: string) => void;
 
 	refHandler?: (ref: any) => void;
 	onPaste?: React.ClipboardEventHandler<HTMLInputElement | HTMLTextAreaElement>;
@@ -43,12 +47,26 @@ export function KeyValueInput(props: KeyValueInputProps) {
 		[expanded] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
+	const filteredSuggestions = React.useMemo(
+		() => {
+			if (!props.suggestions || value === '') return [];
+			return props.suggestions.filter((s: string) => fz(s, value));
+		},
+		[value, props.suggestions]
+	);
+
 	function selectionChangeHandler(e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) {
 		const { selectionStart, selectionEnd, selectionDirection: direction } = e.target as
 			| HTMLInputElement
 			| HTMLTextAreaElement;
 		if (props.onSelectionChange) {
 			props.onSelectionChange({ selectionStart, selectionEnd, direction } as Selection);
+		}
+	}
+
+	function suggestionSelectionHandler({ suggestion }: { [suggestion: string]: string }) {
+		if (props.onSuggestionSelect) {
+			props.onSuggestionSelect(suggestion);
 		}
 	}
 
@@ -61,6 +79,8 @@ export function KeyValueInput(props: KeyValueInputProps) {
 			onSelectionChange,
 			value: _value,
 			refHandler,
+			suggestions,
+			onSuggestionSelect,
 			...rest
 		} = props;
 		const inputRefProp = refHandler ? { ref: refHandler } : {};
@@ -94,6 +114,8 @@ export function KeyValueInput(props: KeyValueInputProps) {
 				onChange={changeHandler}
 				onInput={selectionChangeHandler}
 				onSelect={selectionChangeHandler}
+				suggestions={filteredSuggestions}
+				onSuggestionSelect={suggestionSelectionHandler}
 				onFocus={() => (multiline ? setExpanded(true) : void 0)}
 				{...rest}
 				{...inputRefProp}
