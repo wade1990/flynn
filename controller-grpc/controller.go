@@ -1,4 +1,4 @@
-//go:generate protoc -I/usr/local/include -I../controller/grpc -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --go_out=plugins=grpc:./protobuf ../controller/grpc/controller.proto
+//go:generate protoc -I/usr/local/include -I./protobuf -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --go_out=plugins=grpc:./protobuf ./protobuf/controller.proto
 package main
 
 import (
