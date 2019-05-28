@@ -105,6 +105,7 @@ apt-get install -y --no-install-recommends \
     xz-utils \
     zip \
     pigz \
+    daemontools \
 
 cat > /etc/ImageMagick-6/policy.xml <<'IMAGEMAGICK_POLICY'
 <policymap>
