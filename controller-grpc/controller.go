@@ -16,6 +16,7 @@ import (
 	"github.com/flynn/flynn/controller-grpc/utils"
 	controller "github.com/flynn/flynn/controller/client"
 	"github.com/flynn/flynn/controller/data"
+	"github.com/flynn/flynn/controller/schema"
 	controllerschema "github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/pkg/cors"
@@ -50,20 +51,14 @@ func main() {
 		panic(err)
 	}
 
-	client, err := controller.NewClient(mustEnv("CONTROLLER_DOMAIN"), mustEnv("CONTROLLER_AUTH_KEY"))
-	if err != nil {
-		shutdown.Fatal(fmt.Errorf("error initializing controller client: %s", err))
-	}
-
 	// Open connection to main controller database
 	db := postgres.Wait(nil, controllerschema.PrepareStatements)
 	shutdown.BeforeExit(func() { db.Close() })
 	q := que.NewClient(db.ConnPool)
 
 	s := NewServer(configureRepos(&Config{
-		Client: client,
-		DB:     db,
-		q:      q,
+		DB: db,
+		q:  q,
 	}))
 
 	wrappedServer := grpcweb.WrapServer(s)
@@ -91,13 +86,13 @@ func main() {
 }
 
 type Config struct {
-	Client           controller.Client
 	DB               *postgres.DB
 	q                *que.Client
 	appRepo          *data.AppRepo
 	artifactRepo     *data.ArtifactRepo
 	releaseRepo      *data.ReleaseRepo
 	formationRepo    *data.FormationRepo
+	deploymentRepo   *data.DeploymentRepo
 	eventRepo        *data.EventRepo
 	eventListenerMtx sync.Mutex
 	eventListener    *data.EventListener
@@ -109,6 +104,7 @@ func configureRepos(c *Config) *Config {
 	c.releaseRepo = data.NewReleaseRepo(c.DB, c.artifactRepo, c.q)
 	c.formationRepo = data.NewFormationRepo(c.DB, c.appRepo, c.releaseRepo, c.artifactRepo)
 	c.eventRepo = data.NewEventRepo(c.DB)
+	c.deploymentRepo = data.NewDeploymentRepo(c.DB)
 	return c
 }
 
@@ -120,6 +116,26 @@ func (c *Config) maybeStartEventListener() (*data.EventListener, error) {
 	}
 	c.eventListener = data.NewEventListener(c.eventRepo)
 	return c.eventListener, c.eventListener.Listen()
+}
+
+func (c *Config) subscribeEvents(appID string, objectTypes []ct.EventType, objectID string) (*data.EventSubscriber, error) {
+	eventListener, err := c.maybeStartEventListener()
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return nil, err
+	}
+
+	objectTypeStrings := make([]string, len(objectTypes))
+	for i, t := range objectTypes {
+		objectTypeStrings[i] = string(t)
+	}
+
+	sub, err := eventListener.Subscribe(appID, objectTypeStrings, objectID)
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return nil, err
+	}
+	return sub, nil
 }
 
 func corsHandler(main http.Handler) http.Handler {
@@ -193,13 +209,7 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 
 	var wg sync.WaitGroup
 
-	eventListener, err := s.maybeStartEventListener()
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-
-	sub, err := eventListener.Subscribe("", []string{string(ct.EventTypeApp), string(ct.EventTypeAppDeletion), string(ct.EventTypeAppRelease)}, "")
+	sub, err := s.subscribeEvents("", []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -258,13 +268,7 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 
 	var wg sync.WaitGroup
 
-	eventListener, err := s.maybeStartEventListener()
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-
-	sub, err := eventListener.Subscribe(appID, []string{string(ct.EventTypeApp), string(ct.EventTypeAppDeletion), string(ct.EventTypeAppRelease)}, "")
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -304,23 +308,31 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 	return nil
 }
 
+// TODO(jvatic): Debug UpdateApp
 func (s *server) UpdateApp(ctx context.Context, req *protobuf.UpdateAppRequest) (*protobuf.App, error) {
+	app := req.App
 	data := map[string]interface{}{
-		"strategy":       req.App.Strategy,
-		"meta":           req.App.Labels,
-		"deploy_timeout": req.App.DeployTimeout,
+		"strategy":       app.Strategy,
+		"meta":           app.Labels,
+		"deploy_timeout": app.DeployTimeout,
 	}
+
 	if mask := req.GetUpdateMask(); mask != nil {
-		for _, path := range mask.GetPaths() {
-			if path == "labels" {
-				path = "meta"
+		if paths := mask.GetPaths(); len(paths) > 0 {
+			maskedData := make(map[string]interface{}, len(paths))
+			for _, path := range paths {
+				if path == "labels" {
+					path = "meta"
+				}
+				if v, ok := data[path]; ok {
+					maskedData[path] = v
+				}
 			}
-			if _, ok := data[path]; ok {
-				delete(data, path)
-			}
+			data = maskedData
 		}
 	}
-	ctApp, err := s.appRepo.Update(utils.ParseIDFromName(req.App.Name, "apps"), data)
+
+	ctApp, err := s.appRepo.Update(utils.ParseIDFromName(app.Name, "apps"), data)
 	if err != nil {
 		return nil, utils.ConvertError(err, err.Error())
 	}
@@ -350,13 +362,7 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 
 	var wg sync.WaitGroup
 
-	eventListener, err := s.maybeStartEventListener()
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-
-	sub, err := eventListener.Subscribe(appID, []string{string(ct.EventTypeAppRelease)}, "")
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeAppRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -399,19 +405,13 @@ func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream pro
 	return nil
 }
 
-func (s *server) CreateScale(ctx context.Context, req *protobuf.CreateScaleRequest) (*protobuf.ScaleRequest, error) {
+func (s *server) createScale(req *protobuf.CreateScaleRequest) (*protobuf.ScaleRequest, error) {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
 	releaseID := utils.ParseIDFromName(req.Parent, "releases")
 	processes := parseDeploymentProcesses(req.Processes)
 	tags := parseDeploymentTags(req.Tags)
 
-	eventListener, err := s.maybeStartEventListener()
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return nil, err
-	}
-
-	sub, err := eventListener.Subscribe(appID, []string{string(ct.EventTypeScaleRequest)}, "")
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return nil, err
@@ -472,18 +472,12 @@ outer:
 	return utils.ConvertScaleRequest(scaleReq), nil
 }
 
+func (s *server) CreateScale(ctx context.Context, req *protobuf.CreateScaleRequest) (*protobuf.ScaleRequest, error) {
+	return s.createScale(req)
+}
+
 func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, stream protobuf.Controller_StreamScaleRequestsServer) error {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
-
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       appID,
-		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest},
-		Past:        true,
-	}, events)
-	if err != nil {
-		return err
-	}
 
 	var scaleRequests []*protobuf.ScaleRequest
 	var scaleRequestsMtx sync.RWMutex
@@ -518,6 +512,41 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		}
 	}()
 
+	unmarshalScaleRequest := func(event *ct.Event) (*protobuf.ScaleRequest, error) {
+		var ctReq *ct.ScaleRequest
+		if err := json.Unmarshal(event.Data, &ctReq); err != nil {
+			// TODO(jvatic): return proper error code
+			return nil, err
+		}
+		return utils.ConvertScaleRequest(ctReq), nil
+	}
+
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest}, "")
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	defer sub.Close()
+
+	// get all events up until now
+	var currID int64
+	list, err := s.eventRepo.ListEvents(appID, []string{string(ct.EventTypeScaleRequest)}, "", nil, nil, 0)
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	for _, event := range list {
+		req, err := unmarshalScaleRequest(event)
+		if err != nil {
+			// TODO(jvatic): Handle error
+			fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
+			continue
+		}
+		scaleRequests = append(scaleRequests, req)
+	}
+	sendResponse()
+
+	// stream new events as they are created
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -525,37 +554,33 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		for {
 			sendResponseWithDelay()
 
-			event, ok := <-events
+			event, ok := <-sub.Events
 			if !ok {
 				break
 			}
-			var ctReq *ct.ScaleRequest
-			if err := json.Unmarshal(event.Data, &ctReq); err != nil {
+
+			// avoid overlap between list and stream
+			if event.ID <= currID {
+				continue
+			}
+			currID = event.ID
+
+			req, err := unmarshalScaleRequest(event)
+			if err != nil {
 				// TODO(jvatic): Handle error
 				fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
 				continue
 			}
-			req := utils.ConvertScaleRequest(ctReq)
 			// prepend
 			scaleRequestsMtx.Lock()
-			_scaleRequests := make([]*protobuf.ScaleRequest, 0, len(scaleRequests)+1)
-			_scaleRequests = append(_scaleRequests, req)
-			for _, s := range scaleRequests {
-				if s.Name != req.Name {
-					_scaleRequests = append(_scaleRequests, s)
-				}
-			}
-			scaleRequests = _scaleRequests
+			scaleRequests = append(scaleRequests, append([]*protobuf.ScaleRequest{req}, scaleRequests...)...)
 			scaleRequestsMtx.Unlock()
 		}
 	}()
 	wg.Wait()
 
-	if err := eventStream.Close(); err != nil {
-		return err
-	}
-
-	return eventStream.Err()
+	// TODO(jvatic): return proper error code
+	return sub.Err
 }
 
 func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream protobuf.Controller_StreamAppFormationServer) error {
@@ -563,7 +588,7 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 
 	var releaseID string
 	var releaseIDMtx sync.RWMutex
-	ctRelease, err := s.Client.GetAppRelease(appID)
+	ctRelease, err := s.appRepo.GetRelease(appID)
 	if err != nil {
 		return utils.ConvertError(err, "Error fetching current app release(%q): %s", req.Parent, err)
 	}
@@ -576,11 +601,11 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 		defer releaseIDMtx.RUnlock()
 		formationMtx.Lock()
 		defer formationMtx.Unlock()
-		ctFormation, err := s.Client.GetFormation(appID, releaseID)
+		ctFormation, err := s.formationRepo.Get(appID, releaseID)
 		if err != nil {
 			return err
 		}
-		ctEFormation, err := s.Client.GetExpandedFormation(appID, ctRelease.ID)
+		ctEFormation, err := s.formationRepo.GetExpanded(appID, ctRelease.ID, false)
 		if err != nil {
 			return err
 		}
@@ -613,14 +638,12 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 
 	var wg sync.WaitGroup
 
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       appID,
-		ObjectTypes: []ct.EventType{ct.EventTypeScaleRequest, ct.EventTypeAppRelease},
-	}, events)
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest, ct.EventTypeAppRelease}, "")
 	if err != nil {
+		// TODO(jvatic): return proper error code
 		return utils.ConvertError(err, err.Error())
 	}
+	defer sub.Close()
 
 	errChan := make(chan error, 1)
 	defer close(errChan)
@@ -635,7 +658,7 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 			sendResponse()
 
 			// wait for events before refreshing formation and sending respond again
-			event, ok := <-events
+			event, ok := <-sub.Events
 			if !ok {
 				errChan <- nil
 				break
@@ -651,15 +674,11 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 	wg.Wait()
 
 	if err := <-errChan; err != nil {
-		eventStream.Close()
 		return err
 	}
 
-	if err := eventStream.Close(); err != nil {
-		return utils.ConvertError(err, err.Error())
-	}
-
-	if err := eventStream.Err(); err != nil {
+	if err := sub.Err; err != nil {
+		// TODO(jvatic): return proper error code
 		return utils.ConvertError(err, err.Error())
 	}
 
@@ -671,11 +690,11 @@ func (s *server) GetRelease(ctx context.Context, req *protobuf.GetReleaseRequest
 	if releaseID == "" {
 		return nil, controller.ErrNotFound
 	}
-	release, err := s.Client.GetRelease(releaseID)
+	release, err := s.releaseRepo.Get(releaseID)
 	if err != nil {
 		return nil, err
 	}
-	return utils.ConvertRelease(release), nil
+	return utils.ConvertRelease(release.(*ct.Release)), nil
 }
 
 func (s *server) StreamAppLog(*protobuf.StreamAppLogRequest, protobuf.Controller_StreamAppLogServer) error {
@@ -685,12 +704,14 @@ func (s *server) StreamAppLog(*protobuf.StreamAppLogRequest, protobuf.Controller
 func (s *server) CreateRelease(ctx context.Context, req *protobuf.CreateReleaseRequest) (*protobuf.Release, error) {
 	r := req.Release
 	ctRelease := &ct.Release{
+		AppID:       utils.ParseIDFromName(req.Parent, "apps"),
 		ArtifactIDs: r.Artifacts,
 		Env:         r.Env,
 		Meta:        r.Labels,
 		Processes:   utils.BackConvertProcesses(r.Processes),
 	}
-	if err := s.Client.CreateRelease(utils.ParseIDFromName(req.Parent, "apps"), ctRelease); err != nil {
+	if err := s.releaseRepo.Add(ctRelease); err != nil {
+		// TODO(jvatic): return proper error code
 		return nil, err
 	}
 	return utils.ConvertRelease(ctRelease), nil
@@ -698,13 +719,10 @@ func (s *server) CreateRelease(ctx context.Context, req *protobuf.CreateReleaseR
 
 func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*protobuf.ExpandedDeployment, error) {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
-	ctDeployments, err := s.Client.DeploymentList(appID)
+	ctDeployments, err := s.deploymentRepo.List(appID)
 	if err != nil {
 		return nil, err
 	}
-
-	// DEBUG
-	fmt.Printf("listDeployments: Got %d for %q (%q)\n", len(ctDeployments), appID, req.Parent)
 
 	getReleaseType := func(prev, r *protobuf.Release) protobuf.ReleaseType {
 		if prev != nil {
@@ -755,13 +773,13 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 				wgInner.Add(1)
 				go func() {
 					defer wgInner.Done()
-					ctRelease, err := s.Client.GetRelease(utils.ParseIDFromName(ed.OldRelease.Name, "releases"))
+					ctRelease, err := s.releaseRepo.Get(utils.ParseIDFromName(ed.OldRelease.Name, "releases"))
 					if err != nil {
 						// DEBUG
 						fmt.Printf("listDeployments: Error getting OldRelease(%q): %v\n", ed.OldRelease.Name, err)
 						return
 					}
-					oldRelease = utils.ConvertRelease(ctRelease)
+					oldRelease = utils.ConvertRelease(ctRelease.(*ct.Release))
 				}()
 			}
 
@@ -770,13 +788,13 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 				wgInner.Add(1)
 				go func() {
 					defer wgInner.Done()
-					ctRelease, err := s.Client.GetRelease(utils.ParseIDFromName(ed.NewRelease.Name, "releases"))
+					ctRelease, err := s.releaseRepo.Get(utils.ParseIDFromName(ed.NewRelease.Name, "releases"))
 					if err != nil {
 						// DEBUG
 						fmt.Printf("listDeployments: Error getting NewRelease(%q): %v\n", ed.NewRelease.Name, err)
 						return
 					}
-					newRelease = utils.ConvertRelease(ctRelease)
+					newRelease = utils.ConvertRelease(ctRelease.(*ct.Release))
 				}()
 			}
 
@@ -785,9 +803,6 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 
 			deploymentsMtx.Lock()
 			ed.Type = getReleaseType(oldRelease, newRelease)
-
-			// DEBUG
-			fmt.Printf("listDeployments: Got type(%v)\n", ed.Type)
 
 			ed.OldRelease = oldRelease
 			ed.NewRelease = newRelease
@@ -808,9 +823,6 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 	} else {
 		filtered = make([]*protobuf.ExpandedDeployment, 0, len(deployments))
 		for _, ed := range deployments {
-			// DEBUG
-			fmt.Printf("listDeployments: Filtering deployment %v == %v ?\n", req.FilterType, ed.Type)
-
 			// filter by type of deployment
 			if req.FilterType != protobuf.ReleaseType_ANY && ed.Type != req.FilterType {
 				continue
@@ -819,13 +831,12 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 		}
 	}
 
-	// DEBUG
-	fmt.Printf("listDeployments: Responding with %d\n", len(filtered))
-
 	return filtered, nil
 }
 
 func (s *server) StreamDeployments(req *protobuf.ListDeploymentsRequest, srv protobuf.Controller_StreamDeploymentsServer) error {
+	appID := utils.ParseIDFromName(req.Parent, "apps")
+
 	var deployments []*protobuf.ExpandedDeployment
 	var deploymentsMtx sync.RWMutex
 	refreshDeployments := func() error {
@@ -851,19 +862,18 @@ func (s *server) StreamDeployments(req *protobuf.ListDeploymentsRequest, srv pro
 
 	var wg sync.WaitGroup
 
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		ObjectTypes: []ct.EventType{ct.EventTypeDeployment},
-	}, events)
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeDeployment}, "")
 	if err != nil {
+		// TODO(jvatic): return proper error code
 		return err
 	}
+	defer sub.Close()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
-			if _, ok := <-events; !ok {
+			if _, ok := <-sub.Events; !ok {
 				break
 			}
 			if err := refreshDeployments(); err != nil {
@@ -876,11 +886,8 @@ func (s *server) StreamDeployments(req *protobuf.ListDeploymentsRequest, srv pro
 	}()
 	wg.Wait()
 
-	if err := eventStream.Close(); err != nil {
-		return err
-	}
-
-	return eventStream.Err()
+	// TODO(jvatic): return proper error code
+	return sub.Err
 }
 
 func parseDeploymentTags(from map[string]*protobuf.DeploymentProcessTags) map[string]map[string]string {
@@ -900,23 +907,97 @@ func parseDeploymentProcesses(from map[string]int32) map[string]int {
 }
 
 func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds protobuf.Controller_CreateDeploymentServer) error {
-	d, err := s.Client.CreateDeployment(utils.ParseIDFromName(req.Parent, "apps"), utils.ParseIDFromName(req.Release, "releases"))
+	appID := utils.ParseIDFromName(req.Parent, "apps")
+	releaseID := utils.ParseIDFromName(req.Release, "releases")
+
+	// Create deployment (copied from v1 controller)
+	// TODO(jvatic): Move this logic into controller/data
+
+	releasei, err := s.releaseRepo.Get(releaseID)
 	if err != nil {
+		if err == controller.ErrNotFound {
+			err = ct.ValidationError{
+				Message: fmt.Sprintf("could not find release with ID %s", releaseID),
+			}
+		}
+		// TODO(jvatic): return proper error code
 		return err
 	}
-	events := make(chan *ct.Event)
-	eventStream, err := s.Client.StreamEvents(ct.StreamEventsOptions{
-		AppID:       d.AppID,
-		ObjectID:    d.ID,
-		ObjectTypes: []ct.EventType{ct.EventTypeDeployment},
-		Past:        true,
-	}, events)
+	appi, err := s.appRepo.Get(appID)
 	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	app := appi.(*ct.App)
+	release := releasei.(*ct.Release)
+
+	// TODO: wrap all of this in a transaction
+	oldRelease, err := s.appRepo.GetRelease(app.ID)
+	if err == controller.ErrNotFound {
+		oldRelease = &ct.Release{}
+	} else if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	oldFormation, err := s.formationRepo.Get(app.ID, oldRelease.ID)
+	if err == controller.ErrNotFound {
+		oldFormation = &ct.Formation{}
+	} else if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	procCount := 0
+	for _, i := range oldFormation.Processes {
+		procCount += i
+	}
+
+	deployment := &ct.Deployment{
+		AppID:         app.ID,
+		NewReleaseID:  release.ID,
+		Strategy:      app.Strategy,
+		OldReleaseID:  oldRelease.ID,
+		Processes:     oldFormation.Processes,
+		Tags:          oldFormation.Tags,
+		DeployTimeout: app.DeployTimeout,
+	}
+
+	if err := schema.Validate(deployment); err != nil {
+		// TODO(jvatic): return proper error code
 		return err
 	}
 
+	if procCount == 0 {
+		// immediately set app release
+		if err := s.appRepo.SetRelease(app, release.ID); err != nil {
+			// TODO(jvatic): return proper error code
+			return err
+		}
+		now := time.Now()
+		deployment.FinishedAt = &now
+	}
+
+	d, err := s.deploymentRepo.Add(deployment)
+	if err != nil {
+		if postgres.IsUniquenessError(err, "isolate_deploys") {
+			err = ct.ValidationError{
+				Message: "Cannot create deploy, there is already one in progress for this app.",
+			}
+		}
+		// TODO(jvatic): return proper error code
+		return err
+	}
+
+	// Wait for deployment to complete and perform scale
+
+	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeDeployment}, d.ID)
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	defer sub.Close()
+
 	for {
-		ctEvent, ok := <-events
+		ctEvent, ok := <-sub.Events
 		if !ok {
 			break
 		}
@@ -929,7 +1010,7 @@ func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds prot
 			continue
 		}
 
-		d, err := s.Client.GetDeployment(ctEvent.ObjectID)
+		d, err := s.deploymentRepo.Get(ctEvent.ObjectID)
 		if err != nil {
 			fmt.Printf("Failed to get deployment(%s): %s\n", ctEvent.ObjectID, err)
 			continue
@@ -937,10 +1018,11 @@ func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds prot
 
 		// Scale release to requested processes/tags once deployment is complete
 		if d.Status == "complete" {
-			if req.ScaleRequest != nil {
-				s.Client.ScaleAppRelease(d.AppID, d.NewReleaseID, ct.ScaleOptions{
-					Processes: parseDeploymentProcesses(req.ScaleRequest.Processes),
-					Tags:      parseDeploymentTags(req.ScaleRequest.Tags),
+			if sr := req.ScaleRequest; sr != nil {
+				s.createScale(&protobuf.CreateScaleRequest{
+					Parent:    fmt.Sprintf("apps/%s/releases/%s", d.AppID, d.NewReleaseID),
+					Processes: sr.Processes,
+					Tags:      sr.Tags,
 				})
 			}
 		}
@@ -956,6 +1038,7 @@ func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds prot
 		})
 
 		if d.Status == "failed" {
+			// TODO(jvatic): return proper error code
 			return fmt.Errorf(de.Error)
 		}
 		if d.Status == "complete" {
@@ -963,9 +1046,6 @@ func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds prot
 		}
 	}
 
-	if err := eventStream.Close(); err != nil {
-		return err
-	}
-
-	return eventStream.Err()
+	// TODO(jvatic): return proper error code
+	return sub.Err
 }
