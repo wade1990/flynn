@@ -123,7 +123,11 @@ func (r *ReleaseRepo) Add(data interface{}) error {
 }
 
 func (r *ReleaseRepo) Get(id string) (interface{}, error) {
-	row := r.db.QueryRow("release_select", id)
+	return r.TxGet(r.db, id)
+}
+
+func (r *ReleaseRepo) TxGet(tx rowQueryer, id string) (*ct.Release, error) {
+	row := tx.QueryRow("release_select", id)
 	return scanRelease(row)
 }
 

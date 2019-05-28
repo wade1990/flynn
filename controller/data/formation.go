@@ -278,7 +278,11 @@ func populateFormationArtifacts(ef *ct.ExpandedFormation, artifacts map[string]*
 }
 
 func (r *FormationRepo) Get(appID, releaseID string) (*ct.Formation, error) {
-	row := r.db.QueryRow("formation_select", appID, releaseID)
+	return r.TxGet(r.db, appID, releaseID)
+}
+
+func (r *FormationRepo) TxGet(tx rowQueryer, appID, releaseID string) (*ct.Formation, error) {
+	row := tx.QueryRow("formation_select", appID, releaseID)
 	return scanFormation(row)
 }
 

@@ -116,10 +116,6 @@ func scanApp(s postgres.Scanner) (*ct.App, error) {
 
 var idPattern = regexp.MustCompile(`^[a-f0-9]{8}-?([a-f0-9]{4}-?){3}[a-f0-9]{12}$`)
 
-type rowQueryer interface {
-	QueryRow(query string, args ...interface{}) postgres.Scanner
-}
-
 func selectApp(db rowQueryer, id string, update bool) (*ct.App, error) {
 	var suffix string
 	if update {
@@ -135,7 +131,11 @@ func selectApp(db rowQueryer, id string, update bool) (*ct.App, error) {
 }
 
 func (r *AppRepo) Get(id string) (interface{}, error) {
-	return selectApp(r.db, id, false)
+	return r.TxGet(r.db, id)
+}
+
+func (r *AppRepo) TxGet(tx rowQueryer, id string) (*ct.App, error) {
+	return selectApp(tx, id, false)
 }
 
 func (r *AppRepo) Update(id string, data map[string]interface{}) (interface{}, error) {
@@ -163,20 +163,24 @@ func (r *AppRepo) Update(id string, data map[string]interface{}) (interface{}, e
 				return nil, err
 			}
 		case "meta":
-			data, ok := v.(map[string]interface{})
+			data, ok := v.(map[string]string)
 			if !ok {
-				tx.Rollback()
-				return nil, fmt.Errorf("controller: expected map[string]interface{}, got %T", v)
-			}
-			app.Meta = make(map[string]string, len(data))
-			for k, v := range data {
-				s, ok := v.(string)
+				datai, ok := v.(map[string]interface{})
 				if !ok {
 					tx.Rollback()
-					return nil, fmt.Errorf("controller: expected string, got %T", v)
+					return nil, fmt.Errorf("controller: expected map[string]interface{}, got %T", v)
 				}
-				app.Meta[k] = s
+				data = make(map[string]string, len(datai))
+				for k, v := range datai {
+					s, ok := v.(string)
+					if !ok {
+						tx.Rollback()
+						return nil, fmt.Errorf("controller: expected string, got %T", v)
+					}
+					data[k] = s
+				}
 			}
+			app.Meta = data
 			if err := tx.Exec("app_update_meta", app.ID, app.Meta); err != nil {
 				tx.Rollback()
 				return nil, err
@@ -238,6 +242,14 @@ func (r *AppRepo) SetRelease(app *ct.App, releaseID string) error {
 	if err != nil {
 		return err
 	}
+	if err := r.TxSetRelease(tx, app, releaseID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *AppRepo) TxSetRelease(tx *postgres.DBTx, app *ct.App, releaseID string) error {
 	var release *ct.Release
 	var prevRelease *ct.Release
 	if app.ReleaseID != "" {
@@ -245,29 +257,29 @@ func (r *AppRepo) SetRelease(app *ct.App, releaseID string) error {
 		prevRelease, _ = scanRelease(row)
 	}
 	row := tx.QueryRow("release_select", releaseID)
+	var err error
 	if release, err = scanRelease(row); err != nil {
 		return err
 	}
 	app.ReleaseID = releaseID
 	if err := tx.Exec("app_update_release", app.ID, app.ReleaseID); err != nil {
-		tx.Rollback()
 		return err
 	}
-	if err := CreateEvent(tx.Exec, &ct.Event{
+	return CreateEvent(tx.Exec, &ct.Event{
 		AppID:      app.ID,
 		ObjectID:   release.ID,
 		ObjectType: ct.EventTypeAppRelease,
 	}, &ct.AppRelease{
 		PrevRelease: prevRelease,
 		Release:     release,
-	}); err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit()
+	})
 }
 
 func (r *AppRepo) GetRelease(id string) (*ct.Release, error) {
-	row := r.db.QueryRow("app_get_release", id)
+	return r.TxGetRelease(r.db, id)
+}
+
+func (r *AppRepo) TxGetRelease(tx rowQueryer, id string) (*ct.Release, error) {
+	row := tx.QueryRow("app_get_release", id)
 	return scanRelease(row)
 }

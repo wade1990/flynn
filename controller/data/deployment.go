@@ -2,7 +2,10 @@ package data
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 
+	"github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/pkg/postgres"
 	"github.com/flynn/flynn/pkg/random"
@@ -11,27 +14,95 @@ import (
 )
 
 type DeploymentRepo struct {
-	db *postgres.DB
-	q  *que.Client
+	db            *postgres.DB
+	q             *que.Client
+	appRepo       *AppRepo
+	releaseRepo   *ReleaseRepo
+	formationRepo *FormationRepo
 }
 
-func NewDeploymentRepo(db *postgres.DB) *DeploymentRepo {
+func NewDeploymentRepo(db *postgres.DB, appRepo *AppRepo, releaseRepo *ReleaseRepo, formationRepo *FormationRepo) *DeploymentRepo {
 	q := que.NewClient(db.ConnPool)
-	return &DeploymentRepo{db: db, q: q}
+	return &DeploymentRepo{db: db, q: q, appRepo: appRepo, releaseRepo: releaseRepo, formationRepo: formationRepo}
 }
 
-func (r *DeploymentRepo) Add(data interface{}) (*ct.Deployment, error) {
-	d := data.(*ct.Deployment)
+func (r *DeploymentRepo) Add(appID, releaseID string) (*ct.Deployment, error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := r.appRepo.TxGet(tx, appID)
+	if err != nil {
+		if err == ErrNotFound {
+			err = ct.ValidationError{
+				Message: fmt.Sprintf("could not find app with ID %s", appID),
+			}
+		}
+		tx.Rollback()
+		return nil, err
+	}
+
+	release, err := r.releaseRepo.TxGet(tx, releaseID)
+	if err != nil {
+		if err == ErrNotFound {
+			err = ct.ValidationError{
+				Message: fmt.Sprintf("could not find release with ID %s", releaseID),
+			}
+		}
+		tx.Rollback()
+		return nil, err
+	}
+
+	oldRelease, err := r.appRepo.TxGetRelease(tx, app.ID)
+	if err == ErrNotFound {
+		oldRelease = &ct.Release{}
+	} else if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	oldFormation, err := r.formationRepo.TxGet(tx, app.ID, oldRelease.ID)
+	if err == ErrNotFound {
+		oldFormation = &ct.Formation{}
+	} else if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	procCount := 0
+	for _, i := range oldFormation.Processes {
+		procCount += i
+	}
+
+	d := &ct.Deployment{
+		AppID:         app.ID,
+		NewReleaseID:  release.ID,
+		Strategy:      app.Strategy,
+		OldReleaseID:  oldRelease.ID,
+		Processes:     oldFormation.Processes,
+		Tags:          oldFormation.Tags,
+		DeployTimeout: app.DeployTimeout,
+	}
+
+	if err := schema.Validate(d); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if procCount == 0 {
+		// immediately set app release
+		if err := r.appRepo.TxSetRelease(tx, app, release.ID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		now := time.Now()
+		d.FinishedAt = &now
+	}
+
 	if d.ID == "" {
 		d.ID = random.UUID()
 	}
 	var oldReleaseID *string
 	if d.OldReleaseID != "" {
 		oldReleaseID = &d.OldReleaseID
-	}
-	tx, err := r.db.Begin()
-	if err != nil {
-		return nil, err
 	}
 	if err := tx.QueryRow("deployment_insert", d.ID, d.AppID, oldReleaseID, d.NewReleaseID, d.Strategy, d.Processes, d.Tags, d.DeployTimeout).Scan(&d.CreatedAt); err != nil {
 		tx.Rollback()
@@ -51,19 +122,13 @@ func (r *DeploymentRepo) Add(data interface{}) (*ct.Deployment, error) {
 		d.Status = "complete"
 		return d, tx.Commit()
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 
 	args, err := json.Marshal(ct.DeployID{ID: d.ID})
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
-	tx, err = r.db.Begin()
-	if err != nil {
-		return nil, err
-	}
 	if err = createDeploymentEvent(tx.Exec, d, "pending"); err != nil {
 		tx.Rollback()
 		return nil, err
@@ -75,10 +140,7 @@ func (r *DeploymentRepo) Add(data interface{}) (*ct.Deployment, error) {
 		tx.Rollback()
 		return nil, err
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-	return d, err
+	return d, tx.Commit()
 }
 
 func (r *DeploymentRepo) Get(id string) (*ct.Deployment, error) {
@@ -127,12 +189,9 @@ func createDeploymentEvent(dbExec func(string, ...interface{}) error, d *ct.Depl
 		ReleaseID:    d.NewReleaseID,
 		Status:       status,
 	}
-	if err := CreateEvent(dbExec, &ct.Event{
+	return CreateEvent(dbExec, &ct.Event{
 		AppID:      d.AppID,
 		ObjectID:   d.ID,
 		ObjectType: ct.EventTypeDeployment,
-	}, e); err != nil {
-		return err
-	}
-	return nil
+	}, e)
 }

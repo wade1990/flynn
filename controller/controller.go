@@ -208,7 +208,7 @@ func appHandler(c handlerConfig) http.Handler {
 	jobRepo := data.NewJobRepo(c.db)
 	formationRepo := data.NewFormationRepo(c.db, appRepo, releaseRepo, artifactRepo)
 	releaseRepo.SetFormationRepo(formationRepo)
-	deploymentRepo := data.NewDeploymentRepo(c.db)
+	deploymentRepo := data.NewDeploymentRepo(c.db, appRepo, releaseRepo, formationRepo)
 	eventRepo := data.NewEventRepo(c.db)
 	backupRepo := data.NewBackupRepo(c.db)
 	sinkRepo := data.NewSinkRepo(c.db)

@@ -14,6 +14,10 @@ import (
 var ErrNotFound = controller.ErrNotFound
 var logger = log15.New("component", "controller/data")
 
+type rowQueryer interface {
+	QueryRow(query string, args ...interface{}) postgres.Scanner
+}
+
 func OpenAndMigrateDB(conf *postgres.Conf) *postgres.DB {
 	db := postgres.Wait(conf, nil)
 

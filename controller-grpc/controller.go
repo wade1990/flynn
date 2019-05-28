@@ -16,7 +16,6 @@ import (
 	"github.com/flynn/flynn/controller-grpc/utils"
 	controller "github.com/flynn/flynn/controller/client"
 	"github.com/flynn/flynn/controller/data"
-	"github.com/flynn/flynn/controller/schema"
 	controllerschema "github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/pkg/cors"
@@ -104,7 +103,7 @@ func configureRepos(c *Config) *Config {
 	c.releaseRepo = data.NewReleaseRepo(c.DB, c.artifactRepo, c.q)
 	c.formationRepo = data.NewFormationRepo(c.DB, c.appRepo, c.releaseRepo, c.artifactRepo)
 	c.eventRepo = data.NewEventRepo(c.DB)
-	c.deploymentRepo = data.NewDeploymentRepo(c.DB)
+	c.deploymentRepo = data.NewDeploymentRepo(c.DB, c.appRepo, c.releaseRepo, c.formationRepo)
 	return c
 }
 
@@ -308,13 +307,18 @@ func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controll
 	return nil
 }
 
-// TODO(jvatic): Debug UpdateApp
 func (s *server) UpdateApp(ctx context.Context, req *protobuf.UpdateAppRequest) (*protobuf.App, error) {
 	app := req.App
 	data := map[string]interface{}{
-		"strategy":       app.Strategy,
-		"meta":           app.Labels,
-		"deploy_timeout": app.DeployTimeout,
+		"meta": app.Labels,
+	}
+
+	if app.Strategy != "" {
+		data["strategy"] = app.Strategy
+	}
+
+	if app.DeployTimeout > 0 {
+		data["deploy_timeout"] = app.DeployTimeout
 	}
 
 	if mask := req.GetUpdateMask(); mask != nil {
@@ -908,81 +912,8 @@ func parseDeploymentProcesses(from map[string]int32) map[string]int {
 
 func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds protobuf.Controller_CreateDeploymentServer) error {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
-	releaseID := utils.ParseIDFromName(req.Release, "releases")
-
-	// Create deployment (copied from v1 controller)
-	// TODO(jvatic): Move this logic into controller/data
-
-	releasei, err := s.releaseRepo.Get(releaseID)
+	d, err := s.deploymentRepo.Add(appID, utils.ParseIDFromName(req.Release, "releases"))
 	if err != nil {
-		if err == controller.ErrNotFound {
-			err = ct.ValidationError{
-				Message: fmt.Sprintf("could not find release with ID %s", releaseID),
-			}
-		}
-		// TODO(jvatic): return proper error code
-		return err
-	}
-	appi, err := s.appRepo.Get(appID)
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-	app := appi.(*ct.App)
-	release := releasei.(*ct.Release)
-
-	// TODO: wrap all of this in a transaction
-	oldRelease, err := s.appRepo.GetRelease(app.ID)
-	if err == controller.ErrNotFound {
-		oldRelease = &ct.Release{}
-	} else if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-	oldFormation, err := s.formationRepo.Get(app.ID, oldRelease.ID)
-	if err == controller.ErrNotFound {
-		oldFormation = &ct.Formation{}
-	} else if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-	procCount := 0
-	for _, i := range oldFormation.Processes {
-		procCount += i
-	}
-
-	deployment := &ct.Deployment{
-		AppID:         app.ID,
-		NewReleaseID:  release.ID,
-		Strategy:      app.Strategy,
-		OldReleaseID:  oldRelease.ID,
-		Processes:     oldFormation.Processes,
-		Tags:          oldFormation.Tags,
-		DeployTimeout: app.DeployTimeout,
-	}
-
-	if err := schema.Validate(deployment); err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-
-	if procCount == 0 {
-		// immediately set app release
-		if err := s.appRepo.SetRelease(app, release.ID); err != nil {
-			// TODO(jvatic): return proper error code
-			return err
-		}
-		now := time.Now()
-		deployment.FinishedAt = &now
-	}
-
-	d, err := s.deploymentRepo.Add(deployment)
-	if err != nil {
-		if postgres.IsUniquenessError(err, "isolate_deploys") {
-			err = ct.ValidationError{
-				Message: "Cannot create deploy, there is already one in progress for this app.",
-			}
-		}
 		// TODO(jvatic): return proper error code
 		return err
 	}
