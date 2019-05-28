@@ -115,7 +115,7 @@ function buildCancelFunc(req: Cancellable): CancelFunc {
 }
 
 function convertServiceError(error: ServiceError): ErrorWithCode {
-	return Object.assign(convertServiceError(error), error);
+	return Object.assign(new Error(error.message), error);
 }
 
 function buildStatusError(s: Status): ErrorWithCode {
