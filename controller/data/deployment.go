@@ -61,12 +61,17 @@ func (r *DeploymentRepo) Add(appID, releaseID string) (*ct.Deployment, error) {
 		tx.Rollback()
 		return nil, err
 	}
-	oldFormation, err := r.formationRepo.TxGet(tx, app.ID, oldRelease.ID)
-	if err == ErrNotFound {
+	var oldFormation *ct.Formation
+	if oldRelease.ID == "" {
 		oldFormation = &ct.Formation{}
-	} else if err != nil {
-		tx.Rollback()
-		return nil, err
+	} else {
+		oldFormation, err = r.formationRepo.TxGet(tx, app.ID, oldRelease.ID)
+		if err == ErrNotFound {
+			oldFormation = &ct.Formation{}
+		} else if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 	}
 	procCount := 0
 	for _, i := range oldFormation.Processes {
