@@ -525,6 +525,25 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		return utils.ConvertScaleRequest(ctReq), nil
 	}
 
+	prependScaleRequest := func(event *ct.Event) error {
+		req, err := unmarshalScaleRequest(event)
+		if err != nil {
+			return err
+		}
+		scaleRequestsMtx.Lock()
+		_scaleRequests := make([]*protobuf.ScaleRequest, len(scaleRequests)+1)
+		_scaleRequests = append(_scaleRequests, req)
+		for _, sr := range scaleRequests {
+			if sr.GetName() == req.GetName() {
+				continue
+			}
+			_scaleRequests = append(_scaleRequests, sr)
+		}
+		scaleRequests = _scaleRequests
+		scaleRequestsMtx.Unlock()
+		return nil
+	}
+
 	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
@@ -539,18 +558,15 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		// TODO(jvatic): return proper error code
 		return err
 	}
-	for i, event := range list {
-		if i == 0 {
-			// list is in descending order
-			currID = event.ID
-		}
-		req, err := unmarshalScaleRequest(event)
-		if err != nil {
+	// list is in DESC order, so iterate in reverse
+	for i := len(list) - 1; i >= 0; i-- {
+		event := list[i]
+		currID = event.ID
+		if err := prependScaleRequest(event); err != nil {
 			// TODO(jvatic): Handle error
 			fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
 			continue
 		}
-		scaleRequests = append(scaleRequests, req)
 	}
 	sendResponse()
 
@@ -573,16 +589,11 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 			}
 			currID = event.ID
 
-			req, err := unmarshalScaleRequest(event)
-			if err != nil {
+			if err := prependScaleRequest(event); err != nil {
 				// TODO(jvatic): Handle error
 				fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
 				continue
 			}
-			// prepend
-			scaleRequestsMtx.Lock()
-			scaleRequests = append(scaleRequests, append([]*protobuf.ScaleRequest{req}, scaleRequests...)...)
-			scaleRequestsMtx.Unlock()
 		}
 	}()
 	wg.Wait()
