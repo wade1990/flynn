@@ -52,6 +52,40 @@ interface Selection extends InputSelection {
 	entryInnerIndex: 0 | 1; // key | val
 }
 
+function keyValueParser(str: string): Iterable<[string, string]> {
+	let offset = 0;
+	let len = str.length;
+	return {
+		*[Symbol.iterator]() {
+			let key = '';
+			let val = '';
+			let i = offset;
+			while (offset < len) {
+				while (str.slice(i++)[0] !== '=') {
+					if (i === len) return;
+					key = str.slice(offset, i);
+				}
+				offset = i;
+				if (str.slice(i)[0] === '"') {
+					i++;
+					offset++;
+					while (str.slice(i++)[0] !== '"') {
+						if (i === len) return;
+						val = str.slice(offset, i);
+					}
+				} else {
+					while (str.slice(i++)[0] !== '\n') {
+						if (i === len) return;
+						val = str.slice(offset, i);
+					}
+				}
+				offset = i;
+				yield [key.trim(), val.trim().replace(/\\n/g, '\n')] as [string, string];
+			}
+		}
+	};
+}
+
 export default function KeyValueEditor({
 	data,
 	onChange,
@@ -198,16 +232,12 @@ export default function KeyValueEditor({
 	function handlePaste(entryIndex: number, entryInnerIndex: number, event: React.ClipboardEvent) {
 		// Detect key=value paste
 		const text = event.clipboardData.getData('text/plain');
-		if (text.match(/^(\S+=\S+\n?)+$/)) {
+		if (text.match(/^(\S+=[^=]+\n?)+$/)) {
 			let nextData = data;
 			event.preventDefault();
-			text
-				.trim()
-				.split('\n')
-				.forEach((line) => {
-					const [key, val] = line.split('=');
-					nextData = appendEntry(nextData, key, val);
-				});
+			for (const [key, val] of keyValueParser(text.trim())) {
+				nextData = appendEntry(nextData, key, val);
+			}
 			onChange(nextData);
 		} else if (entryInnerIndex === 1 && text.indexOf('\n') >= 0) {
 			event.preventDefault();
@@ -229,6 +259,10 @@ export default function KeyValueEditor({
 
 		const text = getEntries(data)
 			.map(([key, val]: [string, string]) => {
+				if (val.indexOf('\n') > -1) {
+					// wrap multiline values in quotes
+					val = `"${val.replace(/\n/g, '\\n')}"`;
+				}
 				return `${key}=${val}`;
 			})
 			.join('\n');
