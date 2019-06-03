@@ -4,6 +4,7 @@ import { StatusWarning as WarningIcon, Update as UpdateIcon } from 'grommet-icon
 import { Stack, Box, Button, TextArea } from 'grommet';
 import { TextInput } from '../GrommetTextInput';
 import useDebouncedInputOnChange from '../useDebouncedInputOnChange';
+import { default as useStringValidation, StringValidator } from '../useStringValidation';
 
 export interface Selection {
 	selectionStart: number;
@@ -14,7 +15,7 @@ export interface Selection {
 export interface KeyValueInputProps {
 	placeholder: string;
 	value: string;
-	validateValue?: (value: string) => boolean;
+	validateValue?: StringValidator;
 	newValue?: string;
 	hasConflict?: boolean;
 	onChange: (value: string) => void;
@@ -33,6 +34,7 @@ export function KeyValueInput(props: KeyValueInputProps) {
 	const multiline = React.useMemo<boolean>(() => props.value.indexOf('\n') >= 0, [props.value]);
 	const textarea = React.useRef(null) as string & React.RefObject<HTMLTextAreaElement>;
 	const [value, changeHandler] = useDebouncedInputOnChange(props.value, props.onChange, 300);
+	const validationErrorMsg = useStringValidation(value, props.validateValue || null);
 
 	// focus textarea when expanded toggled to true
 	React.useLayoutEffect(
@@ -123,23 +125,23 @@ export function KeyValueInput(props: KeyValueInputProps) {
 		);
 	}
 
-	const { hasConflict, newValue } = props;
-	if (hasConflict) {
-		return (
-			<Stack fill anchor="right" guidingChild="last">
-				<Box fill="vertical" justify="between" margin="xsmall">
-					<WarningIcon />
-				</Box>
-				{renderInput()}
-			</Stack>
-		);
-	}
+	const { newValue, hasConflict } = props;
 	if (newValue) {
 		return (
 			<Box fill direction="row">
 				{renderInput()}
 				<Button type="button" icon={<UpdateIcon />} onClick={() => props.onChange(newValue)} />
 			</Box>
+		);
+	}
+	if (hasConflict || validationErrorMsg !== null) {
+		return (
+			<Stack fill anchor="right" guidingChild="last" title={validationErrorMsg || ''}>
+				<Box fill="vertical" justify="between" margin="xsmall">
+					<WarningIcon />
+				</Box>
+				{renderInput()}
+			</Stack>
 		);
 	}
 	return renderInput();

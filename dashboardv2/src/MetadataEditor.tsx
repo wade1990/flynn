@@ -67,7 +67,12 @@ export default function MetadataEditor({ appName }: Props) {
 		return [
 			{
 				key: 'github.url',
-				validateValue: (value: string) => true,
+				validateValue: (value: string) => {
+					if (value.match(/^https:\/\/github\.com\/[^/]+\/[^/]+$/)) {
+						return null;
+					}
+					return 'invalid github repo URL';
+				},
 				valueTemplate: {
 					value: 'https://github.com/ORG/REPO',
 					selectionStart: 19,

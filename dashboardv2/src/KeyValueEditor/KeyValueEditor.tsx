@@ -20,6 +20,7 @@ import {
 } from './KeyValueData';
 import { KeyValueInput, Selection as InputSelection } from './KeyValueInput';
 import useDebouncedInputOnChange from '../useDebouncedInputOnChange';
+import { StringValidator } from '../useStringValidation';
 
 type DataCallback = (data: Data) => void;
 
@@ -29,7 +30,7 @@ export interface SuggestionValueTemplate extends InputSelection {
 
 export interface Suggestion {
 	key: string;
-	validateValue: (value: string) => boolean;
+	validateValue: StringValidator;
 	valueTemplate: SuggestionValueTemplate;
 }
 
