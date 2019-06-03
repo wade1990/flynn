@@ -531,7 +531,7 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 			return err
 		}
 		scaleRequestsMtx.Lock()
-		_scaleRequests := make([]*protobuf.ScaleRequest, len(scaleRequests)+1)
+		_scaleRequests := make([]*protobuf.ScaleRequest, 0, len(scaleRequests)+1)
 		_scaleRequests = append(_scaleRequests, req)
 		for _, sr := range scaleRequests {
 			if sr.GetName() == req.GetName() {
