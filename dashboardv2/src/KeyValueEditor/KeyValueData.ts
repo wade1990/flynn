@@ -81,6 +81,13 @@ export function nextIndex(data: Data, index: number): number {
 	return data._entries.length;
 }
 
+export function getKeyAtIndex(data: Data, index: number): string | undefined {
+	if (!hasIndex(data, index)) {
+		return undefined;
+	}
+	return (data._entries[index] as Entry)[0];
+}
+
 export function setKeyAtIndex(data: Data, key: string, index: number): Data {
 	if (index === data._entries.length) {
 		return appendKey(data, key);
@@ -187,6 +194,13 @@ export function appendKey(data: Data, key: string): Data {
 	nextData.hasChanges = nextData._changedIndices.size > 0;
 
 	return nextData;
+}
+
+export function getValueAtIndex(data: Data, index: number): string | undefined {
+	if (!hasIndex(data, index)) {
+		return undefined;
+	}
+	return (data._entries[index] as Entry)[1];
 }
 
 export function setValueAtIndex(data: Data, value: string, index: number): Data {

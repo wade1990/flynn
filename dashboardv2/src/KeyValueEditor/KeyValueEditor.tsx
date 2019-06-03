@@ -10,7 +10,9 @@ import {
 	hasKey as hasDataKey,
 	hasIndex as hasDataIndex,
 	nextIndex as nextDataIndex,
+	getKeyAtIndex,
 	setKeyAtIndex,
+	getValueAtIndex,
 	setValueAtIndex,
 	appendEntry,
 	getEntries,
@@ -131,6 +133,10 @@ export default function KeyValueEditor({
 	);
 
 	function keyChangeHandler(entryIndex: number, key: string) {
+		const prevKey = getKeyAtIndex(data, entryIndex);
+		if ((prevKey === undefined || prevKey === '') && key.trim() === '') {
+			return;
+		}
 		let nextData: Data;
 		nextData = setKeyAtIndex(data, key, entryIndex);
 		const s = suggestions.find((s) => s.key === key);
@@ -154,6 +160,10 @@ export default function KeyValueEditor({
 	}
 
 	function valueChangeHandler(index: number, value: string) {
+		const prevValue = getValueAtIndex(data, index);
+		if ((prevValue === undefined || prevValue === '') && value.trim() === '') {
+			return;
+		}
 		onChange(setValueAtIndex(data, value, index));
 	}
 
