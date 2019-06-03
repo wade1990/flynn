@@ -11,7 +11,7 @@ import Loading from './Loading';
 import NavAnchor from './NavAnchor';
 
 export interface Props {
-	onNav(path: string): void;
+	onNav?: (path: string) => void;
 }
 
 export default function AppsListNav({ onNav }: Props) {
@@ -56,7 +56,9 @@ export default function AppsListNav({ onNav }: Props) {
 		if (location.pathname === path) {
 			return;
 		}
-		onNav(path);
+		if (onNav) {
+			onNav(path);
+		}
 	};
 
 	const setShowSystemApps = (showSystemApps: boolean) => {
