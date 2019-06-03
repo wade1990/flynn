@@ -33,7 +33,7 @@ export function KeyValueInput(props: KeyValueInputProps) {
 	const [expanded, setExpanded] = React.useState(false);
 	const multiline = React.useMemo<boolean>(() => props.value.indexOf('\n') >= 0, [props.value]);
 	const textarea = React.useRef(null) as string & React.RefObject<HTMLTextAreaElement>;
-	const [value, changeHandler] = useDebouncedInputOnChange(props.value, props.onChange, 300);
+	const [value, changeHandler, flushValue] = useDebouncedInputOnChange(props.value, props.onChange, 300);
 	const validationErrorMsg = useStringValidation(value, props.validateValue || null);
 
 	// focus textarea when expanded toggled to true
@@ -78,6 +78,7 @@ export function KeyValueInput(props: KeyValueInputProps) {
 			hasConflict,
 			disabled,
 			onChange,
+			onBlur,
 			onSelectionChange,
 			value: _value,
 			refHandler,
@@ -95,8 +96,9 @@ export function KeyValueInput(props: KeyValueInputProps) {
 					onSelect={selectionChangeHandler}
 					onBlur={(e: React.SyntheticEvent<HTMLTextAreaElement>) => {
 						expanded ? setExpanded(false) : void 0;
-						if (props.onBlur) {
-							props.onBlur(e);
+						flushValue();
+						if (onBlur) {
+							onBlur(e);
 						}
 					}}
 					resize="vertical"
@@ -114,6 +116,12 @@ export function KeyValueInput(props: KeyValueInputProps) {
 				placeholder={placeholder}
 				value={value}
 				onChange={changeHandler}
+				onBlur={(e: React.SyntheticEvent<HTMLInputElement>) => {
+					flushValue();
+					if (onBlur) {
+						onBlur(e);
+					}
+				}}
 				onInput={selectionChangeHandler}
 				onSelect={selectionChangeHandler}
 				suggestions={filteredSuggestions}

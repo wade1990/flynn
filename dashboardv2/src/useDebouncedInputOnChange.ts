@@ -5,7 +5,7 @@ export default function useDebouncedInputOnChange(
 	value: string,
 	onChange: (value: string) => void,
 	timeout = 300
-): [string, (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void] {
+): [string, (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void, () => void] {
 	const [_value, setValue] = React.useState(value);
 	const _onChange = React.useMemo(() => debounce(onChange, timeout), [onChange, timeout]);
 
@@ -33,6 +33,11 @@ export default function useDebouncedInputOnChange(
 			const nextValue = e.target.value;
 			setValue(nextValue);
 			_onChange(nextValue);
+		},
+		() => {
+			// flush
+			_onChange.cancel();
+			onChange(_value);
 		}
 	];
 }

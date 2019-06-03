@@ -61,7 +61,7 @@ export default function KeyValueEditor({
 	suggestions = []
 }: Props) {
 	const hasConflicts = React.useMemo(() => (data.conflicts || []).length > 0, [data.conflicts]);
-	const [searchInputValue, searchInputHandler] = useDebouncedInputOnChange(
+	const [searchInputValue, searchInputHandler, flushSearchInputValue] = useDebouncedInputOnChange(
 		'',
 		(value: string) => {
 			onChange(filterData(data, value));
@@ -223,7 +223,12 @@ export default function KeyValueEditor({
 		>
 			<Box direction="column" gap="xsmall">
 				{hasConflicts ? <Notification status="warning" message={conflictsMessage} /> : null}
-				<TextInput type="search" value={searchInputValue} onChange={searchInputHandler} />
+				<TextInput
+					type="search"
+					value={searchInputValue}
+					onChange={searchInputHandler}
+					onBlur={flushSearchInputValue}
+				/>
 				{mapEntries(
 					data,
 					([key, value, { rebaseConflict, originalValue }]: Entry, index: number) => {
