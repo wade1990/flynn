@@ -63,14 +63,6 @@
       }]
     },
     {
-      "id": "dashboardv2",
-      "base": "ubuntu-trusty",
-      "layers": [{
-        "script": "builder/img/dashboardv2.sh",
-        "limits": { "temp_disk": "1G" }
-      }]
-    },
-    {
       "id": "builder",
       "base": "go",
       "layers": [{
@@ -512,15 +504,6 @@
       }
     },
     {
-      "id": "go-bindata",
-      "base": "dashboardv2",
-      "layers": [{
-        "gobuild": {
-          "vendor/github.com/jteeuwen/go-bindata/go-bindata": "/bin/go-bindata"
-        }
-      }]
-    },
-    {
       "id": "dashboard-builder",
       "base": "go",
       "layers": [{
@@ -585,6 +568,72 @@
       "entrypoint": {
         "args": [
           "/bin/flynn-dashboard"
+        ]
+      }
+    },
+    {
+      "id": "dashboardv2-base",
+      "base": "go",
+      "layers": [{
+        "script": "builder/img/dashboardv2-base.sh",
+        "limits": { "temp_disk": "1G" }
+      }]
+    },
+    {
+      "id": "dashboardv2-builder",
+      "base": "dashboardv2-base",
+      "layers": [{
+        "gobuild": {
+          "vendor/github.com/jteeuwen/go-bindata/go-bindata": "/bin/go-bindata"
+        }
+      }]
+    },
+    {
+      "id": "dashboardv2-compiled",
+      "base": "dashboardv2-builder",
+      "layers": [{
+        "script": "dashboardv2/img/compile.sh",
+        "inputs": [
+          "dashboardv2/.eslintignore",
+          "dashboardv2/yarn.lock",
+          "dashboardv2/*.json",
+          "dashboardv2/*.ts",
+          "dashboardv2/config/*.js",
+          "dashboardv2/scripts/*.js",
+          "dashboardv2/public/*.png",
+          "dashboardv2/public/*.ico",
+          "dashboardv2/public/*.json",
+          "dashboardv2/public/*.html",
+          "dashboardv2/src/*.css",
+          "dashboardv2/src/*.ts",
+          "dashboardv2/src/*.tsx",
+          "dashboardv2/src/util/*.ts",
+          "dashboardv2/src/generated/*.ts",
+          "dashboardv2/src/generated/*.js",
+          "dashboardv2/src/generated/google/api/*.ts",
+          "dashboardv2/src/generated/google/api/*.js",
+          "dashboardv2/src/KeyValueEditor/*.ts",
+          "dashboardv2/src/KeyValueEditor/*.tsx"
+        ],
+        "limits": { "memory": "3G", "temp_disk": "3G" }
+      }]
+    },
+    {
+      "id": "dashboardv2",
+      "base": "busybox",
+      "layers": [{
+        "build_with": "dashboardv2-compiled",
+        "run": [
+          "cp /app/bindata.go dashboardv2"
+        ],
+        "gobuild": {
+          "dashboardv2": "/bin/flynn-dashboardv2"
+        },
+        "limits": { "temp_disk": "1G" }
+      }],
+      "entrypoint": {
+        "args": [
+          "/bin/flynn-dashboardv2"
         ]
       }
     },

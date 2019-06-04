@@ -8,5 +8,4 @@ cd /app
 yarn install
 yarn run build
 
-cd /
-go-bindata -nomemcopy -nocompress -pkg "main" /app/build/...
+go-bindata -nomemcopy -nocompress -pkg "main" ./build/...
