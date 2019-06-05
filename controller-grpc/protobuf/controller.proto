@@ -8,63 +8,240 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
 
 service Controller {
-  rpc StreamApps (ListAppsRequest) returns (stream ListAppsResponse) {};
+  // read API
+  rpc StreamApps (StreamAppsRequest) returns (stream StreamAppsResponse) {};
+  rpc StreamReleases(StreamReleasesRequest) returns (stream StreamReleasesResponse) {};
+  rpc StreamScaleRequests (StreamScaleRequestsRequest) returns (stream StreamScaleRequestsResponse) {};
+  rpc StreamFormations(StreamFormationsRequest) returns (stream StreamFormationsResponse) {};
+  rpc StreamDeployments(StreamDeploymentsRequest) returns (stream StreamDeploymentsResponse) {};
 
-  rpc StreamApp (GetAppRequest) returns (stream App) {};
-
+  // write API
   rpc UpdateApp (UpdateAppRequest) returns (App) {};
-
-  rpc StreamAppRelease(GetAppReleaseRequest) returns (stream Release) {};
-
   rpc CreateScale (CreateScaleRequest) returns (ScaleRequest) {};
-
-  rpc StreamScaleRequests (ListScaleRequestsRequest) returns (stream ListScaleRequestsResponse) {};
-
-  rpc StreamAppFormation(GetAppFormationRequest) returns (stream Formation) {};
-
-  rpc GetRelease(GetReleaseRequest) returns (Release) {};
-
-  rpc StreamAppLog (StreamAppLogRequest) returns (stream LogChunk) {};
-
   rpc CreateRelease (CreateReleaseRequest) returns (Release) {};
-
-  rpc StreamDeployments(ListDeploymentsRequest) returns (stream ListDeploymentsResponse) {};
-
-  // TODO(jvatic): Use DeploymentEvent instead of Event
-  rpc CreateDeployment (CreateDeploymentRequest) returns (stream Event) {};
+  rpc CreateDeployment (CreateDeploymentRequest) returns (stream DeploymentEvent) {};
 }
 
 /*
    Controller service
    */
 
-message ListAppsRequest {
+message LabelFilter {
+  message Expression {
+    enum Operator {
+      // OP_IN matches if there is a label entry where the value is in the given
+      // values for the given key
+      OP_IN = 1;
+      // OP_NOT_IN matches if there are no label entries where the value is in
+      // the given values for the given key
+      OP_NOT_IN = 2;
+      // OP_EXISTS matches if there is a label entry with the given key (given
+      // values ignored and have undefined behavior)
+      OP_EXISTS = 3;
+      // OP_NOT_EXISTS matches if there are no label entries for the given key
+      // (given values ignored and have undefined behavior)
+      OP_NOT_EXISTS = 4;
+    }
+
+    string key = 1;
+    Operator op = 2;
+    repeated string values = 3;
+  }
+
+  // expressions are ANDed together.
+  repeated Expression expressions = 1;
+}
+
+// read API
+
+message StreamAppsRequest {
+  // The maximum number of resources to return in the initial page.
   int32 page_size = 1;
+
+  // Used for pagination. Must be a next_page_token returned from a previous response.
   string page_token = 2;
 
-  // filter out apps containing the following labels
-  map<string, string> labels_exclusion_filter = 3;
+  // Specifies an optional list of resource names that should be looked up. The
+  // list length must be smaller than page_size. This can be used to request a
+  // known set of one or more resources and optionally receive updates about
+  // them, and can also be used to retrieve a single resource.
+  repeated string name_filters = 3;
+
+  // filters are ORed
+  repeated LabelFilter label_filters = 4;
+
+  // When true, leaves the stream open and sends any updates to each resource
+  // returned in the initial page until the stream is closed.
+  bool stream_updates = 5;
+
+  // When true, leaves the stream open and sends newly created resources
+  // matching the filters until the stream is closed. page_token must not be
+  // set.
+  bool stream_creates = 6;
 }
 
-message ListAppsResponse {
+message StreamAppsResponse {
   repeated App apps = 1;
-  string next_page_token = 2;
+
+  // Set to true on the last response for the initial page.
+  bool page_complete = 2;
+
+  string next_page_token = 3;
 }
 
-message GetAppRequest {
-  // name = "apps/APP_ID"
-  string name = 1;
+message StreamReleasesRequest {
+  // The maximum number of resources to return in the initial page.
+  int32 page_size = 1;
+
+  // Used for pagination. Must be a next_page_token returned from a previous response.
+  string page_token = 2;
+
+  // Specifies an optional list of resource names that should be looked up. The
+  // list length must be smaller than page_size. This can be used to request a
+  // known set of one or more resources and optionally receive updates about
+  // them, and can also be used to retrieve a single resource. Parent resource
+  // names may also be used to filter resources.
+  repeated string name_filters = 3;
+
+  // filters are ORed
+  repeated LabelFilter label_filters = 4;
+
+  // When true, leaves the stream open and sends any updates to each resource
+  // returned in the initial page until the stream is closed.
+  bool stream_updates = 5;
+
+  // When true, leaves the stream open and sends newly created resources
+  // matching the filters until the stream is closed. page_token must not be
+  // set.
+  bool stream_creates = 6;
 }
+
+message StreamReleasesResponse {
+  repeated Release releases = 1;
+
+  // Set to true on the last response for the initial page.
+  bool page_complete = 2;
+
+  string next_page_token = 3;
+}
+
+message StreamScaleRequestsRequest {
+  // The maximum number of resources to return in the initial page.
+  int32 page_size = 1;
+
+  // Used for pagination. Must be a next_page_token returned from a previous response.
+  string page_token = 2;
+
+  // Specifies an optional list of resource names that should be looked up. The
+  // list length must be smaller than page_size. This can be used to request a
+  // known set of one or more resources and optionally receive updates about
+  // them, and can also be used to retrieve a single resource. Parent resource
+  // names may also be used to filter resources.
+  repeated string name_filters = 3;
+
+  // filters are ORed
+  repeated LabelFilter label_filters = 4;
+
+  // When true, leaves the stream open and sends any updates to each resource
+  // returned in the initial page until the stream is closed.
+  bool stream_updates = 5;
+
+  // When true, leaves the stream open and sends newly created resources
+  // matching the filters until the stream is closed. page_token must not be
+  // set.
+  bool stream_creates = 6;
+}
+
+message StreamScaleRequestsResponse {
+  repeated ScaleRequest scale_requests = 1;
+
+  // Set to true on the last response for the initial page.
+  bool page_complete = 2;
+
+  string next_page_token = 3;
+}
+
+message StreamFormationsRequest {
+  // The maximum number of resources to return in the initial page.
+  int32 page_size = 1;
+
+  // Used for pagination. Must be a next_page_token returned from a previous response.
+  string page_token = 2;
+
+  // Specifies an optional list of parent resource names that resources should
+  // be looked up by. The list length must be smaller than page_size. This can
+  // be used to request a known set of one or more resources and optionally
+  // receive updates about them, and can also be used to retrieve a single
+  // resource.
+  repeated string name_filters = 3;
+
+  // filters are ORed
+  repeated LabelFilter label_filters = 4;
+
+  // When true, leaves the stream open and sends any updates to each resource
+  // returned in the initial page until the stream is closed.
+  bool stream_updates = 5;
+
+  // When true, leaves the stream open and sends newly created resources
+  // matching the filters until the stream is closed. page_token must not be
+  // set.
+  bool stream_creates = 6;
+}
+
+message StreamFormationsResponse {
+  repeated Formation formations = 1;
+
+  // Set to true on the last response for the initial page.
+  bool page_complete = 2;
+
+  string next_page_token = 3;
+}
+
+message StreamDeploymentsRequest {
+  // The maximum number of resources to return in the initial page.
+  int32 page_size = 1;
+
+  // Used for pagination. Must be a next_page_token returned from a previous response.
+  string page_token = 2;
+
+  // Specifies an optional list of resource names that should be looked up. The
+  // list length must be smaller than page_size. This can be used to request a
+  // known set of one or more resources and optionally receive updates about
+  // them, and can also be used to retrieve a single resource. Parent resource
+  // names may also be used to filter resources.
+  repeated string name_filters = 3;
+
+  // Specified an optional list of release types. If provided, only resources
+  // with these release types will be returned.
+  repeated ReleaseType type_filters = 4;
+
+  // filters are ORed
+  repeated LabelFilter label_filters = 5;
+
+  // When true, leaves the stream open and sends any updates to each resource
+  // returned in the initial page until the stream is closed.
+  bool stream_updates = 6;
+
+  // When true, leaves the stream open and sends newly created resources
+  // matching the filters until the stream is closed. page_token must not be
+  // set.
+  bool stream_creates = 7;
+}
+
+message StreamDeploymentsResponse {
+  repeated ExpandedDeployment deployments = 1;
+
+  // Set to true on the last response for the initial page.
+  bool page_complete = 2;
+
+  string next_page_token = 3;
+}
+
+// write API
 
 message UpdateAppRequest {
   App app = 1;
   google.protobuf.FieldMask update_mask = 2;
-}
-
-// TODO(jvatic): Rename to AppReleaseRequest
-message GetAppReleaseRequest {
-  // parent = "apps/APP_ID"
-  string parent = 1;
 }
 
 message CreateScaleRequest {
@@ -76,59 +253,11 @@ message CreateScaleRequest {
   map<string, DeploymentProcessTags> tags = 3;
 }
 
-message ListScaleRequestsRequest {
-  // parent = "apps/APP_ID"
-  string parent = 1;
-}
-
-message ListScaleRequestsResponse {
-  repeated ScaleRequest scale_requests = 1;
-  string next_page_token = 2;
-}
-
-message GetAppFormationRequest {
-  // parent = "apps/APP_ID"
-  string parent = 1;
-}
-
-message GetReleaseRequest {
-  // name = "apps/APP_ID/releases/RELEASE_ID"
-  string name = 1;
-}
-
-// See github.com/flynn/flynn/logaggregator/types LogOpts
-message LogAggregatorLogOpts {
-  bool follow = 1;
-  // job = "apps/APP_ID/jobs/JOB_ID"
-  string job = 2;
-  int32 lines = 3;
-  string process_type = 4;
-  repeated LogAggregatorStreamType stream_types = 5;
-}
-
-message StreamAppLogRequest {
-  // name = "apps/APP_ID"
-  string name = 1;
-  LogAggregatorLogOpts opts = 2;
-}
-
 message CreateReleaseRequest {
   // parent = "apps/APP_ID"
   string parent = 1;
   Release release = 2;
   string request_id = 3;
-}
-
-message ListDeploymentsRequest {
-  int32 page_size = 1;
-  string page_token = 2;
-  string parent = 3;
-  ReleaseType filter_type = 4;
-}
-
-message ListDeploymentsResponse {
-  repeated ExpandedDeployment deployments = 1;
-  string next_page_token = 2;
 }
 
 message CreateDeploymentRequest {
@@ -307,7 +436,7 @@ message ScaleRequest {
 message Formation {
   // parent = "apps/APP_ID/releases/RELEASE_ID"
   string parent = 1;
-  // name = "apps/APP_ID/releases/RELEASE_ID/scale/SCALE_REQUEST_ID"
+  // scale_request = "apps/APP_ID/releases/RELEASE_ID/scale/SCALE_REQUEST_ID"
   string scale_request = 2;
   ScaleRequestState state = 3;
   map<string, int32> processes = 4;
@@ -316,40 +445,6 @@ message Formation {
   map<string, DeploymentProcessTags> tags = 5;
   google.protobuf.Timestamp create_time = 6;
   google.protobuf.Timestamp update_time = 7;
-}
-
-// See github.com/flynn/flynn/logaggregator NewMessageFromSyslog
-enum LogAggregatorStreamSource {
-  APP = 0;
-}
-
-// See github.com/flynn/flynn/logaggregator/types StreamType
-enum LogAggregatorStreamType {
-  STDOUT = 0;
-  STDERR = 1;
-  INIT = 2;
-  UNKNOWN = 3;
-}
-
-// See github.com/flynn/flynn/logaggregator/client Message
-message LogChunk {
-  // host = "hosts/HOST_ID"
-  // host is the host that the job was running on when this log message was
-  // emitted.
-  string host = 1;
-  // job_id = "apps/APP_ID/jobs/JOB_ID"
-  string job = 2;
-  // msg is the actual content of this log message.
-  string msg = 3;
-  // process_type is the type of process that emitted this log message.
-  string process_type = 4;
-  // source is the source of this log message.
-  LogAggregatorStreamSource source = 5;
-  // stream is the I/O stream that emitted this message, such as "stdout" or
-  // "stderr".
-  LogAggregatorStreamType stream = 6;
-  // create_time is the time that this log line was emitted.
-  google.protobuf.Timestamp create_time = 7;
 }
 
 enum DeploymentStatus {
@@ -420,10 +515,6 @@ message DeploymentEvent {
     FAILED = 8;
   }
   JobState job_state = 3;
-}
-
-message Event {
-  DeploymentEvent deployment_event = 1;
-  string Error = 2;
-  google.protobuf.Timestamp create_time = 3;
+  string Error = 4;
+  google.protobuf.Timestamp create_time = 5;
 }
