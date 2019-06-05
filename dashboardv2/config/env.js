@@ -66,10 +66,14 @@ function getClientEnvironment(publicUrl) {
 		// images into the `src` and `import` them in code to get their paths.
 		PUBLIC_URL: publicUrl
 	};
-	// Stringify all values so we can feed into Webpack DefinePlugin
+	// Stringify all values so we can feed into Webpack DefinePlugin and use
+	// `window.DashboardConfig` in production build (the server handles
+	// interpolating variables in HTML served).
+	const isProduction = nodeEnv === 'production';
 	const stringified = {
 		'process.env': Object.keys(raw).reduce((env, key) => {
-			env[key] = JSON.stringify(raw[key]);
+			const jsonValue = JSON.stringify(raw[key]);
+			env[key] = isProduction && key !== 'NODE_ENV' ? `window.DashboardConfig.${key} || ${jsonValue}` : jsonValue;
 			return env;
 		}, {})
 	};

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -23,21 +22,10 @@ type LoginInfo struct {
 	Token string `json:"token"`
 }
 
-func AssetReader(path string) (io.ReadSeeker, time.Time, error) {
-	t := time.Time{}
-	data, err := Asset(path)
-	if err != nil {
-		return nil, t, err
-	}
-	if fi, err := AssetInfo(path); err != nil {
-		t = fi.ModTime()
-	}
-	return bytes.NewReader(data), t, nil
-}
-
 func NewDashboardHandler(conf *Config) http.Handler {
 	api := &API{
-		conf: conf,
+		conf:       conf,
+		assetCache: make(map[string][]byte),
 	}
 
 	router := httprouter.New()
@@ -63,7 +51,8 @@ func NewDashboardHandler(conf *Config) http.Handler {
 }
 
 type API struct {
-	conf *Config
+	conf       *Config
+	assetCache map[string][]byte
 }
 
 func (api *API) WrapHandler(handler httphelper.HandlerFunc) httprouter.Handle {
@@ -114,9 +103,53 @@ func (api *API) ServeRobotsTxt(ctx context.Context, w http.ResponseWriter, req *
 	w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
+// interpolateConfig replaces %VAR_NAME% with the value of
+// PublicConfig[VAR_NAME] or nothing
+func (api API) interpolateConfig(data []byte) []byte {
+	buf := make([]byte, 0, len(data))
+
+	var inVar bool
+	var varName []byte
+	for _, b := range data {
+		if string(b) == "%" {
+			if inVar {
+				inVar = false
+
+				if string(varName) == "PUBLIC_CONFIG_JSON" {
+					buf = append(buf, api.conf.PublicConfigJSON...)
+				} else if v, ok := api.conf.PublicConfig[string(varName)]; ok {
+					buf = append(buf, []byte(v)...)
+				}
+
+				varName = nil
+			} else {
+				inVar = true
+			}
+			continue
+		}
+
+		if inVar {
+			varName = append(varName, b)
+		} else {
+			buf = append(buf, b)
+		}
+	}
+
+	return buf
+}
+
 func (api *API) ServeStatic(ctx context.Context, w http.ResponseWriter, req *http.Request, path string) {
 	log, _ := ctxhelper.LoggerFromContext(ctx)
-	data, t, err := AssetReader(path)
+	t := time.Time{}
+	data, err := Asset(path)
+	if err != nil {
+		log.Error(err.Error())
+		w.WriteHeader(404)
+		return
+	}
+	if fi, err := AssetInfo(path); err != nil {
+		t = fi.ModTime()
+	}
 	if err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(404)
@@ -129,9 +162,16 @@ func (api *API) ServeStatic(ctx context.Context, w http.ResponseWriter, req *htt
 	}
 	if ext == ".html" {
 		w.Header().Add("Cache-Control", "max-age=0")
+
+		if d, ok := api.assetCache[path]; ok {
+			data = d
+		} else {
+			data = api.interpolateConfig(data)
+			api.assetCache[path] = data
+		}
 	}
 
-	http.ServeContent(w, req, path, t, data)
+	http.ServeContent(w, req, path, t, bytes.NewReader(data))
 }
 
 func (api *API) ServeIndex(ctx context.Context, w http.ResponseWriter, req *http.Request) {

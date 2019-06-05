@@ -486,8 +486,9 @@ module.exports = function(webpackEnv) {
 			// <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico">
 			// In production, it will be an empty string unless you specify "homepage"
 			// in `package.json`, in which case it will be the pathname of that URL.
-			// In development, this will be an empty string.
-			new InterpolateHtmlPlugin(HtmlWebpackPlugin, env.raw),
+			// In development, this will be an empty string. Defer interpolation to
+			// server for production build.
+			isEnvProduction ? void 0 : new InterpolateHtmlPlugin(HtmlWebpackPlugin, env.raw),
 			// This gives some necessary context to module not found errors, such as
 			// the requesting resource.
 			new ModuleNotFoundPlugin(paths.appPath),

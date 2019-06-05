@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 )
@@ -9,6 +11,8 @@ type Config struct {
 	Addr             string
 	ControllerDomain string
 	InterfaceURL     string
+	PublicConfig     map[string]string
+	PublicConfigJSON []byte
 }
 
 func MustConfig() *Config {
@@ -27,6 +31,17 @@ func MustConfig() *Config {
 	conf.InterfaceURL = os.Getenv("INTERFACE_URL")
 	if conf.InterfaceURL == "" {
 		log.Fatal("INTERFACE_URL is required!")
+	}
+
+	conf.PublicConfig = map[string]string{
+		"CONTROLLER_HOST": fmt.Sprintf("https://%s", conf.ControllerDomain),
+		"PUBLIC_URL":      conf.InterfaceURL,
+	}
+
+	var err error
+	conf.PublicConfigJSON, err = json.Marshal(conf.PublicConfig)
+	if err != nil {
+		log.Fatalf("Error encoding PublicConfigJSON: %v", err)
 	}
 
 	return conf
