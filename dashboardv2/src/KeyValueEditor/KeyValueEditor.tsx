@@ -52,7 +52,7 @@ interface Selection extends InputSelection {
 	entryInnerIndex: 0 | 1; // key | val
 }
 
-function keyValueParser(str: string): Iterable<[string, string]> {
+function parseKeyValuePairs(str: string): Iterable<[string, string]> {
 	let offset = 0;
 	let len = str.length;
 	return {
@@ -69,18 +69,22 @@ function keyValueParser(str: string): Iterable<[string, string]> {
 				if (str.slice(i)[0] === '"') {
 					i++;
 					offset++;
-					while (str.slice(i++)[0] !== '"') {
+					while (!(str.slice(i++)[0] === '"' && str.slice(i - 2)[0] !== '\\')) {
 						if (i === len) return;
 						val = str.slice(offset, i);
 					}
+					val = val.replace(/\\"/g, '"'); // unescape quotes (e.g. JSON)
 				} else {
 					while (str.slice(i++)[0] !== '\n') {
-						if (i === len) return;
 						val = str.slice(offset, i);
+						if (i === len) break;
 					}
 				}
 				offset = i;
-				yield [key.trim(), val.trim().replace(/\\n/g, '\n')] as [string, string];
+				yield [
+					key.trim(),
+					val.trim().replace(/\\n/g, '\n') // unescape newlines
+				] as [string, string];
 			}
 		}
 	};
@@ -235,7 +239,7 @@ export default function KeyValueEditor({
 		if (text.match(/^(\S+=[^=]+\n?)+$/)) {
 			let nextData = data;
 			event.preventDefault();
-			for (const [key, val] of keyValueParser(text.trim())) {
+			for (const [key, val] of parseKeyValuePairs(text.trim())) {
 				nextData = appendEntry(nextData, key, val);
 			}
 			onChange(nextData);
@@ -260,6 +264,10 @@ export default function KeyValueEditor({
 		const text = getEntries(data)
 			.map(([key, val]: [string, string]) => {
 				if (val.indexOf('\n') > -1) {
+					if (val.indexOf('"')) {
+						// escape existing quotes (e.g. JSON)
+						val = `${val.replace(/"/g, '\\"')}`;
+					}
 					// wrap multiline values in quotes
 					val = `"${val.replace(/\n/g, '\\n')}"`;
 				}
