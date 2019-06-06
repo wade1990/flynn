@@ -64,7 +64,11 @@ function getClientEnvironment(publicUrl) {
 		// For example, <img src={process.env.PUBLIC_URL + '/img/logo.png'} />.
 		// This should only be used as an escape hatch. Normally you would put
 		// images into the `src` and `import` them in code to get their paths.
-		PUBLIC_URL: publicUrl
+		PUBLIC_URL: publicUrl,
+		// This is used in index.html to inject production env variables into the
+		// app via window.DashboardConfig. Set it to null in development as it is
+		// not used there.
+		PUBLIC_CONFIG_JSON: 'null'
 	};
 	// Stringify all values so we can feed into Webpack DefinePlugin and use
 	// `window.DashboardConfig` in production build (the server handles
