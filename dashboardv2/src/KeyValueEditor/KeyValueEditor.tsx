@@ -245,16 +245,22 @@ export default function KeyValueEditor({
 			onChange(nextData);
 		} else if (entryInnerIndex === 1 && text.indexOf('\n') >= 0) {
 			event.preventDefault();
-			const nextData = setValueAtIndex(data, text, entryIndex);
+
+			// make sure input expands into textarea
+			const ref = (inputs.refs[entryIndex] || [])[entryInnerIndex];
+			if (ref) {
+				ref.blur();
+			}
+			setCurrentSelection({
+				entryIndex,
+				entryInnerIndex,
+				selectionStart: text.length,
+				selectionEnd: text.length,
+				direction: 'forward'
+			});
+
+			const nextData = setValueAtIndex(data, text.replace(/\\n/g, '\n'), entryIndex);
 			onChange(nextData);
-			setTimeout(() => {
-				// hack to trigger input expansion into a textarea
-				const ref = (inputs.refs[entryIndex] || [])[entryInnerIndex];
-				if (ref) {
-					ref.blur();
-					ref.focus();
-				}
-			}, 0);
 		}
 	}
 
