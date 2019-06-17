@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { TextInput as OriginalTextInput } from 'grommet';
+import { TextInput as GrommetTextInput } from 'grommet';
 
 // TextInput wraps grommet's TextInput so we can listen for `select` events on
 // the input element. This behaviour is not currently supported by grommet due
@@ -24,8 +24,26 @@ export const TextInput = React.forwardRef(
 			},
 			[] // eslint-disable-line react-hooks/exhaustive-deps
 		);
+
+		const onKeyDown = (event: React.KeyboardEvent) => {
+			if (!ref.current) return;
+			if (!(event.ctrlKey && (event.keyCode === 74 || event.keyCode === 75))) {
+				// return unless ctr-j or ctr-k
+				return;
+			}
+			// simulate ArrowUp for ctr-k and ArrowDown for ctr-j to control the
+			// input suggestions
+			event.preventDefault();
+			const nextKeyCode = event.keyCode === 74 ? 40 : 38; // ctr-j is down, ctr-k is up
+			const eventObj = document.createEvent('Events') as Event & { keyCode: number };
+			eventObj.initEvent('keydown', true, true);
+			eventObj.keyCode = nextKeyCode;
+			ref.current.dispatchEvent(eventObj);
+		};
+
 		return (
-			<OriginalTextInput
+			<GrommetTextInput
+				onKeyDown={onKeyDown}
 				onSelect={onSuggestionSelect}
 				{...rest}
 				dropTarget={dropTarget}
