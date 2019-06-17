@@ -109,7 +109,7 @@ func listEvents(ctx context.Context, w http.ResponseWriter, req *http.Request, a
 	}
 	objectID := req.FormValue("object_id")
 
-	list, err := repo.ListEvents(appID, objectTypes, objectID, beforeID, sinceID, count)
+	list, err := repo.ListEvents([]string{appID}, objectTypes, objectID, beforeID, sinceID, count)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func streamEvents(ctx context.Context, w http.ResponseWriter, req *http.Request,
 
 	var currID int64
 	if past == "true" || lastID > 0 {
-		list, err := repo.ListEvents(appID, objectTypes, objectID, nil, &lastID, count)
+		list, err := repo.ListEvents([]string{appID}, objectTypes, objectID, nil, &lastID, count)
 		if err != nil {
 			return err
 		}

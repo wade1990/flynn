@@ -21,7 +21,7 @@ func NewEventRepo(db *postgres.DB) *EventRepo {
 	return &EventRepo{db: db}
 }
 
-func (r *EventRepo) ListEvents(appID string, objectTypes []string, objectID string, beforeID *int64, sinceID *int64, count int) ([]*ct.Event, error) {
+func (r *EventRepo) ListEvents(appIDs []string, objectTypes []string, objectID string, beforeID *int64, sinceID *int64, count int) ([]*ct.Event, error) {
 	query := "SELECT event_id, app_id, object_id, object_type, data, created_at FROM events"
 	var conditions []string
 	var n int
@@ -36,10 +36,10 @@ func (r *EventRepo) ListEvents(appID string, objectTypes []string, objectID stri
 		conditions = append(conditions, fmt.Sprintf("event_id > $%d", n))
 		args = append(args, *sinceID)
 	}
-	if appID != "" {
+	if appIDs != nil {
 		n++
-		conditions = append(conditions, fmt.Sprintf("app_id = $%d", n))
-		args = append(args, appID)
+		conditions = append(conditions, fmt.Sprintf("app_id IN($%d)", n))
+		args = append(args, appIDs)
 	}
 	if len(objectTypes) > 0 {
 		c := "("
@@ -329,7 +329,11 @@ func (e *EventListener) CloseWithError(err error) {
 	subscribers := e.subscribers
 	for _, subs := range subscribers {
 		for sub := range subs {
-			go sub.CloseWithError(err)
+			if err == nil {
+				go sub.Close()
+			} else {
+				go sub.CloseWithError(err)
+			}
 		}
 	}
 	close(e.doneCh)

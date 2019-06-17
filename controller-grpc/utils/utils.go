@@ -34,6 +34,18 @@ func timestampFromProto(t *tspb.Timestamp) *time.Time {
 	return &ts
 }
 
+func ParseAppIDsFromNameFilters(nameFilters []string) []string {
+	appIDs := make([]string, 0, len(nameFilters))
+	for _, name := range nameFilters {
+		appID := ParseIDFromName(name, "apps")
+		if appID == "" {
+			continue
+		}
+		appIDs = append(appIDs, appID)
+	}
+	return appIDs
+}
+
 func ParseIDFromName(name string, resource string) string {
 	parts := strings.Split(name, "/")
 	idMap := make(map[string]string, len(parts)/2)

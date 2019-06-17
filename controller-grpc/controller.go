@@ -14,7 +14,6 @@ import (
 
 	"github.com/flynn/flynn/controller-grpc/protobuf"
 	"github.com/flynn/flynn/controller-grpc/utils"
-	controller "github.com/flynn/flynn/controller/client"
 	"github.com/flynn/flynn/controller/data"
 	controllerschema "github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
@@ -27,7 +26,6 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -117,11 +115,31 @@ func (c *Config) maybeStartEventListener() (*data.EventListener, error) {
 	return c.eventListener, c.eventListener.Listen()
 }
 
-func (c *Config) subscribeEvents(appID string, objectTypes []ct.EventType, objectID string) (*data.EventSubscriber, error) {
-	eventListener, err := c.maybeStartEventListener()
+type EventListener struct {
+	Events  chan *ct.Event
+	Err     error
+	errOnce sync.Once
+	subs    []*data.EventSubscriber
+}
+
+func (e *EventListener) Close() {
+	for _, sub := range e.subs {
+		sub.Close()
+		if err := sub.Err; err != nil {
+			e.errOnce.Do(func() { e.Err = err })
+		}
+	}
+}
+
+func (c *Config) subscribeEvents(appIDs []string, objectTypes []ct.EventType, objectID string) (*EventListener, error) {
+	dataEventListener, err := c.maybeStartEventListener()
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return nil, err
+	}
+
+	eventListener := &EventListener{
+		Events: make(chan *ct.Event),
 	}
 
 	objectTypeStrings := make([]string, len(objectTypes))
@@ -129,12 +147,26 @@ func (c *Config) subscribeEvents(appID string, objectTypes []ct.EventType, objec
 		objectTypeStrings[i] = string(t)
 	}
 
-	sub, err := eventListener.Subscribe(appID, objectTypeStrings, objectID)
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return nil, err
+	subs := make([]*data.EventSubscriber, len(appIDs))
+	for i, appID := range appIDs {
+		sub, err := dataEventListener.Subscribe(appID, objectTypeStrings, objectID)
+		if err != nil {
+			// TODO(jvatic): return proper error code
+			return nil, err
+		}
+		subs[i] = sub
+		go (func() {
+			for {
+				ctEvent, ok := <-sub.Events
+				if !ok {
+					break
+				}
+				eventListener.Events <- ctEvent
+			}
+		})()
 	}
-	return sub, nil
+	eventListener.subs = subs
+	return eventListener, nil
 }
 
 func corsHandler(main http.Handler) http.Handler {
@@ -163,8 +195,8 @@ type server struct {
 	*Config
 }
 
-func (s *server) listApps(req *protobuf.ListAppsRequest) ([]*protobuf.App, error) {
-	labelsExclusionFilter := req.GetLabelsExclusionFilter()
+func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, error) {
+	labelFilters := req.GetLabelFilters()
 	ctApps, err := s.appRepo.List()
 	if err != nil {
 		return nil, err
@@ -173,10 +205,23 @@ func (s *server) listApps(req *protobuf.ListAppsRequest) ([]*protobuf.App, error
 
 outer:
 	for _, a := range ctApps.([]*ct.App) {
-		for ek, ev := range labelsExclusionFilter {
-			for k, v := range a.Meta {
-				if ek == k && ev == v {
-					continue outer
+		for _, f := range labelFilters {
+			for _, e := range f.Expressions {
+				switch e.Op {
+				case protobuf.LabelFilter_Expression_OP_IN: // TODO(jvatic)
+				case protobuf.LabelFilter_Expression_OP_NOT_IN:
+					for _, ev := range e.Values {
+						for k, av := range a.Meta {
+							if k != e.Key {
+								continue
+							}
+							if ev == av {
+								continue outer
+							}
+						}
+					}
+				case protobuf.LabelFilter_Expression_OP_EXISTS: // TODO(jvatic)
+				case protobuf.LabelFilter_Expression_OP_NOT_EXISTS: // TODO(jvatic)
 				}
 			}
 		}
@@ -186,7 +231,7 @@ outer:
 	return apps, nil
 }
 
-func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Controller_StreamAppsServer) error {
+func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Controller_StreamAppsServer) error {
 	var apps []*protobuf.App
 	var appsMtx sync.RWMutex
 	refreshApps := func() error {
@@ -199,7 +244,7 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 
 	sendResponse := func() {
 		appsMtx.RLock()
-		stream.Send(&protobuf.ListAppsResponse{
+		stream.Send(&protobuf.StreamAppsResponse{
 			Apps:          apps,
 			NextPageToken: "", // TODO(jvatic): Pagination
 		})
@@ -208,7 +253,7 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 
 	var wg sync.WaitGroup
 
-	sub, err := s.subscribeEvents("", []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
+	sub, err := s.subscribeEvents(nil, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -231,74 +276,6 @@ func (s *server) StreamApps(req *protobuf.ListAppsRequest, stream protobuf.Contr
 		}
 	}()
 	wg.Wait()
-
-	if err := sub.Err; err != nil {
-		return utils.ConvertError(err, err.Error())
-	}
-
-	return nil
-}
-
-func (s *server) StreamApp(req *protobuf.GetAppRequest, stream protobuf.Controller_StreamAppServer) error {
-	var app *protobuf.App
-	var appMtx sync.RWMutex
-	appID := utils.ParseIDFromName(req.Name, "apps")
-
-	if appID == "" {
-		return grpc.Errorf(codes.InvalidArgument, "StreamApp Error: Invalid app name: %q", req.Name)
-	}
-
-	refreshApp := func() error {
-		appMtx.Lock()
-		defer appMtx.Unlock()
-		ctApp, err := s.appRepo.Get(appID)
-		if err != nil {
-			return err
-		}
-		app = utils.ConvertApp(ctApp.(*ct.App))
-		return nil
-	}
-
-	sendResponse := func() {
-		appMtx.RLock()
-		stream.Send(app)
-		appMtx.RUnlock()
-	}
-
-	var wg sync.WaitGroup
-
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-	defer sub.Close()
-
-	errChan := make(chan error, 1)
-	defer close(errChan)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			if err := refreshApp(); err != nil {
-				errChan <- utils.ConvertError(err, "Error refreshing app(%q): %s", req.Name, err)
-				return
-			} else {
-				sendResponse()
-			}
-
-			// wait for events before refreshing app and sending respond again
-			if _, ok := <-sub.Events; !ok {
-				errChan <- nil
-				break
-			}
-		}
-	}()
-	wg.Wait()
-
-	if err := <-errChan; err != nil {
-		return err
-	}
 
 	if err := sub.Err; err != nil {
 		return utils.ConvertError(err, err.Error())
@@ -343,79 +320,13 @@ func (s *server) UpdateApp(ctx context.Context, req *protobuf.UpdateAppRequest) 
 	return utils.ConvertApp(ctApp.(*ct.App)), nil
 }
 
-func (s *server) StreamAppRelease(req *protobuf.GetAppReleaseRequest, stream protobuf.Controller_StreamAppReleaseServer) error {
-	var release *protobuf.Release
-	var releaseMtx sync.RWMutex
-	appID := utils.ParseIDFromName(req.Parent, "apps")
-	refreshRelease := func() error {
-		releaseMtx.Lock()
-		defer releaseMtx.Unlock()
-		ctRelease, err := s.appRepo.GetRelease(appID)
-		if err != nil {
-			return err
-		}
-		release = utils.ConvertRelease(ctRelease)
-		return nil
-	}
-
-	sendResponse := func() {
-		releaseMtx.RLock()
-		stream.Send(release)
-		releaseMtx.RUnlock()
-	}
-
-	var wg sync.WaitGroup
-
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeAppRelease}, "")
-	if err != nil {
-		// TODO(jvatic): return proper error code
-		return err
-	}
-	defer sub.Close()
-
-	errChan := make(chan error, 1)
-	defer close(errChan)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			if err := refreshRelease(); err != nil {
-				if err != controller.ErrNotFound {
-					fmt.Printf("StreamAppRelease(%q): Error refreshing app release: %s\n", req.Parent, err)
-				}
-				errChan <- utils.ConvertError(err, "Error fetching app(%q) release: %s", req.Parent, err)
-				return
-			} else {
-				sendResponse()
-			}
-
-			// wait for events before refreshing release and sending respond again
-			if _, ok := <-sub.Events; !ok {
-				errChan <- nil
-				break
-			}
-		}
-	}()
-	wg.Wait()
-
-	if err := <-errChan; err != nil {
-		return err
-	}
-
-	if err := sub.Err; err != nil {
-		return utils.ConvertError(err, err.Error())
-	}
-
-	return nil
-}
-
 func (s *server) createScale(req *protobuf.CreateScaleRequest) (*protobuf.ScaleRequest, error) {
 	appID := utils.ParseIDFromName(req.Parent, "apps")
 	releaseID := utils.ParseIDFromName(req.Parent, "releases")
 	processes := parseDeploymentProcesses(req.Processes)
 	tags := parseDeploymentTags(req.Tags)
 
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest}, "")
+	sub, err := s.subscribeEvents([]string{appID}, []ct.EventType{ct.EventTypeScaleRequest}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return nil, err
@@ -480,15 +391,15 @@ func (s *server) CreateScale(ctx context.Context, req *protobuf.CreateScaleReque
 	return s.createScale(req)
 }
 
-func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, stream protobuf.Controller_StreamScaleRequestsServer) error {
-	appID := utils.ParseIDFromName(req.Parent, "apps")
+func (s *server) StreamScales(req *protobuf.StreamScalesRequest, stream protobuf.Controller_StreamScalesServer) error {
+	appIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
 
 	var scaleRequests []*protobuf.ScaleRequest
 	var scaleRequestsMtx sync.RWMutex
 	sendResponse := func() {
 		scaleRequestsMtx.RLock()
 		defer scaleRequestsMtx.RUnlock()
-		stream.Send(&protobuf.ListScaleRequestsResponse{
+		stream.Send(&protobuf.StreamScalesResponse{
 			ScaleRequests: scaleRequests,
 		})
 	}
@@ -544,7 +455,7 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		return nil
 	}
 
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest}, "")
+	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeScaleRequest}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -553,7 +464,7 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 
 	// get all events up until now
 	var currID int64
-	list, err := s.eventRepo.ListEvents(appID, []string{string(ct.EventTypeScaleRequest)}, "", nil, nil, 0)
+	list, err := s.eventRepo.ListEvents(appIDs, []string{string(ct.EventTypeScaleRequest)}, "", nil, nil, 0)
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -564,7 +475,7 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 		currID = event.ID
 		if err := prependScaleRequest(event); err != nil {
 			// TODO(jvatic): Handle error
-			fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
+			fmt.Printf("ScaleRequestsStream(%v): Error parsing data: %s\n", req.NameFilters, err)
 			continue
 		}
 	}
@@ -591,7 +502,7 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 
 			if err := prependScaleRequest(event); err != nil {
 				// TODO(jvatic): Handle error
-				fmt.Printf("ScaleRequestsStream(%q): Error parsing data: %s\n", req.Parent, err)
+				fmt.Printf("ScaleRequestsStream(%v): Error parsing data: %s\n", req.NameFilters, err)
 				continue
 			}
 		}
@@ -602,33 +513,33 @@ func (s *server) StreamScaleRequests(req *protobuf.ListScaleRequestsRequest, str
 	return sub.Err
 }
 
-func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream protobuf.Controller_StreamAppFormationServer) error {
-	appID := utils.ParseIDFromName(req.Parent, "apps")
+func (s *server) StreamFormations(req *protobuf.StreamFormationsRequest, stream protobuf.Controller_StreamFormationsServer) error {
+	appIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
 
-	var releaseID string
-	var releaseIDMtx sync.RWMutex
-	ctRelease, err := s.appRepo.GetRelease(appID)
-	if err != nil {
-		return utils.ConvertError(err, "Error fetching current app release(%q): %s", req.Parent, err)
+	var releaseIDs map[string]string // map[APP_ID]RELEASE_ID
+	var releaseIDsMtx sync.RWMutex
+	for _, appID := range appIDs {
+		ctRelease, err := s.appRepo.GetRelease(appID)
+		if err != nil {
+			return utils.ConvertError(err, "Error fetching current app release(%v): %s", req.NameFilters, err)
+		}
+		releaseIDs[appID] = ctRelease.ID
 	}
-	releaseID = ctRelease.ID
 
-	var formation *protobuf.Formation
-	var formationMtx sync.RWMutex
-	refreshFormation := func() error {
-		releaseIDMtx.RLock()
-		defer releaseIDMtx.RUnlock()
-		formationMtx.Lock()
-		defer formationMtx.Unlock()
+	var formationsMtx sync.RWMutex
+	formations := make(map[string]*protobuf.Formation) // map[APP_ID]*protobuf.Formation
+	refreshFormation := func(appID, releaseID string) error {
+		formationsMtx.Lock()
+		defer formationsMtx.Unlock()
 		ctFormation, err := s.formationRepo.Get(appID, releaseID)
 		if err != nil {
 			return err
 		}
-		ctEFormation, err := s.formationRepo.GetExpanded(appID, ctRelease.ID, false)
+		ctEFormation, err := s.formationRepo.GetExpanded(appID, releaseID, false)
 		if err != nil {
 			return err
 		}
-		formation = utils.ConvertFormation(ctFormation)
+		formation := utils.ConvertFormation(ctFormation)
 		formation.State = protobuf.ScaleRequestState_SCALE_COMPLETE
 		if ctEFormation.PendingScaleRequest != nil {
 			switch ctEFormation.PendingScaleRequest.State {
@@ -644,20 +555,27 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 			return fmt.Errorf("Error fetching scale request id: %v", err)
 		}
 		formation.ScaleRequest = fmt.Sprintf("apps/%s/releases/%s/scale/%s", appID, releaseID, scaleReqID)
+		formations[appID] = formation
 		return nil
 	}
 
 	sendResponse := func() {
-		formationMtx.RLock()
-		if formation != nil {
-			stream.Send(formation)
+		formationsMtx.RLock()
+		if len(formations) > 0 {
+			list := make([]*protobuf.Formation, 0, len(formations))
+			for _, f := range formations {
+				list = append(list, f)
+			}
+			stream.Send(&protobuf.StreamFormationsResponse{
+				Formations: list,
+			})
 		}
-		formationMtx.RUnlock()
+		formationsMtx.RUnlock()
 	}
 
 	var wg sync.WaitGroup
 
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeScaleRequest, ct.EventTypeAppRelease}, "")
+	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeScaleRequest, ct.EventTypeAppRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return utils.ConvertError(err, err.Error())
@@ -670,8 +588,10 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 	go func() {
 		defer wg.Done()
 		for {
-			if err := refreshFormation(); err != nil {
-				errChan <- utils.ConvertError(err, "Error fetching current app formation(%q): %s", req.Parent, err)
+			var appID string
+			var releaseID string
+			if err := refreshFormation(appID, releaseID); err != nil {
+				errChan <- utils.ConvertError(err, "Error fetching current app formation(%q, %q): %s", appID, releaseID, err)
 				return
 			}
 			sendResponse()
@@ -682,12 +602,16 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 				errChan <- nil
 				break
 			}
+			appID = event.AppID
 			// update releaseID whenever a new release is created
 			if event.ObjectType == ct.EventTypeAppRelease {
-				releaseIDMtx.Lock()
-				releaseID = event.ObjectID
-				releaseIDMtx.Unlock()
+				releaseIDsMtx.Lock()
+				releaseIDs[appID] = event.ObjectID
+				releaseIDsMtx.Unlock()
 			}
+			releaseIDsMtx.RLock()
+			releaseID = releaseIDs[appID]
+			releaseIDsMtx.RUnlock()
 		}
 	}()
 	wg.Wait()
@@ -701,22 +625,6 @@ func (s *server) StreamAppFormation(req *protobuf.GetAppFormationRequest, stream
 		return utils.ConvertError(err, err.Error())
 	}
 
-	return nil
-}
-
-func (s *server) GetRelease(ctx context.Context, req *protobuf.GetReleaseRequest) (*protobuf.Release, error) {
-	releaseID := utils.ParseIDFromName(req.Name, "releases")
-	if releaseID == "" {
-		return nil, controller.ErrNotFound
-	}
-	release, err := s.releaseRepo.Get(releaseID)
-	if err != nil {
-		return nil, err
-	}
-	return utils.ConvertRelease(release.(*ct.Release)), nil
-}
-
-func (s *server) StreamAppLog(*protobuf.StreamAppLogRequest, protobuf.Controller_StreamAppLogServer) error {
 	return nil
 }
 
@@ -736,8 +644,7 @@ func (s *server) CreateRelease(ctx context.Context, req *protobuf.CreateReleaseR
 	return utils.ConvertRelease(ctRelease), nil
 }
 
-func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*protobuf.ExpandedDeployment, error) {
-	appID := utils.ParseIDFromName(req.Parent, "apps")
+func (s *server) listDeployments(appID string, typeFilters []protobuf.ReleaseType) ([]*protobuf.ExpandedDeployment, error) {
 	ctDeployments, err := s.deploymentRepo.List(appID)
 	if err != nil {
 		return nil, err
@@ -837,13 +744,17 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 	wg.Wait()
 
 	var filtered []*protobuf.ExpandedDeployment
-	if req.FilterType == protobuf.ReleaseType_ANY {
+	filters := make(map[protobuf.ReleaseType]struct{}, len(typeFilters))
+	for _, f := range typeFilters {
+		filters[f] = struct{}{}
+	}
+	if _, ok := filters[protobuf.ReleaseType_ANY]; ok {
 		filtered = deployments
 	} else {
 		filtered = make([]*protobuf.ExpandedDeployment, 0, len(deployments))
 		for _, ed := range deployments {
 			// filter by type of deployment
-			if req.FilterType != protobuf.ReleaseType_ANY && ed.Type != req.FilterType {
+			if _, ok := filters[ed.Type]; !ok {
 				continue
 			}
 			filtered = append(filtered, ed)
@@ -853,35 +764,42 @@ func (s *server) listDeployments(req *protobuf.ListDeploymentsRequest) ([]*proto
 	return filtered, nil
 }
 
-func (s *server) StreamDeployments(req *protobuf.ListDeploymentsRequest, srv protobuf.Controller_StreamDeploymentsServer) error {
-	appID := utils.ParseIDFromName(req.Parent, "apps")
+func (s *server) StreamDeployments(req *protobuf.StreamDeploymentsRequest, srv protobuf.Controller_StreamDeploymentsServer) error {
+	appIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
 
-	var deployments []*protobuf.ExpandedDeployment
 	var deploymentsMtx sync.RWMutex
-	refreshDeployments := func() error {
+	deployments := make(map[string][]*protobuf.ExpandedDeployment)
+	refreshDeployments := func(appID string) error {
 		deploymentsMtx.Lock()
 		defer deploymentsMtx.Unlock()
 		var err error
-		deployments, err = s.listDeployments(req)
+		deployments[appID], err = s.listDeployments(appID, req.TypeFilters)
 		return err
 	}
 
 	sendResponse := func() {
 		deploymentsMtx.RLock()
-		srv.Send(&protobuf.ListDeploymentsResponse{
-			Deployments: deployments,
+		list := make([]*protobuf.ExpandedDeployment, 0)
+		for _, l := range deployments {
+			list = append(list, l...)
+		}
+		// TODO(jvatic): sort the list
+		srv.Send(&protobuf.StreamDeploymentsResponse{
+			Deployments: list,
 		})
 		deploymentsMtx.RUnlock()
 	}
 
-	if err := refreshDeployments(); err != nil {
-		return err
+	for _, appID := range appIDs {
+		if err := refreshDeployments(appID); err != nil {
+			return err
+		}
 	}
 	sendResponse()
 
 	var wg sync.WaitGroup
 
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeDeployment}, "")
+	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeDeployment}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -892,10 +810,11 @@ func (s *server) StreamDeployments(req *protobuf.ListDeploymentsRequest, srv pro
 	go func() {
 		defer wg.Done()
 		for {
-			if _, ok := <-sub.Events; !ok {
+			ctEvent, ok := <-sub.Events
+			if !ok {
 				break
 			}
-			if err := refreshDeployments(); err != nil {
+			if err := refreshDeployments(ctEvent.AppID); err != nil {
 				// DEBUG
 				fmt.Printf("StreamDeployments: Error refreshing deployments: %s\n", err)
 				continue
@@ -935,7 +854,7 @@ func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds prot
 
 	// Wait for deployment to complete and perform scale
 
-	sub, err := s.subscribeEvents(appID, []ct.EventType{ct.EventTypeDeployment}, d.ID)
+	sub, err := s.subscribeEvents([]string{appID}, []ct.EventType{ct.EventTypeDeployment}, d.ID)
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -973,12 +892,10 @@ func (s *server) CreateDeployment(req *protobuf.CreateDeploymentRequest, ds prot
 			}
 		}
 
-		ds.Send(&protobuf.Event{
-			DeploymentEvent: &protobuf.DeploymentEvent{
-				Deployment: utils.ConvertDeployment(d),
-				JobType:    de.JobType,
-				JobState:   utils.ConvertDeploymentEventJobState(de.JobState),
-			},
+		ds.Send(&protobuf.DeploymentEvent{
+			Deployment: utils.ConvertDeployment(d),
+			JobType:    de.JobType,
+			JobState:   utils.ConvertDeploymentEventJobState(de.JobState),
 			Error:      de.Error,
 			CreateTime: utils.TimestampProto(ctEvent.CreatedAt),
 		})
