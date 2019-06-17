@@ -11,7 +11,7 @@ service Controller {
   // read API
   rpc StreamApps (StreamAppsRequest) returns (stream StreamAppsResponse) {};
   rpc StreamReleases(StreamReleasesRequest) returns (stream StreamReleasesResponse) {};
-  rpc StreamScaleRequests (StreamScaleRequestsRequest) returns (stream StreamScaleRequestsResponse) {};
+  rpc StreamScales (StreamScalesRequest) returns (stream StreamScalesResponse) {};
   rpc StreamFormations(StreamFormationsRequest) returns (stream StreamFormationsResponse) {};
   rpc StreamDeployments(StreamDeploymentsRequest) returns (stream StreamDeploymentsResponse) {};
 
@@ -125,7 +125,7 @@ message StreamReleasesResponse {
   string next_page_token = 3;
 }
 
-message StreamScaleRequestsRequest {
+message StreamScalesRequest {
   // The maximum number of resources to return in the initial page.
   int32 page_size = 1;
 
@@ -152,7 +152,7 @@ message StreamScaleRequestsRequest {
   bool stream_creates = 6;
 }
 
-message StreamScaleRequestsResponse {
+message StreamScalesResponse {
   repeated ScaleRequest scale_requests = 1;
 
   // Set to true on the last response for the initial page.
