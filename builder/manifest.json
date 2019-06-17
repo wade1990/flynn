@@ -576,6 +576,9 @@
       "base": "go",
       "layers": [{
         "script": "builder/img/dashboardv2-base.sh",
+        "inputs": [
+          "controller-grpc/protobuf/*.proto"
+        ],
         "limits": { "temp_disk": "1G" }
       }]
     },
