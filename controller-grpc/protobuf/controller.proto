@@ -31,16 +31,16 @@ message LabelFilter {
     enum Operator {
       // OP_IN matches if there is a label entry where the value is in the given
       // values for the given key
-      OP_IN = 1;
+      OP_IN = 0;
       // OP_NOT_IN matches if there are no label entries where the value is in
       // the given values for the given key
-      OP_NOT_IN = 2;
+      OP_NOT_IN = 1;
       // OP_EXISTS matches if there is a label entry with the given key (given
       // values ignored and have undefined behavior)
-      OP_EXISTS = 3;
+      OP_EXISTS = 2;
       // OP_NOT_EXISTS matches if there are no label entries for the given key
       // (given values ignored and have undefined behavior)
-      OP_NOT_EXISTS = 4;
+      OP_NOT_EXISTS = 3;
     }
 
     string key = 1;
