@@ -17,11 +17,11 @@ import { ClientContext } from './withClient';
 import {
 	Release,
 	ReleaseType,
+	ReleaseTypeMap,
 	Deployment,
 	ExpandedDeployment,
 	ScaleRequest,
-	Formation,
-	ListDeploymentsResponse
+	Formation
 } from './generated/controller_pb';
 import Loading from './Loading';
 import CreateDeployment from './CreateDeployment';
@@ -300,22 +300,22 @@ export default function ReleaseHistory({ appName }: Props) {
 				return;
 			}
 
-			let filterType = ReleaseType.ANY;
+			let filterType = ReleaseType.ANY as ReleaseTypeMap[keyof ReleaseTypeMap];
 			if (isCodeReleaseEnabled && !isConfigReleaseEnabled) {
 				filterType = ReleaseType.CODE;
 			} else if (isConfigReleaseEnabled && !isCodeReleaseEnabled) {
 				filterType = ReleaseType.CONFIG;
 			}
 
-			const cancel = client.streamDeployments(
+			const cancel = client.streamAppDeployments(
 				appName,
-				(res: ListDeploymentsResponse, error: Error | null) => {
+				(deployments: ExpandedDeployment[], error: Error | null) => {
 					if (error) {
 						handleError(error);
 						return;
 					}
 
-					setDeployments(res.getDeploymentsList());
+					setDeployments(deployments);
 					setDeploymentsLoading(false);
 				},
 				listDeploymentsRequestFilterType(filterType)
@@ -335,7 +335,7 @@ export default function ReleaseHistory({ appName }: Props) {
 				return;
 			}
 
-			const cancel = client.streamScaleRequests(appName, (scaleRequests: ScaleRequest[], error: Error | null) => {
+			const cancel = client.streamAppScales(appName, (scaleRequests: ScaleRequest[], error: Error | null) => {
 				if (error) {
 					handleError(error);
 					return;

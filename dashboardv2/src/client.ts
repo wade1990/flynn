@@ -1,48 +1,58 @@
 import { grpc } from '@improbable-eng/grpc-web';
-import * as jspb from 'google-protobuf';
 
 import Config from './config';
 import { ControllerClient, ServiceError, Status, ResponseStream } from './generated/controller_pb_service';
 import {
-	ListAppsRequest,
-	ListAppsResponse,
-	GetAppRequest,
+	StreamAppsRequest,
+	StreamAppsResponse,
 	UpdateAppRequest,
 	App,
-	GetAppReleaseRequest,
-	GetReleaseRequest,
+	StreamReleasesRequest,
+	StreamReleasesResponse,
 	CreateReleaseRequest,
 	Release,
-	ReleaseType,
-	GetAppFormationRequest,
+	ReleaseTypeMap,
+	StreamFormationsRequest,
+	StreamFormationsResponse,
 	Formation,
 	ScaleRequest,
-	ListScaleRequestsRequest,
-	ListScaleRequestsResponse,
+	StreamScalesRequest,
+	StreamScalesResponse,
 	CreateScaleRequest,
 	CreateDeploymentRequest,
 	Deployment,
-	ListDeploymentsRequest,
-	ListDeploymentsResponse,
-	Event
+	ExpandedDeployment,
+	StreamDeploymentsRequest,
+	StreamDeploymentsResponse,
+	DeploymentEvent,
+	LabelFilter
 } from './generated/controller_pb';
 
-import protoMapReplace from './util/protoMapReplace';
-
 export interface Client {
-	streamApps: (cb: AppsCallback, ...reqModifiers: ListAppsRequestModifier[]) => CancelFunc;
+	streamApps: (cb: AppsCallback, ...reqModifiers: RequestModifier<StreamAppsRequest>[]) => CancelFunc;
 	streamApp: (name: string, cb: AppCallback) => CancelFunc;
 	updateApp: (app: App, cb: AppCallback) => CancelFunc;
+	streamReleases: (cb: ReleasesCallback, ...reqModifiers: RequestModifier<StreamReleasesRequest>[]) => CancelFunc;
 	streamAppRelease: (appName: string, cb: ReleaseCallback) => CancelFunc;
+	streamFormations: (cb: FormationsCallback, ...reqModifiers: RequestModifier<StreamFormationsRequest>[]) => CancelFunc;
 	streamAppFormation: (appName: string, cb: FormationCallback) => CancelFunc;
 	createScale: (req: CreateScaleRequest, cb: CreateScaleCallback) => CancelFunc;
-	streamScaleRequests: (appName: string, cb: ScaleRequestListCallback) => CancelFunc;
+	streamScales: (cb: ScaleRequestsCallback, ...reqModifiers: RequestModifier<StreamScalesRequest>[]) => CancelFunc;
+	streamAppScales: (
+		appName: string,
+		cb: ScaleRequestsCallback,
+		...reqModifiers: RequestModifier<StreamScalesRequest>[]
+	) => CancelFunc;
 	getRelease: (name: string, cb: ReleaseCallback) => CancelFunc;
 	createRelease: (parentName: string, release: Release, cb: ReleaseCallback) => CancelFunc;
 	streamDeployments: (
-		parentName: string,
-		cb: ListDeploymentsCallback,
-		...reqModifiers: ListDeploymentsRequestModifier[]
+		cb: DeploymentsCallback,
+		...reqModifiers: RequestModifier<StreamDeploymentsRequest>[]
+	) => CancelFunc;
+	streamAppDeployments: (
+		appName: string,
+		cb: DeploymentsCallback,
+		...reqModifiers: RequestModifier<StreamDeploymentsRequest>[]
 	) => CancelFunc;
 	createDeployment: (parentName: string, releaseName: string, cb: DeploymentCallback) => CancelFunc;
 	createDeploymentWithScale: (
@@ -57,36 +67,76 @@ export type ErrorWithCode = Error & ServiceError;
 export type CancelFunc = () => void;
 export type AppsCallback = (apps: App[], error: ErrorWithCode | null) => void;
 export type AppCallback = (app: App, error: ErrorWithCode | null) => void;
+export type ReleasesCallback = (releases: Release[], error: ErrorWithCode | null) => void;
+export type FormationsCallback = (formations: Formation[], error: ErrorWithCode | null) => void;
 export type CreateScaleCallback = (sr: ScaleRequest, error: ErrorWithCode | null) => void;
 export type ReleaseCallback = (release: Release, error: ErrorWithCode | null) => void;
 export type DeploymentCallback = (deployment: Deployment, error: ErrorWithCode | null) => void;
 export type FormationCallback = (formation: Formation, error: ErrorWithCode | null) => void;
-export type ScaleRequestListCallback = (scaleRequests: ScaleRequest[], error: ErrorWithCode | null) => void;
-export type ListDeploymentsCallback = (res: ListDeploymentsResponse, error: ErrorWithCode | null) => void;
+export type ScaleRequestsCallback = (scaleRequests: ScaleRequest[], error: ErrorWithCode | null) => void;
+export type DeploymentsCallback = (deployments: ExpandedDeployment[], error: ErrorWithCode | null) => void;
 
-export type ListDeploymentsRequestModifier = {
-	(req: ListDeploymentsRequest): void;
+export type RequestModifier<T> = {
+	(req: T): void;
 	key: string;
 };
 
-export function listDeploymentsRequestFilterType(filterType: ReleaseType): ListDeploymentsRequestModifier {
+export interface PaginatableRequest {
+	getPageSize(): number;
+	setPageSize(value: number): void;
+
+	getPageToken(): string;
+	setPageToken(value: string): void;
+}
+
+export function setRequestPageSize(pageSize: number): RequestModifier<PaginatableRequest> {
 	return Object.assign(
-		(req: ListDeploymentsRequest) => {
-			req.setFilterType(filterType);
+		(req: PaginatableRequest) => {
+			req.setPageSize(pageSize);
 		},
-		{ key: `filterType--${filterType}` }
+		{ key: `pageSize--${pageSize}` }
 	);
 }
 
-export type ListAppsRequestModifier = {
-	(req: ListAppsRequest): void;
-	key: string;
-};
+export interface NameFilterable {
+	clearNameFiltersList(): void;
+	getNameFiltersList(): Array<string>;
+	setNameFiltersList(value: Array<string>): void;
+	addNameFilters(value: string, index?: number): string;
+}
 
-export function excludeAppsWithLabels(labels: [string, string][]): ListAppsRequestModifier {
+export function filterRequestByName(...filterNames: string[]): RequestModifier<NameFilterable> {
 	return Object.assign(
-		(req: ListAppsRequest) => {
-			protoMapReplace(req.getLabelsExclusionFilterMap(), new jspb.Map(labels));
+		(req: NameFilterable) => {
+			req.setNameFiltersList(filterNames);
+		},
+		{ key: `nameFilters--${filterNames.join('|')}` }
+	);
+}
+
+export function listDeploymentsRequestFilterType(
+	...filterTypes: Array<ReleaseTypeMap[keyof ReleaseTypeMap]>
+): RequestModifier<StreamDeploymentsRequest> {
+	return Object.assign(
+		(req: StreamDeploymentsRequest) => {
+			req.setTypeFiltersList(filterTypes);
+		},
+		{ key: `filterTypes--${filterTypes.join('|')}` }
+	);
+}
+
+export function excludeAppsWithLabels(labels: [string, string][]): RequestModifier<StreamAppsRequest> {
+	return Object.assign(
+		(req: StreamAppsRequest) => {
+			labels.forEach(([key, val]: [string, string]) => {
+				const f = new LabelFilter();
+				const e = new LabelFilter.Expression();
+				e.setKey(key);
+				e.addValues(val);
+				e.setOp(LabelFilter.Expression.Operator.OP_NOT_IN);
+				f.addExpressions(e);
+				req.addLabelFilters(f);
+			});
 		},
 		{ key: `excludeAppsWithLabels--${JSON.stringify(labels)}` }
 	);
@@ -179,11 +229,12 @@ class _Client implements Client {
 		this._cc = cc;
 	}
 
-	public streamApps(cb: AppsCallback, ...reqModifiers: ListAppsRequestModifier[]): CancelFunc {
-		const req = new ListAppsRequest();
+	public streamApps(cb: AppsCallback, ...reqModifiers: RequestModifier<StreamAppsRequest>[]): CancelFunc {
+		// TODO(jvatic): Memozise this stream
+		const req = new StreamAppsRequest();
 		reqModifiers.forEach((m) => m(req));
 		const stream = this._cc.streamApps(req);
-		stream.on('data', (response: ListAppsResponse) => {
+		stream.on('data', (response: StreamAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
 		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
@@ -193,22 +244,13 @@ class _Client implements Client {
 	}
 
 	public streamApp(name: string, cb: AppCallback): CancelFunc {
-		const [stream, lastResponse] = memoizedStream('streamApp', name, () => {
-			const getAppRequest = new GetAppRequest();
-			getAppRequest.setName(name);
-			const stream = this._cc.streamApp(getAppRequest);
-			return stream;
-		});
-		stream.on('data', (response: App) => {
-			cb(response, null);
-		});
-		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
-			cb(new App(), error);
-		});
-		if (lastResponse) {
-			cb(lastResponse, null);
-		}
-		return buildCancelFunc(stream);
+		return this.streamApps(
+			(apps: App[], error: ErrorWithCode | null) => {
+				cb(apps[0] || new App(), error);
+			},
+			filterRequestByName(name),
+			setRequestPageSize(1)
+		);
 	}
 
 	public updateApp(app: App, cb: AppCallback): CancelFunc {
@@ -228,35 +270,65 @@ class _Client implements Client {
 		);
 	}
 
-	public streamAppRelease(appName: string, cb: ReleaseCallback): CancelFunc {
-		const req = new GetAppReleaseRequest();
-		req.setParent(appName);
-		const stream = this._cc.streamAppRelease(req);
-		stream.on('data', (response: Release) => {
-			cb(response, null);
+	public streamReleases(cb: ReleasesCallback, ...reqModifiers: RequestModifier<StreamReleasesRequest>[]): CancelFunc {
+		const streamKey = reqModifiers.map((m) => m.key).join(':');
+		const [stream, lastResponse] = memoizedStream('streamReleases', streamKey, () => {
+			const req = new StreamReleasesRequest();
+			reqModifiers.forEach((m) => m(req));
+			return this._cc.streamReleases(req);
 		});
+		stream.on('data', (response: StreamReleasesResponse) => {
+			cb(response.getReleasesList(), null);
+		});
+		if (lastResponse) {
+			cb(lastResponse.getReleasesList(), null);
+		}
 		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
-			cb(new Release(), error);
+			cb([], error);
+		});
+		return buildCancelFunc(stream);
+	}
+
+	public streamAppRelease(appName: string, cb: ReleaseCallback): CancelFunc {
+		return this.streamReleases(
+			(releases: Release[], error: ErrorWithCode | null) => {
+				cb(releases[0] || new Release(), error);
+			},
+			filterRequestByName(appName),
+			setRequestPageSize(1)
+		);
+	}
+
+	public streamFormations(
+		cb: FormationsCallback,
+		...reqModifiers: RequestModifier<StreamFormationsRequest>[]
+	): CancelFunc {
+		const streamKey = reqModifiers.map((m) => m.key).join(':');
+		const [stream, lastResponse] = memoizedStream('streamFormations', streamKey, () => {
+			const req = new StreamFormationsRequest();
+			reqModifiers.forEach((m) => m(req));
+			return this._cc.streamFormations(req);
+		});
+		stream.on('data', (response: StreamFormationsResponse) => {
+			cb(response.getFormationsList(), null);
+		});
+		if (lastResponse) {
+			cb(lastResponse.getFormationsList(), null);
+		}
+		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
+			cb([], error);
 		});
 		return buildCancelFunc(stream);
 	}
 
 	public streamAppFormation(appName: string, cb: FormationCallback): CancelFunc {
-		const [stream, lastResponse] = memoizedStream('streamAppFormation', appName, () => {
-			const req = new GetAppFormationRequest();
-			req.setParent(appName);
-			return this._cc.streamAppFormation(req);
-		});
-		stream.on('data', (response: Formation) => {
-			cb(response, null);
-		});
-		if (lastResponse) {
-			cb(lastResponse, null);
-		}
-		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
-			cb(new Formation(), error);
-		});
-		return buildCancelFunc(stream);
+		return this.streamFormations(
+			(formations: Formation[], error: ErrorWithCode | null) => {
+				cb(formations[0] || new Formation(), error);
+			},
+			filterRequestByName(appName),
+			setRequestPageSize(1)
+		);
 	}
 
 	public createScale(req: CreateScaleRequest, cb: CreateScaleCallback): CancelFunc {
@@ -273,33 +345,48 @@ class _Client implements Client {
 		);
 	}
 
-	public streamScaleRequests(appName: string, cb: ScaleRequestListCallback): CancelFunc {
-		const req = new ListScaleRequestsRequest();
-		req.setParent(appName);
-		const stream = this._cc.streamScaleRequests(req);
-		stream.on('data', (response: ListScaleRequestsResponse) => {
+	public streamScales(cb: ScaleRequestsCallback, ...reqModifiers: RequestModifier<StreamScalesRequest>[]): CancelFunc {
+		const streamKey = reqModifiers.map((m) => m.key).join(':');
+		const [stream, lastResponse] = memoizedStream('streamScales', streamKey, () => {
+			const req = new StreamScalesRequest();
+			reqModifiers.forEach((m) => m(req));
+			return this._cc.streamScales(req);
+		});
+		stream.on('data', (response: StreamScalesResponse) => {
 			cb(response.getScaleRequestsList(), null);
 		});
+		if (lastResponse) {
+			cb(lastResponse.getScaleRequestsList(), null);
+		}
 		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb([], error);
 		});
 		return buildCancelFunc(stream);
 	}
 
+	public streamAppScales(
+		appName: string,
+		cb: ScaleRequestsCallback,
+		...reqModifiers: RequestModifier<StreamScalesRequest>[]
+	): CancelFunc {
+		return this.streamScales(cb, filterRequestByName(appName));
+	}
+
 	public getRelease(name: string, cb: ReleaseCallback): CancelFunc {
-		const getReleaseRequest = new GetReleaseRequest();
-		getReleaseRequest.setName(name);
-		return buildCancelFunc(
-			this._cc.getRelease(getReleaseRequest, (error: ServiceError | null, response: Release | null) => {
-				if (response && error === null) {
-					cb(response, null);
-				} else if (error) {
-					cb(new Release(), convertServiceError(error));
+		const cancel = this.streamReleases(
+			(releases: Release[], error: ErrorWithCode | null) => {
+				const release = releases[0];
+				if (release) {
+					cancel();
+					cb(release, error);
 				} else {
-					cb(new Release(), UnknownError);
+					cb(new Release(), error);
 				}
-			})
+			},
+			filterRequestByName(name),
+			setRequestPageSize(1)
 		);
+		return cancel;
 	}
 
 	public createRelease(parentName: string, release: Release, cb: ReleaseCallback): CancelFunc {
@@ -320,27 +407,33 @@ class _Client implements Client {
 	}
 
 	public streamDeployments(
-		appName: string,
-		cb: ListDeploymentsCallback,
-		...reqModifiers: ListDeploymentsRequestModifier[]
+		cb: DeploymentsCallback,
+		...reqModifiers: RequestModifier<StreamDeploymentsRequest>[]
 	): CancelFunc {
-		const streamKey = `${appName}:${reqModifiers.map((m) => m.key).join(':')}`;
+		const streamKey = reqModifiers.map((m) => m.key).join(':');
 		const [stream, lastResponse] = memoizedStream('streamDeployments', streamKey, () => {
-			const req = new ListDeploymentsRequest();
-			req.setParent(appName);
+			const req = new StreamDeploymentsRequest();
 			reqModifiers.forEach((m) => m(req));
 			return this._cc.streamDeployments(req);
 		});
-		stream.on('data', (response: ListDeploymentsResponse) => {
-			cb(response, null);
+		stream.on('data', (response: StreamDeploymentsResponse) => {
+			cb(response.getDeploymentsList(), null);
 		});
 		if (lastResponse) {
-			cb(lastResponse, null);
+			cb(lastResponse.getDeploymentsList(), null);
 		}
 		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
-			cb(new ListDeploymentsResponse(), error);
+			cb([], error);
 		});
 		return buildCancelFunc(stream);
+	}
+
+	public streamAppDeployments(
+		appName: string,
+		cb: DeploymentsCallback,
+		...reqModifiers: RequestModifier<StreamDeploymentsRequest>[]
+	): CancelFunc {
+		return this.streamDeployments(cb, filterRequestByName(appName));
 	}
 
 	public createDeployment(parentName: string, releaseName: string, cb: DeploymentCallback): CancelFunc {
@@ -366,13 +459,10 @@ class _Client implements Client {
 	private _createDeployment(req: CreateDeploymentRequest, cb: DeploymentCallback): CancelFunc {
 		let deployment = null as Deployment | null;
 		const stream = this._cc.createDeployment(req);
-		stream.on('data', (event: Event) => {
-			if (event.hasDeploymentEvent()) {
-				const de = event.getDeploymentEvent();
-				const d = de && de.getDeployment();
-				if (d) {
-					deployment = d;
-				}
+		stream.on('data', (event: DeploymentEvent) => {
+			const d = event.getDeployment();
+			if (d) {
+				deployment = d;
 			}
 		});
 		stream.on('status', (s: Status) => {

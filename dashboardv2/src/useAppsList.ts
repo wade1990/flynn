@@ -1,11 +1,11 @@
 import * as React from 'react';
 import useClient from './useClient';
-import { App } from './generated/controller_pb';
-import { ListAppsRequestModifier } from './client';
+import { App, StreamAppsRequest } from './generated/controller_pb';
+import { RequestModifier } from './client';
 
-const emptyReqModifiersArray = [] as ListAppsRequestModifier[];
+const emptyReqModifiersArray = [] as RequestModifier<StreamAppsRequest>[];
 
-export default function useAppsList(reqModifiers: ListAppsRequestModifier[] = []) {
+export default function useAppsList(reqModifiers: RequestModifier<StreamAppsRequest>[] = []) {
 	const client = useClient();
 	const [appsLoading, setAppsLoading] = React.useState(true);
 	const [apps, setApps] = React.useState<App[]>([]);

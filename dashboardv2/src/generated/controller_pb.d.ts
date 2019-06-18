@@ -7,76 +7,440 @@ import * as google_protobuf_timestamp_pb from "google-protobuf/google/protobuf/t
 import * as google_protobuf_duration_pb from "google-protobuf/google/protobuf/duration_pb";
 import * as google_protobuf_field_mask_pb from "google-protobuf/google/protobuf/field_mask_pb";
 
-export class ListAppsRequest extends jspb.Message {
+export class LabelFilter extends jspb.Message {
+  clearExpressionsList(): void;
+  getExpressionsList(): Array<LabelFilter.Expression>;
+  setExpressionsList(value: Array<LabelFilter.Expression>): void;
+  addExpressions(value?: LabelFilter.Expression, index?: number): LabelFilter.Expression;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): LabelFilter.AsObject;
+  static toObject(includeInstance: boolean, msg: LabelFilter): LabelFilter.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: LabelFilter, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): LabelFilter;
+  static deserializeBinaryFromReader(message: LabelFilter, reader: jspb.BinaryReader): LabelFilter;
+}
+
+export namespace LabelFilter {
+  export type AsObject = {
+    expressionsList: Array<LabelFilter.Expression.AsObject>,
+  }
+
+  export class Expression extends jspb.Message {
+    getKey(): string;
+    setKey(value: string): void;
+
+    getOp(): LabelFilter.Expression.OperatorMap[keyof LabelFilter.Expression.OperatorMap];
+    setOp(value: LabelFilter.Expression.OperatorMap[keyof LabelFilter.Expression.OperatorMap]): void;
+
+    clearValuesList(): void;
+    getValuesList(): Array<string>;
+    setValuesList(value: Array<string>): void;
+    addValues(value: string, index?: number): string;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): Expression.AsObject;
+    static toObject(includeInstance: boolean, msg: Expression): Expression.AsObject;
+    static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+    static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+    static serializeBinaryToWriter(message: Expression, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): Expression;
+    static deserializeBinaryFromReader(message: Expression, reader: jspb.BinaryReader): Expression;
+  }
+
+  export namespace Expression {
+    export type AsObject = {
+      key: string,
+      op: LabelFilter.Expression.OperatorMap[keyof LabelFilter.Expression.OperatorMap],
+      valuesList: Array<string>,
+    }
+
+    export interface OperatorMap {
+      OP_IN: 0;
+      OP_NOT_IN: 1;
+      OP_EXISTS: 2;
+      OP_NOT_EXISTS: 3;
+    }
+
+    export const Operator: OperatorMap;
+  }
+}
+
+export class StreamAppsRequest extends jspb.Message {
   getPageSize(): number;
   setPageSize(value: number): void;
 
   getPageToken(): string;
   setPageToken(value: string): void;
 
-  getLabelsExclusionFilterMap(): jspb.Map<string, string>;
-  clearLabelsExclusionFilterMap(): void;
+  clearNameFiltersList(): void;
+  getNameFiltersList(): Array<string>;
+  setNameFiltersList(value: Array<string>): void;
+  addNameFilters(value: string, index?: number): string;
+
+  clearLabelFiltersList(): void;
+  getLabelFiltersList(): Array<LabelFilter>;
+  setLabelFiltersList(value: Array<LabelFilter>): void;
+  addLabelFilters(value?: LabelFilter, index?: number): LabelFilter;
+
+  getStreamUpdates(): boolean;
+  setStreamUpdates(value: boolean): void;
+
+  getStreamCreates(): boolean;
+  setStreamCreates(value: boolean): void;
+
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ListAppsRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: ListAppsRequest): ListAppsRequest.AsObject;
+  toObject(includeInstance?: boolean): StreamAppsRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamAppsRequest): StreamAppsRequest.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ListAppsRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ListAppsRequest;
-  static deserializeBinaryFromReader(message: ListAppsRequest, reader: jspb.BinaryReader): ListAppsRequest;
+  static serializeBinaryToWriter(message: StreamAppsRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamAppsRequest;
+  static deserializeBinaryFromReader(message: StreamAppsRequest, reader: jspb.BinaryReader): StreamAppsRequest;
 }
 
-export namespace ListAppsRequest {
+export namespace StreamAppsRequest {
   export type AsObject = {
     pageSize: number,
     pageToken: string,
-    labelsExclusionFilterMap: Array<[string, string]>,
+    nameFiltersList: Array<string>,
+    labelFiltersList: Array<LabelFilter.AsObject>,
+    streamUpdates: boolean,
+    streamCreates: boolean,
   }
 }
 
-export class ListAppsResponse extends jspb.Message {
+export class StreamAppsResponse extends jspb.Message {
   clearAppsList(): void;
   getAppsList(): Array<App>;
   setAppsList(value: Array<App>): void;
   addApps(value?: App, index?: number): App;
 
+  getPageComplete(): boolean;
+  setPageComplete(value: boolean): void;
+
   getNextPageToken(): string;
   setNextPageToken(value: string): void;
 
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ListAppsResponse.AsObject;
-  static toObject(includeInstance: boolean, msg: ListAppsResponse): ListAppsResponse.AsObject;
+  toObject(includeInstance?: boolean): StreamAppsResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamAppsResponse): StreamAppsResponse.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ListAppsResponse, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ListAppsResponse;
-  static deserializeBinaryFromReader(message: ListAppsResponse, reader: jspb.BinaryReader): ListAppsResponse;
+  static serializeBinaryToWriter(message: StreamAppsResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamAppsResponse;
+  static deserializeBinaryFromReader(message: StreamAppsResponse, reader: jspb.BinaryReader): StreamAppsResponse;
 }
 
-export namespace ListAppsResponse {
+export namespace StreamAppsResponse {
   export type AsObject = {
     appsList: Array<App.AsObject>,
+    pageComplete: boolean,
     nextPageToken: string,
   }
 }
 
-export class GetAppRequest extends jspb.Message {
-  getName(): string;
-  setName(value: string): void;
+export class StreamReleasesRequest extends jspb.Message {
+  getPageSize(): number;
+  setPageSize(value: number): void;
+
+  getPageToken(): string;
+  setPageToken(value: string): void;
+
+  clearNameFiltersList(): void;
+  getNameFiltersList(): Array<string>;
+  setNameFiltersList(value: Array<string>): void;
+  addNameFilters(value: string, index?: number): string;
+
+  clearLabelFiltersList(): void;
+  getLabelFiltersList(): Array<LabelFilter>;
+  setLabelFiltersList(value: Array<LabelFilter>): void;
+  addLabelFilters(value?: LabelFilter, index?: number): LabelFilter;
+
+  getStreamUpdates(): boolean;
+  setStreamUpdates(value: boolean): void;
+
+  getStreamCreates(): boolean;
+  setStreamCreates(value: boolean): void;
 
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GetAppRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: GetAppRequest): GetAppRequest.AsObject;
+  toObject(includeInstance?: boolean): StreamReleasesRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamReleasesRequest): StreamReleasesRequest.AsObject;
   static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
   static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: GetAppRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GetAppRequest;
-  static deserializeBinaryFromReader(message: GetAppRequest, reader: jspb.BinaryReader): GetAppRequest;
+  static serializeBinaryToWriter(message: StreamReleasesRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamReleasesRequest;
+  static deserializeBinaryFromReader(message: StreamReleasesRequest, reader: jspb.BinaryReader): StreamReleasesRequest;
 }
 
-export namespace GetAppRequest {
+export namespace StreamReleasesRequest {
   export type AsObject = {
-    name: string,
+    pageSize: number,
+    pageToken: string,
+    nameFiltersList: Array<string>,
+    labelFiltersList: Array<LabelFilter.AsObject>,
+    streamUpdates: boolean,
+    streamCreates: boolean,
+  }
+}
+
+export class StreamReleasesResponse extends jspb.Message {
+  clearReleasesList(): void;
+  getReleasesList(): Array<Release>;
+  setReleasesList(value: Array<Release>): void;
+  addReleases(value?: Release, index?: number): Release;
+
+  getPageComplete(): boolean;
+  setPageComplete(value: boolean): void;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamReleasesResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamReleasesResponse): StreamReleasesResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamReleasesResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamReleasesResponse;
+  static deserializeBinaryFromReader(message: StreamReleasesResponse, reader: jspb.BinaryReader): StreamReleasesResponse;
+}
+
+export namespace StreamReleasesResponse {
+  export type AsObject = {
+    releasesList: Array<Release.AsObject>,
+    pageComplete: boolean,
+    nextPageToken: string,
+  }
+}
+
+export class StreamScalesRequest extends jspb.Message {
+  getPageSize(): number;
+  setPageSize(value: number): void;
+
+  getPageToken(): string;
+  setPageToken(value: string): void;
+
+  clearNameFiltersList(): void;
+  getNameFiltersList(): Array<string>;
+  setNameFiltersList(value: Array<string>): void;
+  addNameFilters(value: string, index?: number): string;
+
+  clearLabelFiltersList(): void;
+  getLabelFiltersList(): Array<LabelFilter>;
+  setLabelFiltersList(value: Array<LabelFilter>): void;
+  addLabelFilters(value?: LabelFilter, index?: number): LabelFilter;
+
+  getStreamUpdates(): boolean;
+  setStreamUpdates(value: boolean): void;
+
+  getStreamCreates(): boolean;
+  setStreamCreates(value: boolean): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamScalesRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamScalesRequest): StreamScalesRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamScalesRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamScalesRequest;
+  static deserializeBinaryFromReader(message: StreamScalesRequest, reader: jspb.BinaryReader): StreamScalesRequest;
+}
+
+export namespace StreamScalesRequest {
+  export type AsObject = {
+    pageSize: number,
+    pageToken: string,
+    nameFiltersList: Array<string>,
+    labelFiltersList: Array<LabelFilter.AsObject>,
+    streamUpdates: boolean,
+    streamCreates: boolean,
+  }
+}
+
+export class StreamScalesResponse extends jspb.Message {
+  clearScaleRequestsList(): void;
+  getScaleRequestsList(): Array<ScaleRequest>;
+  setScaleRequestsList(value: Array<ScaleRequest>): void;
+  addScaleRequests(value?: ScaleRequest, index?: number): ScaleRequest;
+
+  getPageComplete(): boolean;
+  setPageComplete(value: boolean): void;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamScalesResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamScalesResponse): StreamScalesResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamScalesResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamScalesResponse;
+  static deserializeBinaryFromReader(message: StreamScalesResponse, reader: jspb.BinaryReader): StreamScalesResponse;
+}
+
+export namespace StreamScalesResponse {
+  export type AsObject = {
+    scaleRequestsList: Array<ScaleRequest.AsObject>,
+    pageComplete: boolean,
+    nextPageToken: string,
+  }
+}
+
+export class StreamFormationsRequest extends jspb.Message {
+  getPageSize(): number;
+  setPageSize(value: number): void;
+
+  getPageToken(): string;
+  setPageToken(value: string): void;
+
+  clearNameFiltersList(): void;
+  getNameFiltersList(): Array<string>;
+  setNameFiltersList(value: Array<string>): void;
+  addNameFilters(value: string, index?: number): string;
+
+  clearLabelFiltersList(): void;
+  getLabelFiltersList(): Array<LabelFilter>;
+  setLabelFiltersList(value: Array<LabelFilter>): void;
+  addLabelFilters(value?: LabelFilter, index?: number): LabelFilter;
+
+  getStreamUpdates(): boolean;
+  setStreamUpdates(value: boolean): void;
+
+  getStreamCreates(): boolean;
+  setStreamCreates(value: boolean): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamFormationsRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamFormationsRequest): StreamFormationsRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamFormationsRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamFormationsRequest;
+  static deserializeBinaryFromReader(message: StreamFormationsRequest, reader: jspb.BinaryReader): StreamFormationsRequest;
+}
+
+export namespace StreamFormationsRequest {
+  export type AsObject = {
+    pageSize: number,
+    pageToken: string,
+    nameFiltersList: Array<string>,
+    labelFiltersList: Array<LabelFilter.AsObject>,
+    streamUpdates: boolean,
+    streamCreates: boolean,
+  }
+}
+
+export class StreamFormationsResponse extends jspb.Message {
+  clearFormationsList(): void;
+  getFormationsList(): Array<Formation>;
+  setFormationsList(value: Array<Formation>): void;
+  addFormations(value?: Formation, index?: number): Formation;
+
+  getPageComplete(): boolean;
+  setPageComplete(value: boolean): void;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamFormationsResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamFormationsResponse): StreamFormationsResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamFormationsResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamFormationsResponse;
+  static deserializeBinaryFromReader(message: StreamFormationsResponse, reader: jspb.BinaryReader): StreamFormationsResponse;
+}
+
+export namespace StreamFormationsResponse {
+  export type AsObject = {
+    formationsList: Array<Formation.AsObject>,
+    pageComplete: boolean,
+    nextPageToken: string,
+  }
+}
+
+export class StreamDeploymentsRequest extends jspb.Message {
+  getPageSize(): number;
+  setPageSize(value: number): void;
+
+  getPageToken(): string;
+  setPageToken(value: string): void;
+
+  clearNameFiltersList(): void;
+  getNameFiltersList(): Array<string>;
+  setNameFiltersList(value: Array<string>): void;
+  addNameFilters(value: string, index?: number): string;
+
+  clearTypeFiltersList(): void;
+  getTypeFiltersList(): Array<ReleaseTypeMap[keyof ReleaseTypeMap]>;
+  setTypeFiltersList(value: Array<ReleaseTypeMap[keyof ReleaseTypeMap]>): void;
+  addTypeFilters(value: ReleaseTypeMap[keyof ReleaseTypeMap], index?: number): ReleaseTypeMap[keyof ReleaseTypeMap];
+
+  clearLabelFiltersList(): void;
+  getLabelFiltersList(): Array<LabelFilter>;
+  setLabelFiltersList(value: Array<LabelFilter>): void;
+  addLabelFilters(value?: LabelFilter, index?: number): LabelFilter;
+
+  getStreamUpdates(): boolean;
+  setStreamUpdates(value: boolean): void;
+
+  getStreamCreates(): boolean;
+  setStreamCreates(value: boolean): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamDeploymentsRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamDeploymentsRequest): StreamDeploymentsRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamDeploymentsRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamDeploymentsRequest;
+  static deserializeBinaryFromReader(message: StreamDeploymentsRequest, reader: jspb.BinaryReader): StreamDeploymentsRequest;
+}
+
+export namespace StreamDeploymentsRequest {
+  export type AsObject = {
+    pageSize: number,
+    pageToken: string,
+    nameFiltersList: Array<string>,
+    typeFiltersList: Array<ReleaseTypeMap[keyof ReleaseTypeMap]>,
+    labelFiltersList: Array<LabelFilter.AsObject>,
+    streamUpdates: boolean,
+    streamCreates: boolean,
+  }
+}
+
+export class StreamDeploymentsResponse extends jspb.Message {
+  clearDeploymentsList(): void;
+  getDeploymentsList(): Array<ExpandedDeployment>;
+  setDeploymentsList(value: Array<ExpandedDeployment>): void;
+  addDeployments(value?: ExpandedDeployment, index?: number): ExpandedDeployment;
+
+  getPageComplete(): boolean;
+  setPageComplete(value: boolean): void;
+
+  getNextPageToken(): string;
+  setNextPageToken(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StreamDeploymentsResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: StreamDeploymentsResponse): StreamDeploymentsResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StreamDeploymentsResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StreamDeploymentsResponse;
+  static deserializeBinaryFromReader(message: StreamDeploymentsResponse, reader: jspb.BinaryReader): StreamDeploymentsResponse;
+}
+
+export namespace StreamDeploymentsResponse {
+  export type AsObject = {
+    deploymentsList: Array<ExpandedDeployment.AsObject>,
+    pageComplete: boolean,
+    nextPageToken: string,
   }
 }
 
@@ -108,26 +472,6 @@ export namespace UpdateAppRequest {
   }
 }
 
-export class GetAppReleaseRequest extends jspb.Message {
-  getParent(): string;
-  setParent(value: string): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GetAppReleaseRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: GetAppReleaseRequest): GetAppReleaseRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: GetAppReleaseRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GetAppReleaseRequest;
-  static deserializeBinaryFromReader(message: GetAppReleaseRequest, reader: jspb.BinaryReader): GetAppReleaseRequest;
-}
-
-export namespace GetAppReleaseRequest {
-  export type AsObject = {
-    parent: string,
-  }
-}
-
 export class CreateScaleRequest extends jspb.Message {
   getParent(): string;
   setParent(value: string): void;
@@ -151,156 +495,6 @@ export namespace CreateScaleRequest {
     parent: string,
     processesMap: Array<[string, number]>,
     tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
-  }
-}
-
-export class ListScaleRequestsRequest extends jspb.Message {
-  getParent(): string;
-  setParent(value: string): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ListScaleRequestsRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: ListScaleRequestsRequest): ListScaleRequestsRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ListScaleRequestsRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ListScaleRequestsRequest;
-  static deserializeBinaryFromReader(message: ListScaleRequestsRequest, reader: jspb.BinaryReader): ListScaleRequestsRequest;
-}
-
-export namespace ListScaleRequestsRequest {
-  export type AsObject = {
-    parent: string,
-  }
-}
-
-export class ListScaleRequestsResponse extends jspb.Message {
-  clearScaleRequestsList(): void;
-  getScaleRequestsList(): Array<ScaleRequest>;
-  setScaleRequestsList(value: Array<ScaleRequest>): void;
-  addScaleRequests(value?: ScaleRequest, index?: number): ScaleRequest;
-
-  getNextPageToken(): string;
-  setNextPageToken(value: string): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ListScaleRequestsResponse.AsObject;
-  static toObject(includeInstance: boolean, msg: ListScaleRequestsResponse): ListScaleRequestsResponse.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ListScaleRequestsResponse, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ListScaleRequestsResponse;
-  static deserializeBinaryFromReader(message: ListScaleRequestsResponse, reader: jspb.BinaryReader): ListScaleRequestsResponse;
-}
-
-export namespace ListScaleRequestsResponse {
-  export type AsObject = {
-    scaleRequestsList: Array<ScaleRequest.AsObject>,
-    nextPageToken: string,
-  }
-}
-
-export class GetAppFormationRequest extends jspb.Message {
-  getParent(): string;
-  setParent(value: string): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GetAppFormationRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: GetAppFormationRequest): GetAppFormationRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: GetAppFormationRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GetAppFormationRequest;
-  static deserializeBinaryFromReader(message: GetAppFormationRequest, reader: jspb.BinaryReader): GetAppFormationRequest;
-}
-
-export namespace GetAppFormationRequest {
-  export type AsObject = {
-    parent: string,
-  }
-}
-
-export class GetReleaseRequest extends jspb.Message {
-  getName(): string;
-  setName(value: string): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GetReleaseRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: GetReleaseRequest): GetReleaseRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: GetReleaseRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GetReleaseRequest;
-  static deserializeBinaryFromReader(message: GetReleaseRequest, reader: jspb.BinaryReader): GetReleaseRequest;
-}
-
-export namespace GetReleaseRequest {
-  export type AsObject = {
-    name: string,
-  }
-}
-
-export class LogAggregatorLogOpts extends jspb.Message {
-  getFollow(): boolean;
-  setFollow(value: boolean): void;
-
-  getJob(): string;
-  setJob(value: string): void;
-
-  getLines(): number;
-  setLines(value: number): void;
-
-  getProcessType(): string;
-  setProcessType(value: string): void;
-
-  clearStreamTypesList(): void;
-  getStreamTypesList(): Array<LogAggregatorStreamType>;
-  setStreamTypesList(value: Array<LogAggregatorStreamType>): void;
-  addStreamTypes(value: LogAggregatorStreamType, index?: number): LogAggregatorStreamType;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): LogAggregatorLogOpts.AsObject;
-  static toObject(includeInstance: boolean, msg: LogAggregatorLogOpts): LogAggregatorLogOpts.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: LogAggregatorLogOpts, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): LogAggregatorLogOpts;
-  static deserializeBinaryFromReader(message: LogAggregatorLogOpts, reader: jspb.BinaryReader): LogAggregatorLogOpts;
-}
-
-export namespace LogAggregatorLogOpts {
-  export type AsObject = {
-    follow: boolean,
-    job: string,
-    lines: number,
-    processType: string,
-    streamTypesList: Array<LogAggregatorStreamType>,
-  }
-}
-
-export class StreamAppLogRequest extends jspb.Message {
-  getName(): string;
-  setName(value: string): void;
-
-  hasOpts(): boolean;
-  clearOpts(): void;
-  getOpts(): LogAggregatorLogOpts | undefined;
-  setOpts(value?: LogAggregatorLogOpts): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): StreamAppLogRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: StreamAppLogRequest): StreamAppLogRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: StreamAppLogRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): StreamAppLogRequest;
-  static deserializeBinaryFromReader(message: StreamAppLogRequest, reader: jspb.BinaryReader): StreamAppLogRequest;
-}
-
-export namespace StreamAppLogRequest {
-  export type AsObject = {
-    name: string,
-    opts?: LogAggregatorLogOpts.AsObject,
   }
 }
 
@@ -331,64 +525,6 @@ export namespace CreateReleaseRequest {
     parent: string,
     release?: Release.AsObject,
     requestId: string,
-  }
-}
-
-export class ListDeploymentsRequest extends jspb.Message {
-  getPageSize(): number;
-  setPageSize(value: number): void;
-
-  getPageToken(): string;
-  setPageToken(value: string): void;
-
-  getParent(): string;
-  setParent(value: string): void;
-
-  getFilterType(): ReleaseType;
-  setFilterType(value: ReleaseType): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ListDeploymentsRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: ListDeploymentsRequest): ListDeploymentsRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ListDeploymentsRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ListDeploymentsRequest;
-  static deserializeBinaryFromReader(message: ListDeploymentsRequest, reader: jspb.BinaryReader): ListDeploymentsRequest;
-}
-
-export namespace ListDeploymentsRequest {
-  export type AsObject = {
-    pageSize: number,
-    pageToken: string,
-    parent: string,
-    filterType: ReleaseType,
-  }
-}
-
-export class ListDeploymentsResponse extends jspb.Message {
-  clearDeploymentsList(): void;
-  getDeploymentsList(): Array<ExpandedDeployment>;
-  setDeploymentsList(value: Array<ExpandedDeployment>): void;
-  addDeployments(value?: ExpandedDeployment, index?: number): ExpandedDeployment;
-
-  getNextPageToken(): string;
-  setNextPageToken(value: string): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): ListDeploymentsResponse.AsObject;
-  static toObject(includeInstance: boolean, msg: ListDeploymentsResponse): ListDeploymentsResponse.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: ListDeploymentsResponse, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): ListDeploymentsResponse;
-  static deserializeBinaryFromReader(message: ListDeploymentsResponse, reader: jspb.BinaryReader): ListDeploymentsResponse;
-}
-
-export namespace ListDeploymentsResponse {
-  export type AsObject = {
-    deploymentsList: Array<ExpandedDeployment.AsObject>,
-    nextPageToken: string,
   }
 }
 
@@ -830,8 +966,8 @@ export class Release extends jspb.Message {
   clearLabelsMap(): void;
   getProcessesMap(): jspb.Map<string, ProcessType>;
   clearProcessesMap(): void;
-  getType(): ReleaseType;
-  setType(value: ReleaseType): void;
+  getType(): ReleaseTypeMap[keyof ReleaseTypeMap];
+  setType(value: ReleaseTypeMap[keyof ReleaseTypeMap]): void;
 
   hasCreateTime(): boolean;
   clearCreateTime(): void;
@@ -855,7 +991,7 @@ export namespace Release {
     envMap: Array<[string, string]>,
     labelsMap: Array<[string, string]>,
     processesMap: Array<[string, ProcessType.AsObject]>,
-    type: ReleaseType,
+    type: ReleaseTypeMap[keyof ReleaseTypeMap],
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
 }
@@ -867,8 +1003,8 @@ export class ScaleRequest extends jspb.Message {
   getName(): string;
   setName(value: string): void;
 
-  getState(): ScaleRequestState;
-  setState(value: ScaleRequestState): void;
+  getState(): ScaleRequestStateMap[keyof ScaleRequestStateMap];
+  setState(value: ScaleRequestStateMap[keyof ScaleRequestStateMap]): void;
 
   getOldProcessesMap(): jspb.Map<string, number>;
   clearOldProcessesMap(): void;
@@ -902,7 +1038,7 @@ export namespace ScaleRequest {
   export type AsObject = {
     parent: string,
     name: string,
-    state: ScaleRequestState,
+    state: ScaleRequestStateMap[keyof ScaleRequestStateMap],
     oldProcessesMap: Array<[string, number]>,
     newProcessesMap: Array<[string, number]>,
     oldTagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
@@ -919,8 +1055,8 @@ export class Formation extends jspb.Message {
   getScaleRequest(): string;
   setScaleRequest(value: string): void;
 
-  getState(): ScaleRequestState;
-  setState(value: ScaleRequestState): void;
+  getState(): ScaleRequestStateMap[keyof ScaleRequestStateMap];
+  setState(value: ScaleRequestStateMap[keyof ScaleRequestStateMap]): void;
 
   getProcessesMap(): jspb.Map<string, number>;
   clearProcessesMap(): void;
@@ -950,57 +1086,11 @@ export namespace Formation {
   export type AsObject = {
     parent: string,
     scaleRequest: string,
-    state: ScaleRequestState,
+    state: ScaleRequestStateMap[keyof ScaleRequestStateMap],
     processesMap: Array<[string, number]>,
     tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
     updateTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
-  }
-}
-
-export class LogChunk extends jspb.Message {
-  getHost(): string;
-  setHost(value: string): void;
-
-  getJob(): string;
-  setJob(value: string): void;
-
-  getMsg(): string;
-  setMsg(value: string): void;
-
-  getProcessType(): string;
-  setProcessType(value: string): void;
-
-  getSource(): LogAggregatorStreamSource;
-  setSource(value: LogAggregatorStreamSource): void;
-
-  getStream(): LogAggregatorStreamType;
-  setStream(value: LogAggregatorStreamType): void;
-
-  hasCreateTime(): boolean;
-  clearCreateTime(): void;
-  getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
-  setCreateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): LogChunk.AsObject;
-  static toObject(includeInstance: boolean, msg: LogChunk): LogChunk.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: LogChunk, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): LogChunk;
-  static deserializeBinaryFromReader(message: LogChunk, reader: jspb.BinaryReader): LogChunk;
-}
-
-export namespace LogChunk {
-  export type AsObject = {
-    host: string,
-    job: string,
-    msg: string,
-    processType: string,
-    source: LogAggregatorStreamSource,
-    stream: LogAggregatorStreamType,
-    createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
 }
 
@@ -1036,8 +1126,8 @@ export class Deployment extends jspb.Message {
   getStrategy(): string;
   setStrategy(value: string): void;
 
-  getStatus(): DeploymentStatus;
-  setStatus(value: DeploymentStatus): void;
+  getStatus(): DeploymentStatusMap[keyof DeploymentStatusMap];
+  setStatus(value: DeploymentStatusMap[keyof DeploymentStatusMap]): void;
 
   getProcessesMap(): jspb.Map<string, number>;
   clearProcessesMap(): void;
@@ -1077,7 +1167,7 @@ export namespace Deployment {
     oldRelease: string,
     newRelease: string,
     strategy: string,
-    status: DeploymentStatus,
+    status: DeploymentStatusMap[keyof DeploymentStatusMap],
     processesMap: Array<[string, number]>,
     tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
     deployTimeout: number,
@@ -1101,14 +1191,14 @@ export class ExpandedDeployment extends jspb.Message {
   getNewRelease(): Release | undefined;
   setNewRelease(value?: Release): void;
 
-  getType(): ReleaseType;
-  setType(value: ReleaseType): void;
+  getType(): ReleaseTypeMap[keyof ReleaseTypeMap];
+  setType(value: ReleaseTypeMap[keyof ReleaseTypeMap]): void;
 
   getStrategy(): string;
   setStrategy(value: string): void;
 
-  getStatus(): DeploymentStatus;
-  setStatus(value: DeploymentStatus): void;
+  getStatus(): DeploymentStatusMap[keyof DeploymentStatusMap];
+  setStatus(value: DeploymentStatusMap[keyof DeploymentStatusMap]): void;
 
   getProcessesMap(): jspb.Map<string, number>;
   clearProcessesMap(): void;
@@ -1147,9 +1237,9 @@ export namespace ExpandedDeployment {
     name: string,
     oldRelease?: Release.AsObject,
     newRelease?: Release.AsObject,
-    type: ReleaseType,
+    type: ReleaseTypeMap[keyof ReleaseTypeMap],
     strategy: string,
-    status: DeploymentStatus,
+    status: DeploymentStatusMap[keyof DeploymentStatusMap],
     processesMap: Array<[string, number]>,
     tagsMap: Array<[string, DeploymentProcessTags.AsObject]>,
     deployTimeout: number,
@@ -1168,8 +1258,16 @@ export class DeploymentEvent extends jspb.Message {
   getJobType(): string;
   setJobType(value: string): void;
 
-  getJobState(): DeploymentEvent.JobState;
-  setJobState(value: DeploymentEvent.JobState): void;
+  getJobState(): DeploymentEvent.JobStateMap[keyof DeploymentEvent.JobStateMap];
+  setJobState(value: DeploymentEvent.JobStateMap[keyof DeploymentEvent.JobStateMap]): void;
+
+  getError(): string;
+  setError(value: string): void;
+
+  hasCreateTime(): boolean;
+  clearCreateTime(): void;
+  getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setCreateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): DeploymentEvent.AsObject;
@@ -1185,80 +1283,47 @@ export namespace DeploymentEvent {
   export type AsObject = {
     deployment?: Deployment.AsObject,
     jobType: string,
-    jobState: DeploymentEvent.JobState,
-  }
-
-  export enum JobState {
-    PENDING = 0,
-    BLOCKED = 1,
-    STARTING = 2,
-    UP = 3,
-    STOPPING = 5,
-    DOWN = 6,
-    CRASHED = 7,
-    FAILED = 8,
-  }
-}
-
-export class Event extends jspb.Message {
-  hasDeploymentEvent(): boolean;
-  clearDeploymentEvent(): void;
-  getDeploymentEvent(): DeploymentEvent | undefined;
-  setDeploymentEvent(value?: DeploymentEvent): void;
-
-  getError(): string;
-  setError(value: string): void;
-
-  hasCreateTime(): boolean;
-  clearCreateTime(): void;
-  getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
-  setCreateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): Event.AsObject;
-  static toObject(includeInstance: boolean, msg: Event): Event.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: Event, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): Event;
-  static deserializeBinaryFromReader(message: Event, reader: jspb.BinaryReader): Event;
-}
-
-export namespace Event {
-  export type AsObject = {
-    deploymentEvent?: DeploymentEvent.AsObject,
+    jobState: DeploymentEvent.JobStateMap[keyof DeploymentEvent.JobStateMap],
     error: string,
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
+
+  export interface JobStateMap {
+    PENDING: 0;
+    BLOCKED: 1;
+    STARTING: 2;
+    UP: 3;
+    STOPPING: 5;
+    DOWN: 6;
+    CRASHED: 7;
+    FAILED: 8;
+  }
+
+  export const JobState: JobStateMap;
 }
 
-export enum ReleaseType {
-  ANY = 0,
-  CODE = 1,
-  CONFIG = 2,
+export interface ReleaseTypeMap {
+  ANY: 0;
+  CODE: 1;
+  CONFIG: 2;
 }
 
-export enum ScaleRequestState {
-  SCALE_PENDING = 0,
-  SCALE_CANCELLED = 1,
-  SCALE_COMPLETE = 2,
+export const ReleaseType: ReleaseTypeMap;
+
+export interface ScaleRequestStateMap {
+  SCALE_PENDING: 0;
+  SCALE_CANCELLED: 1;
+  SCALE_COMPLETE: 2;
 }
 
-export enum LogAggregatorStreamSource {
-  APP = 0,
+export const ScaleRequestState: ScaleRequestStateMap;
+
+export interface DeploymentStatusMap {
+  PENDING: 0;
+  FAILED: 1;
+  RUNNING: 2;
+  COMPLETE: 3;
 }
 
-export enum LogAggregatorStreamType {
-  STDOUT = 0,
-  STDERR = 1,
-  INIT = 2,
-  UNKNOWN = 3,
-}
-
-export enum DeploymentStatus {
-  PENDING = 0,
-  FAILED = 1,
-  RUNNING = 2,
-  COMPLETE = 3,
-}
+export const DeploymentStatus: DeploymentStatusMap;
 
