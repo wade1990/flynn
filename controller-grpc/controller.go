@@ -147,6 +147,9 @@ func (c *Config) subscribeEvents(appIDs []string, objectTypes []ct.EventType, ob
 		objectTypeStrings[i] = string(t)
 	}
 
+	if len(appIDs) == 0 {
+		appIDs = []string{""}
+	}
 	subs := make([]*data.EventSubscriber, len(appIDs))
 	for i, appID := range appIDs {
 		sub, err := dataEventListener.Subscribe(appID, objectTypeStrings, objectID)
@@ -196,12 +199,20 @@ type server struct {
 }
 
 func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, error) {
+	pageSize := int(req.GetPageSize())
+
 	labelFilters := req.GetLabelFilters()
 	ctApps, err := s.appRepo.List()
 	if err != nil {
 		return nil, err
 	}
-	apps := make([]*protobuf.App, 0, len(ctApps.([]*ct.App)))
+
+	if pageSize == 0 {
+		pageSize = len(ctApps.([]*ct.App))
+	}
+
+	apps := make([]*protobuf.App, 0, pageSize)
+	n := 0
 
 outer:
 	for _, a := range ctApps.([]*ct.App) {
@@ -226,6 +237,11 @@ outer:
 			}
 		}
 		apps = append(apps, utils.ConvertApp(a))
+		n++
+
+		if n == pageSize {
+			break
+		}
 	}
 
 	return apps, nil
@@ -251,15 +267,15 @@ func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Con
 		appsMtx.RUnlock()
 	}
 
-	var wg sync.WaitGroup
-
-	sub, err := s.subscribeEvents(nil, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
+	appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
+	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
 	}
 	defer sub.Close()
 
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -513,10 +529,132 @@ func (s *server) StreamScales(req *protobuf.StreamScalesRequest, stream protobuf
 	return sub.Err
 }
 
+func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream protobuf.Controller_StreamReleasesServer) error {
+	appIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
+
+	var releases []*protobuf.Release
+	var releasesMtx sync.RWMutex
+	sendResponse := func() {
+		releasesMtx.RLock()
+		defer releasesMtx.RUnlock()
+		stream.Send(&protobuf.StreamReleasesResponse{
+			Releases: releases,
+		})
+	}
+
+	sendResponseWithDelay := func() func() {
+		d := 10 * time.Millisecond
+		incoming := make(chan struct{})
+
+		go func() {
+			t := time.NewTimer(d)
+			t.Stop()
+
+			for {
+				select {
+				case <-incoming:
+					t.Reset(d)
+				case <-t.C:
+					go sendResponse()
+				}
+			}
+		}()
+
+		return func() {
+			go func() { incoming <- struct{}{} }()
+		}
+	}()
+
+	unmarshalRelease := func(event *ct.Event) (*protobuf.Release, error) {
+		var ctRelease *ct.Release
+		if err := json.Unmarshal(event.Data, &ctRelease); err != nil {
+			// TODO(jvatic): return proper error code
+			return nil, err
+		}
+		return utils.ConvertRelease(ctRelease), nil
+	}
+
+	prependRelease := func(event *ct.Event) error {
+		req, err := unmarshalRelease(event)
+		if err != nil {
+			return err
+		}
+		releasesMtx.Lock()
+		_releases := make([]*protobuf.Release, 0, len(releases)+1)
+		_releases = append(_releases, req)
+		for _, sr := range releases {
+			if sr.GetName() == req.GetName() {
+				continue
+			}
+			_releases = append(_releases, sr)
+		}
+		releases = _releases
+		releasesMtx.Unlock()
+		return nil
+	}
+
+	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeRelease}, "")
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	defer sub.Close()
+
+	// get all events up until now
+	var currID int64
+	list, err := s.eventRepo.ListEvents(appIDs, []string{string(ct.EventTypeRelease)}, "", nil, nil, 0)
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
+	// list is in DESC order, so iterate in reverse
+	for i := len(list) - 1; i >= 0; i-- {
+		event := list[i]
+		currID = event.ID
+		if err := prependRelease(event); err != nil {
+			// TODO(jvatic): Handle error
+			fmt.Printf("ReleasesStream(%v): Error parsing data: %s\n", req.NameFilters, err)
+			continue
+		}
+	}
+	sendResponse()
+
+	// stream new events as they are created
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			sendResponseWithDelay()
+
+			event, ok := <-sub.Events
+			if !ok {
+				break
+			}
+
+			// avoid overlap between list and stream
+			if event.ID <= currID {
+				continue
+			}
+			currID = event.ID
+
+			if err := prependRelease(event); err != nil {
+				// TODO(jvatic): Handle error
+				fmt.Printf("ReleasesStream(%v): Error parsing data: %s\n", req.NameFilters, err)
+				continue
+			}
+		}
+	}()
+	wg.Wait()
+
+	// TODO(jvatic): return proper error code
+	return sub.Err
+}
+
 func (s *server) StreamFormations(req *protobuf.StreamFormationsRequest, stream protobuf.Controller_StreamFormationsServer) error {
 	appIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
 
-	var releaseIDs map[string]string // map[APP_ID]RELEASE_ID
+	var releaseIDs = make(map[string]string) // map[APP_ID]RELEASE_ID
 	var releaseIDsMtx sync.RWMutex
 	for _, appID := range appIDs {
 		ctRelease, err := s.appRepo.GetRelease(appID)
