@@ -77,7 +77,7 @@ func runServer(s *grpc.Server, l net.Listener) {
 	grpcWebServer := grpcweb.WrapServer(s)
 
 	m := cmux.New(l)
-	grpcWebListener := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc-web+proto"))
+	grpcWebListener := m.Match(cmux.HTTP2HeaderFieldPrefix("content-type", "application/grpc-web"))
 	grpcListener := m.Match(cmux.HTTP2())
 	tcpListener := m.Match(cmux.Any())
 
