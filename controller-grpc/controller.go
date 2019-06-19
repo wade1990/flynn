@@ -243,8 +243,27 @@ func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, err
 	apps := make([]*protobuf.App, 0, pageSize)
 	n := 0
 
+	appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
+	if len(appIDs) == 0 {
+		appIDs = nil
+	}
+
 outer:
 	for _, a := range ctApps.([]*ct.App) {
+		// filter apps by ID or Name, TODO(jvatic): move this into the data repo
+		if appIDs != nil {
+			found := false
+			for _, appID := range appIDs {
+				if a.ID == appID || a.Name == appID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
 		for _, f := range labelFilters {
 			for _, e := range f.Expressions {
 				switch e.Op {
@@ -265,6 +284,7 @@ outer:
 				}
 			}
 		}
+
 		apps = append(apps, utils.ConvertApp(a))
 		n++
 
