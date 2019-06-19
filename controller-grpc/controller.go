@@ -25,10 +25,12 @@ import (
 	routerc "github.com/flynn/flynn/router/client"
 	que "github.com/flynn/que-go"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	log "github.com/inconshreveable/log15"
 	"github.com/soheilhy/cmux"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/stats"
 )
 
 func mustEnv(key string) string {
@@ -215,11 +217,30 @@ func corsHandler(main http.Handler) http.Handler {
 }
 
 func NewServer(c *Config) *grpc.Server {
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.StatsHandler(&statsHandler{logger: log.New(log.Ctx{"component": "controller-grpc"})}))
 	protobuf.RegisterControllerServer(s, &server{Config: c})
 	// Register reflection service on gRPC server.
 	reflection.Register(s)
 	return s
+}
+
+type statsHandler struct {
+	logger log.Logger
+}
+
+func (h *statsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
+	h.logger.Info("gRPC request started", "rpcMethod", info.FullMethodName)
+	return ctx
+}
+
+func (h *statsHandler) HandleRPC(ctx context.Context, s stats.RPCStats) {
+}
+
+func (h *statsHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+	return ctx
+}
+
+func (h *statsHandler) HandleConn(ctx context.Context, s stats.ConnStats) {
 }
 
 type server struct {
