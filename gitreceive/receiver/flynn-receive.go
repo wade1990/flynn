@@ -219,6 +219,8 @@ Options:
 	for k, v := range meta {
 		release.Meta[k] = v
 	}
+	release.Meta["slugrunner.stack"] = stackName
+
 	procs := make(map[string]ct.ProcessType)
 	for _, t := range processTypes {
 		proc := prevRelease.Processes[t]
