@@ -82,19 +82,19 @@ func runServer(s *grpc.Server, l net.Listener) {
 	tcpListener := m.Match(cmux.Any())
 
 	go func() {
-		shutdown.Fatal((http.Serve(
+		http.Serve(
 			grpcWebListener,
 			httphelper.ContextInjector(
 				"controller-grpc [gRPC-web]",
 				httphelper.NewRequestLogger(corsHandler(http.HandlerFunc(grpcWebServer.ServeHttp))),
 			),
-		)))
+		)
 	}()
 
-	go func() { shutdown.Fatal(s.Serve(grpcListener)) }()
+	go func() { s.Serve(grpcListener) }()
 
 	go func() {
-		shutdown.Fatal(http.Serve(
+		http.Serve(
 			tcpListener,
 			httphelper.ContextInjector(
 				"controller-grpc [TCP]",
@@ -105,10 +105,10 @@ func runServer(s *grpc.Server, l net.Listener) {
 					}),
 				),
 			),
-		))
+		)
 	}()
 
-	go func() { shutdown.Fatal(m.Serve()) }()
+	go func() { m.Serve() }()
 }
 
 type Config struct {
