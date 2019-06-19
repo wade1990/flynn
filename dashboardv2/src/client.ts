@@ -230,13 +230,18 @@ class _Client implements Client {
 	}
 
 	public streamApps(cb: AppsCallback, ...reqModifiers: RequestModifier<StreamAppsRequest>[]): CancelFunc {
-		// TODO(jvatic): Memozise this stream
-		const req = new StreamAppsRequest();
-		reqModifiers.forEach((m) => m(req));
-		const stream = this._cc.streamApps(req);
+		const streamKey = reqModifiers.map((m) => m.key).join(':');
+		const [stream, lastResponse] = memoizedStream('streamApps', streamKey, () => {
+			const req = new StreamReleasesRequest();
+			reqModifiers.forEach((m) => m(req));
+			return this._cc.streamApps(req);
+		});
 		stream.on('data', (response: StreamAppsResponse) => {
 			cb(response.getAppsList(), null);
 		});
+		if (lastResponse) {
+			cb(lastResponse.getAppsList(), null);
+		}
 		buildStreamErrorHandler(stream, (error: ErrorWithCode) => {
 			cb([], error);
 		});
