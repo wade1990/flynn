@@ -21,7 +21,7 @@ type rowQueryer interface {
 func OpenAndMigrateDB(conf *postgres.Conf) *postgres.DB {
 	db := postgres.Wait(conf, nil)
 
-	if err := migrateDB(db); err != nil {
+	if err := MigrateDB(db); err != nil {
 		shutdown.Fatal(err)
 	}
 
