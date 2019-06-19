@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	fmt "fmt"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
@@ -24,6 +25,7 @@ import (
 	routerc "github.com/flynn/flynn/router/client"
 	que "github.com/flynn/que-go"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/soheilhy/cmux"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -58,28 +60,55 @@ func main() {
 		q:  q,
 	}))
 
-	wrappedServer := grpcweb.WrapServer(s)
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
 	addr := ":" + port
-	shutdown.Fatal(
-		http.ListenAndServe(
-			addr,
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		shutdown.Fatalf("failed to create listener: %v", err)
+	}
+	shutdown.BeforeExit(func() { l.Close() })
+	runServer(s, l)
+}
+
+func runServer(s *grpc.Server, l net.Listener) {
+	grpcWebServer := grpcweb.WrapServer(s)
+
+	m := cmux.New(l)
+	grpcWebListener := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc-web+proto"))
+	grpcListener := m.Match(cmux.HTTP2())
+	tcpListener := m.Match(cmux.Any())
+
+	go func() {
+		shutdown.Fatal((http.Serve(
+			grpcWebListener,
 			httphelper.ContextInjector(
-				"controller-grpc",
-				httphelper.NewRequestLogger(corsHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-					if wrappedServer.IsGrpcWebRequest(req) {
-						wrappedServer.ServeHttp(w, req)
-					}
-					// Fall back to other servers.
-					http.DefaultServeMux.ServeHTTP(w, req)
-				}))),
+				"controller-grpc [gRPC-web]",
+				httphelper.NewRequestLogger(corsHandler(http.HandlerFunc(grpcWebServer.ServeHttp))),
 			),
-		),
-	)
+		)))
+	}()
+
+	go func() { shutdown.Fatal(s.Serve(grpcListener)) }()
+
+	go func() {
+		shutdown.Fatal(http.Serve(
+			tcpListener,
+			httphelper.ContextInjector(
+				"controller-grpc [TCP]",
+				httphelper.NewRequestLogger(
+					http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+						w.WriteHeader(404)
+						w.Write([]byte("Not Found"))
+					}),
+				),
+			),
+		))
+	}()
+
+	go func() { shutdown.Fatal(m.Serve()) }()
 }
 
 type Config struct {
