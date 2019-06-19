@@ -94,3 +94,7 @@ required = [
 [[constraint]]
   branch = "master"
   name = "google.golang.org/grpc"
+
+[[constraint]]
+  name = "github.com/soheilhy/cmux"
+  version = "0.1.4"

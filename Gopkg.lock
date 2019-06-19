@@ -771,6 +771,14 @@
   revision = "b202ee861e254aef9d2f53bc31cb9a2b0c7f1e4a"
 
 [[projects]]
+  digest = "1:2f31ab8c0f8b4fad1cd69cf250605009461bd31092a2daf80988fa1fbd7abfd8"
+  name = "github.com/soheilhy/cmux"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "e09e9389d85d8492d313d73d1469c029e710623f"
+  version = "v0.1.4"
+
+[[projects]]
   digest = "1:1b0bf0ba6db4682982493d52711421fe8eb828a582a0751f3ce381ec956f72e1"
   name = "github.com/stevvooe/resumable"
   packages = [
@@ -986,7 +994,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3488d3509a19a7b5ba36a53e91c7ea61c83dc455d48fe99a395172090b52cc7c"
+  digest = "1:6ea3588cfba7f09b12d033ac8e4d3042632c2c546c6e6c4b51ffb6197cc657c9"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -1018,6 +1026,7 @@
     "stats",
     "status",
     "tap",
+    "test/bufconn",
   ]
   pruneopts = "NUT"
   revision = "acd1429515d896f3368863417570ff1bbb21b8ab"
@@ -1160,6 +1169,7 @@
     "github.com/opencontainers/runc/libcontainer/configs",
     "github.com/opencontainers/runc/libcontainer/nsenter",
     "github.com/rancher/sparse-tools/sparse",
+    "github.com/soheilhy/cmux",
     "github.com/stevvooe/resumable",
     "github.com/stevvooe/resumable/sha512",
     "github.com/tent/canonical-json-go",
@@ -1179,7 +1189,9 @@
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",
     "google.golang.org/grpc/reflection",
+    "google.golang.org/grpc/stats",
     "google.golang.org/grpc/status",
+    "google.golang.org/grpc/test/bufconn",
     "gopkg.in/inconshreveable/go-update.v0",
     "gopkg.in/mgo.v2",
     "gopkg.in/mgo.v2/bson",
