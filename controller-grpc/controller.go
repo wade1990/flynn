@@ -19,6 +19,7 @@ import (
 	controllerschema "github.com/flynn/flynn/controller/schema"
 	ct "github.com/flynn/flynn/controller/types"
 	"github.com/flynn/flynn/pkg/cors"
+	"github.com/flynn/flynn/pkg/ctxhelper"
 	"github.com/flynn/flynn/pkg/httphelper"
 	"github.com/flynn/flynn/pkg/postgres"
 	"github.com/flynn/flynn/pkg/shutdown"
@@ -227,7 +228,11 @@ type statsHandler struct {
 }
 
 func (h *statsHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
-	h.logger.Info("gRPC request started", "rpcMethod", info.FullMethodName)
+	logger, ok := ctxhelper.LoggerFromContext(ctx)
+	if !ok {
+		logger = h.logger
+	}
+	logger.Info("gRPC request started", "rpcMethod", info.FullMethodName)
 	return ctx
 }
 
