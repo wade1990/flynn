@@ -36,9 +36,9 @@ func (r *EventRepo) ListEvents(appIDs []string, objectTypes []string, objectID s
 		conditions = append(conditions, fmt.Sprintf("event_id > $%d", n))
 		args = append(args, *sinceID)
 	}
-	if appIDs != nil {
+	if len(appIDs) > 0 {
 		n++
-		conditions = append(conditions, fmt.Sprintf("app_id IN($%d)", n))
+		conditions = append(conditions, fmt.Sprintf("app_id::text = ANY($%d::text[])", n))
 		args = append(args, appIDs)
 	}
 	if len(objectTypes) > 0 {
