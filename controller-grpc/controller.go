@@ -41,6 +41,8 @@ func mustEnv(key string) string {
 	panic(fmt.Errorf("%s is required", key))
 }
 
+var logger = log.New("component", "controller-grpc")
+
 func main() {
 	// Increase resources limitations
 	// See https://github.com/eranyanay/1m-go-websockets/blob/master/2_ws_ulimit/server.go
@@ -53,10 +55,14 @@ func main() {
 		panic(err)
 	}
 
+	logger.Debug("opening database connection...")
+
 	// Open connection to main controller database
 	db := postgres.Wait(nil, controllerschema.PrepareStatements)
 	shutdown.BeforeExit(func() { db.Close() })
 	q := que.NewClient(db.ConnPool)
+
+	logger.Debug("initializing server...")
 
 	s := NewServer(configureRepos(&Config{
 		DB: db,
@@ -68,32 +74,41 @@ func main() {
 		port = "3000"
 	}
 	addr := ":" + port
+	logger.Debug(fmt.Sprintf("attempting to listen on %q...", addr))
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
+		logger.Debug(fmt.Sprintf("error opening listener on %q...: %v", addr, err))
 		shutdown.Fatalf("failed to create listener: %v", err)
 	}
+	logger.Debug("listener aquired")
 	shutdown.BeforeExit(func() { l.Close() })
 	runServer(s, l)
+	logger.Debug("servers stopped")
 }
 
 func runServer(s *grpc.Server, l net.Listener) {
+	logger.Debug("initializing grpc-web server...")
 	grpcWebServer := grpcweb.WrapServer(s)
 
+	logger.Debug("initializing cmux listeners...")
 	m := cmux.New(l)
 	grpcListener := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
 	grpcWebListener := m.Match(cmux.Any())
 
 	var wg sync.WaitGroup
 
+	logger.Debug("starting servers...")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		logger.Debug("starting gRPC server...")
 		s.Serve(grpcListener)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		logger.Debug("starting gRPC-web server...")
 		http.Serve(
 			grpcWebListener,
 			httphelper.ContextInjector(
@@ -106,6 +121,7 @@ func runServer(s *grpc.Server, l net.Listener) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		logger.Debug("starting mux server...")
 		m.Serve()
 	}()
 
@@ -216,7 +232,7 @@ func corsHandler(main http.Handler) http.Handler {
 }
 
 func NewServer(c *Config) *grpc.Server {
-	s := grpc.NewServer(grpc.StatsHandler(&statsHandler{logger: log.New(log.Ctx{"component": "controller-grpc"})}))
+	s := grpc.NewServer(grpc.StatsHandler(&statsHandler{logger: logger.New()}))
 	protobuf.RegisterControllerServer(s, &server{Config: c})
 	// Register reflection service on gRPC server.
 	reflection.Register(s)
