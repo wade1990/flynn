@@ -697,7 +697,7 @@ OR uri = (SELECT env->>'%[7]s_IMAGE_URI' FROM releases WHERE release_id = (SELEC
 	}
 
 	// update pre-slugbuilder-18 releases with a stack tag
-	sqlBuf.WriteString(`UPDATE releases SET meta = jsonb_set(meta, '{slugrunner.stack}', '"cedar-14"') WHERE meta->>'slugrunner.stack' IS NULL and meta->>'git' = 'true'`)
+	sqlBuf.WriteString(`UPDATE releases SET meta = jsonb_set(meta, '{slugrunner.stack}', '"cedar-14"') WHERE meta->>'slugrunner.stack' = '' and meta->>'git' = 'true'`)
 
 	// update slug artifacts currently being referenced by gitreceive
 	// (which will also update all current user releases to use the

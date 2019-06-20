@@ -101,6 +101,7 @@ func (s *BackupSuite) testClusterBackup(t *c.C, name string) {
 	debug(t, "getting app release")
 	release, err := x.controller.GetAppRelease("nodejs")
 	t.Assert(err, c.IsNil)
+	t.Assert(release.Meta["slugrunner.stack"], c.Equals, "cedar-14")
 
 	flynn := func(cmdArgs ...string) *CmdResult {
 		return x.flynn("/", append([]string{"-a", "nodejs"}, cmdArgs...)...)
