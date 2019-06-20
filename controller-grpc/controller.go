@@ -83,7 +83,11 @@ func runServer(s *grpc.Server, l net.Listener) {
 	grpcListener := m.Match(cmux.HTTP2())
 	tcpListener := m.Match(cmux.Any())
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		http.Serve(
 			grpcWebListener,
 			httphelper.ContextInjector(
@@ -93,9 +97,15 @@ func runServer(s *grpc.Server, l net.Listener) {
 		)
 	}()
 
-	go func() { s.Serve(grpcListener) }()
-
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		s.Serve(grpcListener)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		http.Serve(
 			tcpListener,
 			httphelper.ContextInjector(
@@ -110,7 +120,13 @@ func runServer(s *grpc.Server, l net.Listener) {
 		)
 	}()
 
-	go func() { m.Serve() }()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.Serve()
+	}()
+
+	wg.Wait()
 }
 
 type Config struct {

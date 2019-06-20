@@ -82,7 +82,7 @@ func (s *S) SetUpSuite(c *C) {
 		lis.Close()
 	})
 	s.srv = NewServer(conf)
-	runServer(s.srv, lis)
+	go runServer(s.srv, lis)
 	s.conf = conf
 
 	// Set up a connection to the server.
