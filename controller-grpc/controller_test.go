@@ -133,6 +133,14 @@ func (s *S) createTestApp(c *C, app *protobuf.App) *protobuf.App {
 	return utils.ConvertApp(ctApp)
 }
 
+func (s *S) createTestRelease(c *C, parentName string, release *protobuf.Release) *protobuf.Release {
+	ctRelease := utils.BackConvertRelease(release)
+	ctRelease.AppID = utils.ParseIDFromName(parentName, "apps")
+	err := s.conf.releaseRepo.Add(ctRelease)
+	c.Assert(err, IsNil)
+	return utils.ConvertRelease(ctRelease)
+}
+
 func (s *S) TestOptionsRequest(c *C) { // grpc-web
 	req, err := http.NewRequest("OPTIONS", "http://localhost/grpc-web/fake", nil)
 	c.Assert(err, IsNil)
@@ -172,4 +180,34 @@ func (s *S) TestStreamApps(c *C) {
 	}
 	c.Assert(len(apps), Equals, 1)
 	c.Assert(apps[0], DeepEquals, testApp1)
+}
+
+func (s *S) TestStreamReleases(c *C) {
+	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2"})
+	testRelease1 := s.createTestRelease(c, testApp2.Name, &protobuf.Release{Env: map[string]string{"ONE": "1"}})
+
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	stream, err := s.grpc.StreamReleases(ctx, &protobuf.StreamReleasesRequest{PageSize: 1})
+	c.Assert(err, IsNil)
+
+	var releases []*protobuf.Release
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		c.Assert(err, IsNil)
+		releases = res.Releases
+		ctxCancel()
+		break
+	}
+
+	c.Assert(len(releases), Equals, 1)
+	r := releases[0]
+	c.Assert(strings.HasPrefix(r.Name, testApp2.Name), Equals, true)
+	c.Assert(r.Artifacts, DeepEquals, testRelease1.Artifacts)
+	c.Assert(r.Env, DeepEquals, testRelease1.Env)
+	c.Assert(r.Labels, DeepEquals, testRelease1.Labels)
+	c.Assert(r.Processes, DeepEquals, testRelease1.Processes)
+	c.Assert(r.CreateTime, DeepEquals, testRelease1.CreateTime)
 }

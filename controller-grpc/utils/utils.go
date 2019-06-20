@@ -115,6 +115,9 @@ func ConvertAllowedDevices(from []*configs.Device) []*protobuf.LibContainerDevic
 }
 
 func ConvertProcesses(from map[string]ct.ProcessType) map[string]*protobuf.ProcessType {
+	if len(from) == 0 {
+		return nil
+	}
 	to := make(map[string]*protobuf.ProcessType, len(from))
 	for k, t := range from {
 		to[k] = &protobuf.ProcessType{
@@ -145,6 +148,18 @@ func ConvertRelease(r *ct.Release) *protobuf.Release {
 		Labels:     r.Meta,
 		Processes:  ConvertProcesses(r.Processes),
 		CreateTime: TimestampProto(r.CreatedAt),
+	}
+}
+
+func BackConvertRelease(r *protobuf.Release) *ct.Release {
+	return &ct.Release{
+		AppID:       ParseIDFromName(r.Name, "apps"),
+		ID:          ParseIDFromName(r.Name, "releases"),
+		ArtifactIDs: r.Artifacts,
+		Env:         r.Env,
+		Meta:        r.Labels,
+		Processes:   BackConvertProcesses(r.Processes),
+		CreatedAt:   timestampFromProto(r.CreateTime),
 	}
 }
 

@@ -840,14 +840,8 @@ func (s *server) StreamFormations(req *protobuf.StreamFormationsRequest, stream 
 }
 
 func (s *server) CreateRelease(ctx context.Context, req *protobuf.CreateReleaseRequest) (*protobuf.Release, error) {
-	r := req.Release
-	ctRelease := &ct.Release{
-		AppID:       utils.ParseIDFromName(req.Parent, "apps"),
-		ArtifactIDs: r.Artifacts,
-		Env:         r.Env,
-		Meta:        r.Labels,
-		Processes:   utils.BackConvertProcesses(r.Processes),
-	}
+	ctRelease := utils.BackConvertRelease(req.Release)
+	ctRelease.AppID = utils.ParseIDFromName(req.Parent, "apps")
 	if err := s.releaseRepo.Add(ctRelease); err != nil {
 		// TODO(jvatic): return proper error code
 		return nil, err
