@@ -676,7 +676,7 @@ UPDATE artifacts SET uri = '%s', type = 'flynn', manifest = '%s', hashes = '%s',
 
 	// create the slugbuilder/slugrunner-18 artifacts if they don't exist
 	for _, name := range []string{"slugbuilder", "slugrunner"} {
-		artifact := artifacts[name+"%s-18-image"]
+		artifact := artifacts[name+"-18-image"]
 		sqlBuf.WriteString(fmt.Sprintf(`
 DO $$
   BEGIN
