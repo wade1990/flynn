@@ -685,17 +685,15 @@ DO $$
     END IF;
   END;
 $$;`, strings.ToUpper(name), random.UUID(), artifact.URI, jsonb(&artifact.RawManifest), jsonb(artifact.Hashes), artifact.Size, artifact.LayerURLTemplate, jsonb(artifact.Meta)))
-	}
 
-	// update pre-slugrunner-18 slug artifacts currently being referenced by gitreceive
-	// (which will also update all current user releases to use slugrunner-14)
-	{
-		artifact := artifacts["slugrunner-14-image"]
+		// update pre-slugrunner/slugbuilder-18 artifacts currently being referenced by gitreceive
+		// (which will also update all current user releases to use slugrunner-14)
+		artifact = artifacts[name+"-14-image"]
 		sqlBuf.WriteString(fmt.Sprintf(`
-UPDATE artifacts SET uri = '%s', type = 'flynn', manifest = '%s', hashes = '%s', size = %d, layer_url_template = '%s', meta = '%s'
-WHERE artifact_id = (SELECT (env->>'SLUGRUNNER_IMAGE_ID')::uuid FROM releases WHERE release_id = (SELECT release_id FROM apps WHERE name = 'gitreceive' AND deleted_at IS NULL))
-OR uri = (SELECT env->>'SLUGRUNNER_IMAGE_URI' FROM releases WHERE release_id = (SELECT release_id FROM apps WHERE name = 'gitreceive' AND deleted_at IS NULL));`,
-			artifact.URI, jsonb(&artifact.RawManifest), jsonb(artifact.Hashes), artifact.Size, artifact.LayerURLTemplate, jsonb(artifact.Meta)))
+UPDATE artifacts SET uri = '%[1]s', type = 'flynn', manifest = '%[2]s', hashes = '%[3]s', size = %[4]d, layer_url_template = '%[5]s', meta = '%[6]s'
+WHERE artifact_id = (SELECT (env->>'%[7]s_IMAGE_ID')::uuid FROM releases WHERE release_id = (SELECT release_id FROM apps WHERE name = 'gitreceive' AND deleted_at IS NULL))
+OR uri = (SELECT env->>'%[7]s_IMAGE_URI' FROM releases WHERE release_id = (SELECT release_id FROM apps WHERE name = 'gitreceive' AND deleted_at IS NULL));`,
+			artifact.URI, jsonb(&artifact.RawManifest), jsonb(artifact.Hashes), artifact.Size, artifact.LayerURLTemplate, jsonb(artifact.Meta), strings.ToUpper(name)))
 	}
 
 	// update pre-slugbuilder-18 releases with a stack tag
