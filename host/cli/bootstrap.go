@@ -848,7 +848,7 @@ WARN:
 	}
 
 	if migrateSlugs {
-		cmd = exec.JobUsingHost(state.Hosts[0], artifacts["slugbuilder-image"], nil)
+		cmd = exec.JobUsingHost(state.Hosts[0], artifacts["slugbuilder-14-image"], nil)
 		cmd.Args = []string{"/bin/slug-migrator"}
 		cmd.Env = map[string]string{
 			"CONTROLLER_KEY": data.Controller.Release.Env["AUTH_KEY"],
