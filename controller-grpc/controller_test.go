@@ -3,7 +3,9 @@ package main
 import (
 	"io"
 	"net"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +31,8 @@ func Test(t *testing.T) { TestingT(t) }
 type S struct {
 	srv         *grpc.Server
 	conf        *Config
-	c           protobuf.ControllerClient
+	grpc        protobuf.ControllerClient
+	http        *http.Client
 	tearDownFns []func()
 }
 
@@ -85,7 +88,7 @@ func (s *S) SetUpSuite(c *C) {
 	go runServer(s.srv, lis)
 	s.conf = conf
 
-	// Set up a connection to the server.
+	// Set up a connection to the server
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithDialer(func(string, time.Duration) (net.Conn, error) {
 		return lis.Dial()
 	}), grpc.WithInsecure())
@@ -95,7 +98,26 @@ func (s *S) SetUpSuite(c *C) {
 	s.tearDownFns = append(s.tearDownFns, func() {
 		conn.Close()
 	})
-	s.c = protobuf.NewControllerClient(conn)
+	s.grpc = protobuf.NewControllerClient(conn)
+
+	// Setup up a regular http client
+	t := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: func(context.Context, string, string) (net.Conn, error) {
+			return lis.Dial()
+		},
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	s.http = &http.Client{
+		Transport: t,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Timeout: time.Second * 10,
+	}
 }
 
 func (s *S) TearDownSuite(c *C) {
@@ -111,11 +133,30 @@ func (s *S) createTestApp(c *C, app *protobuf.App) *protobuf.App {
 	return utils.ConvertApp(ctApp)
 }
 
+func (s *S) TestOptionsRequest(c *C) { // grpc-web
+	req, err := http.NewRequest("OPTIONS", "http://localhost/grpc-web/fake", nil)
+	c.Assert(err, IsNil)
+	req.Header.Set("Origin", "http://localhost:3333")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	allowHeaders := []string{"Content-Type", "X-GRPC-Web"}
+	req.Header.Set("Access-Control-Request-Headers", strings.Join(allowHeaders, ","))
+	res, err := s.http.Do(req)
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, 200)
+	c.Assert(res.Header.Get("Access-Control-Allow-Credentials"), Equals, "true")
+	accessControlAllowHeaders := strings.ToLower(res.Header.Get("Access-Control-Allow-Headers"))
+	for _, h := range allowHeaders {
+		c.Assert(strings.Contains(accessControlAllowHeaders, strings.ToLower(h)), Equals, true)
+	}
+	c.Assert(res.Header.Get("Access-Control-Allow-Origin"), Equals, req.Header.Get("Origin"))
+	c.Assert(res.Header.Get("Access-Control-Allow-Methods"), Matches, ".*POST.*")
+}
+
 func (s *S) TestStreamApps(c *C) {
 	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1"})
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	stream, err := s.c.StreamApps(ctx, &protobuf.StreamAppsRequest{PageSize: 1})
+	stream, err := s.grpc.StreamApps(ctx, &protobuf.StreamAppsRequest{PageSize: 1})
 	c.Assert(err, IsNil)
 
 	var apps []*protobuf.App

@@ -79,23 +79,10 @@ func runServer(s *grpc.Server, l net.Listener) {
 	grpcWebServer := grpcweb.WrapServer(s)
 
 	m := cmux.New(l)
-	grpcWebListener := m.Match(cmux.HTTP2HeaderFieldPrefix("content-type", "application/grpc-web"))
-	grpcListener := m.Match(cmux.HTTP2())
-	tcpListener := m.Match(cmux.Any())
+	grpcListener := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	grpcWebListener := m.Match(cmux.Any())
 
 	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		http.Serve(
-			grpcWebListener,
-			httphelper.ContextInjector(
-				"controller-grpc [gRPC-web]",
-				httphelper.NewRequestLogger(corsHandler(http.HandlerFunc(grpcWebServer.ServeHttp))),
-			),
-		)
-	}()
 
 	wg.Add(1)
 	go func() {
@@ -107,15 +94,10 @@ func runServer(s *grpc.Server, l net.Listener) {
 	go func() {
 		defer wg.Done()
 		http.Serve(
-			tcpListener,
+			grpcWebListener,
 			httphelper.ContextInjector(
-				"controller-grpc [TCP]",
-				httphelper.NewRequestLogger(
-					http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-						w.WriteHeader(404)
-						w.Write([]byte("Not Found"))
-					}),
-				),
+				"controller-grpc [gRPC-web]",
+				httphelper.NewRequestLogger(corsHandler(http.HandlerFunc(grpcWebServer.ServeHttp))),
 			),
 		)
 	}()
