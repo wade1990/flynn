@@ -337,6 +337,8 @@ outer:
 }
 
 func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Controller_StreamAppsServer) error {
+	unary := !(req.StreamUpdates || req.StreamCreates)
+
 	var apps []*protobuf.App
 	var appsMtx sync.RWMutex
 	refreshApps := func() error {
@@ -356,27 +358,82 @@ func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Con
 		appsMtx.RUnlock()
 	}
 
-	appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
-	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
-	if err != nil {
+	var sub *EventListener
+	var err error
+	if !unary {
+		appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
+		sub, err = s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
+		if err != nil {
+			// TODO(jvatic): return proper error code
+			return err
+		}
+		defer sub.Close()
+	}
+
+	if err := refreshApps(); err != nil {
 		// TODO(jvatic): return proper error code
 		return err
 	}
-	defer sub.Close()
+	sendResponse()
+	if unary {
+		return nil
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
-			if err := refreshApps(); err != nil {
-				fmt.Printf("StreamApps: Error refreshing apps: %s\n", err)
-				continue
-			}
-			sendResponse()
-
-			if _, ok := <-sub.Events; !ok {
+			event, ok := <-sub.Events
+			if !ok {
 				break
+			}
+			switch event.ObjectType {
+			case ct.EventTypeApp:
+				appsMtx.RLock()
+				var ctApp *ct.App
+				if err := json.Unmarshal(event.Data, &ctApp); err != nil {
+					// TODO(jvatic): Handle error
+					fmt.Printf("StreamApps: Error unmarshalling event.Data -> App: %s\n", err)
+					continue
+				}
+				app := utils.ConvertApp(ctApp)
+				shouldSend := false
+				if req.StreamCreates && req.StreamUpdates {
+					shouldSend = true
+				} else if req.StreamCreates {
+					appFound := false
+					for _, a := range apps {
+						if a.Name == app.Name {
+							appFound = true
+							break
+						}
+					}
+					shouldSend = !appFound
+				} else if req.StreamUpdates {
+					for _, a := range apps {
+						if a.Name == app.Name {
+							shouldSend = true
+							break
+						}
+					}
+				}
+				if shouldSend {
+					stream.Send(&protobuf.StreamAppsResponse{
+						Apps: []*protobuf.App{app},
+					})
+				}
+				appsMtx.RUnlock()
+			case ct.EventTypeAppDeletion:
+				if !req.StreamUpdates {
+					continue
+				}
+				// TODO(jvatic)
+			case ct.EventTypeAppRelease:
+				if !req.StreamUpdates {
+					continue
+				}
+				// TODO(jvatic)
 			}
 		}
 	}()

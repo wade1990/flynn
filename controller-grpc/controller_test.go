@@ -20,6 +20,8 @@ import (
 	"github.com/jackc/pgx"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -133,6 +135,13 @@ func (s *S) createTestApp(c *C, app *protobuf.App) *protobuf.App {
 	return utils.ConvertApp(ctApp)
 }
 
+func (s *S) updateTestApp(c *C, app *protobuf.App) *protobuf.App {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	app, err := s.grpc.UpdateApp(ctx, &protobuf.UpdateAppRequest{App: app})
+	c.Assert(err, IsNil)
+	return app
+}
+
 func (s *S) createTestRelease(c *C, parentName string, release *protobuf.Release) *protobuf.Release {
 	ctRelease := utils.BackConvertRelease(release)
 	ctRelease.AppID = utils.ParseIDFromName(parentName, "apps")
@@ -161,30 +170,141 @@ func (s *S) TestOptionsRequest(c *C) { // grpc-web
 }
 
 func (s *S) TestStreamApps(c *C) {
-	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1"})
+	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-1"})
+	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-2"})
+	testApp3 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-3"})
 
-	ctx, ctxCancel := context.WithCancel(context.Background())
-	stream, err := s.grpc.StreamApps(ctx, &protobuf.StreamAppsRequest{PageSize: 1})
-	c.Assert(err, IsNil)
+	isErrCanceled := func(err error) bool {
+		if s, ok := status.FromError(err); ok {
+			if s.Code() == codes.Canceled {
+				return true
+			}
+		}
+		return false
+	}
 
-	var apps []*protobuf.App
-	for {
+	isErrDeadlineExceeded := func(err error) bool {
+		if s, ok := status.FromError(err); ok {
+			if s.Code() == codes.DeadlineExceeded {
+				return true
+			}
+		}
+		return false
+	}
+
+	unaryReceiveApps := func(req *protobuf.StreamAppsRequest) (apps []*protobuf.App, receivedEOF bool) {
+		ctx, ctxCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer func() {
+			if !receivedEOF {
+				ctxCancel()
+			}
+		}()
+		stream, err := s.grpc.StreamApps(ctx, req)
+		c.Assert(err, IsNil)
+		for i := 0; i < 2; i++ {
+			res, err := stream.Recv()
+			if err == io.EOF {
+				receivedEOF = true
+				return
+			}
+			if isErrCanceled(err) {
+				return
+			}
+			c.Assert(err, IsNil)
+			apps = res.Apps
+		}
+		return
+	}
+
+	streamAppsWithCancel := func(req *protobuf.StreamAppsRequest) (protobuf.Controller_StreamAppsClient, context.CancelFunc) {
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		stream, err := s.grpc.StreamApps(ctx, req)
+		c.Assert(err, IsNil)
+		return stream, cancel
+	}
+
+	receiveAppsStream := func(stream protobuf.Controller_StreamAppsClient) *protobuf.StreamAppsResponse {
 		res, err := stream.Recv()
-		if err == io.EOF {
-			break
+		if err == io.EOF || isErrCanceled(err) || isErrDeadlineExceeded(err) {
+			return nil
 		}
 		c.Assert(err, IsNil)
-		apps = res.Apps
-		ctxCancel()
-		break
+		return res
 	}
+
+	// test fetching a single app
+	apps, receivedEOF := unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1})
 	c.Assert(len(apps), Equals, 1)
-	c.Assert(apps[0], DeepEquals, testApp1)
+	c.Assert(apps[0], DeepEquals, testApp3)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching a singple app by name
+	apps, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{NameFilters: []string{testApp2.Name}})
+	c.Assert(len(apps), Equals, 1)
+	c.Assert(apps[0], DeepEquals, testApp2)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching an multiple apps by name
+	apps, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name, testApp2.Name}})
+	c.Assert(len(apps), Equals, 2)
+	c.Assert(apps[0], DeepEquals, testApp2)
+	c.Assert(apps[1], DeepEquals, testApp1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test streaming updates
+	stream, cancel := streamAppsWithCancel(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name}, StreamUpdates: true})
+	res := receiveAppsStream(stream)
+	c.Assert(res, Not(IsNil))
+	c.Assert(res.Apps[0], DeepEquals, testApp1)
+	s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-4"}) // through in a create to test that the we get the update and not the create
+	testApp1.Labels = map[string]string{"test.one": "1"}
+	updatedTestApp1 := s.updateTestApp(c, testApp1)
+	c.Assert(updatedTestApp1.Labels, DeepEquals, testApp1.Labels)
+	res = receiveAppsStream(stream)
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	c.Assert(res.Apps[0], DeepEquals, updatedTestApp1)
+	cancel()
+
+	// test streaming updates without filters
+	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{StreamUpdates: true})
+	receiveAppsStream(stream)                                         // initial page
+	s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-5"}) // through in a create to test that the we get the update and not the create
+	testApp1.Labels = map[string]string{"test.two": "2"}
+	updatedTestApp1 = s.updateTestApp(c, testApp1)
+	c.Assert(updatedTestApp1.Labels, DeepEquals, testApp1.Labels)
+	res = receiveAppsStream(stream)
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	c.Assert(res.Apps[0], DeepEquals, updatedTestApp1)
+	cancel()
+
+	// test streaming creates
+	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{StreamCreates: true})
+	receiveAppsStream(stream) // initial page
+	testApp1.Labels = map[string]string{"test.three": "3"}
+	updatedTestApp1 = s.updateTestApp(c, testApp1) // through in a update to test that we get the create and not the update
+	testApp6 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-6"})
+	res = receiveAppsStream(stream)
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	c.Assert(res.Apps[0], DeepEquals, testApp6)
+	cancel()
+
+	// test streaming creates that don't match the filters
+	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name}, StreamCreates: true})
+	receiveAppsStream(stream) // initial page
+	testApp1.Labels = map[string]string{"test.four": "4"}
+	updatedTestApp1 = s.updateTestApp(c, testApp1) // through in a update to test that we get the create and not the update
+	s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-7"})
+	res = receiveAppsStream(stream)
+	c.Assert(res, IsNil)
+	cancel()
 }
 
 func (s *S) TestStreamReleases(c *C) {
-	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2"})
-	testRelease1 := s.createTestRelease(c, testApp2.Name, &protobuf.Release{Env: map[string]string{"ONE": "1"}})
+	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2-1"})
+	testRelease1 := s.createTestRelease(c, testApp1.Name, &protobuf.Release{Env: map[string]string{"ONE": "1"}})
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	stream, err := s.grpc.StreamReleases(ctx, &protobuf.StreamReleasesRequest{PageSize: 1})
@@ -204,7 +324,7 @@ func (s *S) TestStreamReleases(c *C) {
 
 	c.Assert(len(releases), Equals, 1)
 	r := releases[0]
-	c.Assert(strings.HasPrefix(r.Name, testApp2.Name), Equals, true)
+	c.Assert(strings.HasPrefix(r.Name, testApp1.Name), Equals, true)
 	c.Assert(r.Artifacts, DeepEquals, testRelease1.Artifacts)
 	c.Assert(r.Env, DeepEquals, testRelease1.Env)
 	c.Assert(r.Labels, DeepEquals, testRelease1.Labels)
