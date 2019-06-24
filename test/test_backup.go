@@ -43,7 +43,17 @@ func (s *BackupSuite) Test_v20160814_0_nodejs_redis(t *c.C) {
 }
 
 func (s *BackupSuite) Test_v20160814_0_nodejs_mysql(t *c.C) {
-	s.testClusterBackup(t, "v20160814.0-nodejs-mysql.tar")
+	s.testClusterBackupWithFn(t, "v20160814.0-nodejs-mysql.tar", func(t *c.C, x *Cluster) {
+		// deploy app again, confirm stack is heroku-18
+		r := s.newGitRepo(t, "https://github.com/flynn-examples/nodejs-flynn-example")
+		r.cluster = x
+		t.Assert(r.git("commit", "-m", "second", "--allow-empty"), Succeeds)
+		t.Assert(r.flynn("-a", "nodejs", "remote", "add"), Succeeds)
+		t.Assert(r.git("push", "flynn", "master"), Succeeds)
+		release, err := x.controller.GetAppRelease("nodejs")
+		t.Assert(err, c.IsNil)
+		t.Assert(release.Meta["slugrunner.stack"], c.Equals, "heroku-18")
+	})
 }
 
 func (s *BackupSuite) Test_v20161114_0p1_nodejs_redis(t *c.C) {
@@ -51,16 +61,7 @@ func (s *BackupSuite) Test_v20161114_0p1_nodejs_redis(t *c.C) {
 }
 
 func (s *BackupSuite) Test_v20170719_0_nodejs_redis(t *c.C) {
-	s.testClusterBackupWithFn(t, "v20170719.0-nodejs-redis.tar", func(t *c.C, x *Cluster) {
-		// deploy app again, confirm stack is heroku-18
-		r := s.newGitRepo(t, "https://github.com/flynn-examples/nodejs-flynn-example")
-		t.Assert(r.git("commit", "-m", "second", "--allow-empty"), Succeeds)
-		t.Assert(x.flynn("-a", "nodejs", "remote", "add"), Succeeds)
-		t.Assert(r.git("push", "flynn", "master"), Succeeds)
-		release, err := x.controller.GetAppRelease("nodejs")
-		t.Assert(err, c.IsNil)
-		t.Assert(release.Meta["slugrunner.stack"], c.Equals, "heroku-18")
-	})
+	s.testClusterBackup(t, "v20170719.0-nodejs-redis.tar")
 }
 
 func (s *BackupSuite) Test_v20170719_0_nodejs_docker(t *c.C) {
