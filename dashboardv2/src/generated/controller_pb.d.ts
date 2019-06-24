@@ -571,6 +571,15 @@ export class App extends jspb.Message {
 
   getLabelsMap(): jspb.Map<string, string>;
   clearLabelsMap(): void;
+  getDeployTimeout(): number;
+  setDeployTimeout(value: number): void;
+
+  getStrategy(): string;
+  setStrategy(value: string): void;
+
+  getRelease(): string;
+  setRelease(value: string): void;
+
   hasCreateTime(): boolean;
   clearCreateTime(): void;
   getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
@@ -581,14 +590,10 @@ export class App extends jspb.Message {
   getUpdateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
   setUpdateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
 
-  getDeployTimeout(): number;
-  setDeployTimeout(value: number): void;
-
-  getStrategy(): string;
-  setStrategy(value: string): void;
-
-  getRelease(): string;
-  setRelease(value: string): void;
+  hasDeleteTime(): boolean;
+  clearDeleteTime(): void;
+  getDeleteTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setDeleteTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): App.AsObject;
@@ -605,11 +610,12 @@ export namespace App {
     name: string,
     displayName: string,
     labelsMap: Array<[string, string]>,
-    createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
-    updateTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
     deployTimeout: number,
     strategy: string,
     release: string,
+    createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+    updateTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+    deleteTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
 }
 

@@ -4578,11 +4578,12 @@ proto.controller.App.toObject = function(includeInstance, msg) {
     name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     displayName: jspb.Message.getFieldWithDefault(msg, 2, ""),
     labelsMap: (f = msg.getLabelsMap()) ? f.toObject(includeInstance, undefined) : [],
+    deployTimeout: jspb.Message.getFieldWithDefault(msg, 4, 0),
+    strategy: jspb.Message.getFieldWithDefault(msg, 5, ""),
+    release: jspb.Message.getFieldWithDefault(msg, 6, ""),
     createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
     updateTime: (f = msg.getUpdateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
-    deployTimeout: jspb.Message.getFieldWithDefault(msg, 6, 0),
-    strategy: jspb.Message.getFieldWithDefault(msg, 7, ""),
-    release: jspb.Message.getFieldWithDefault(msg, 8, "")
+    deleteTime: (f = msg.getDeleteTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
   };
 
   if (includeInstance) {
@@ -4634,26 +4635,31 @@ proto.controller.App.deserializeBinaryFromReader = function(msg, reader) {
          });
       break;
     case 4:
+      var value = /** @type {number} */ (reader.readInt32());
+      msg.setDeployTimeout(value);
+      break;
+    case 5:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setStrategy(value);
+      break;
+    case 6:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setRelease(value);
+      break;
+    case 7:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
       break;
-    case 5:
+    case 8:
       var value = new google_protobuf_timestamp_pb.Timestamp;
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setUpdateTime(value);
       break;
-    case 6:
-      var value = /** @type {number} */ (reader.readInt32());
-      msg.setDeployTimeout(value);
-      break;
-    case 7:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setStrategy(value);
-      break;
-    case 8:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setRelease(value);
+    case 9:
+      var value = new google_protobuf_timestamp_pb.Timestamp;
+      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
+      msg.setDeleteTime(value);
       break;
     default:
       reader.skipField();
@@ -4702,10 +4708,31 @@ proto.controller.App.serializeBinaryToWriter = function(message, writer) {
   if (f && f.getLength() > 0) {
     f.serializeBinary(3, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeString);
   }
+  f = message.getDeployTimeout();
+  if (f !== 0) {
+    writer.writeInt32(
+      4,
+      f
+    );
+  }
+  f = message.getStrategy();
+  if (f.length > 0) {
+    writer.writeString(
+      5,
+      f
+    );
+  }
+  f = message.getRelease();
+  if (f.length > 0) {
+    writer.writeString(
+      6,
+      f
+    );
+  }
   f = message.getCreateTime();
   if (f != null) {
     writer.writeMessage(
-      4,
+      7,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -4713,30 +4740,17 @@ proto.controller.App.serializeBinaryToWriter = function(message, writer) {
   f = message.getUpdateTime();
   if (f != null) {
     writer.writeMessage(
-      5,
+      8,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
   }
-  f = message.getDeployTimeout();
-  if (f !== 0) {
-    writer.writeInt32(
-      6,
-      f
-    );
-  }
-  f = message.getStrategy();
-  if (f.length > 0) {
-    writer.writeString(
-      7,
-      f
-    );
-  }
-  f = message.getRelease();
-  if (f.length > 0) {
-    writer.writeString(
-      8,
-      f
+  f = message.getDeleteTime();
+  if (f != null) {
+    writer.writeMessage(
+      9,
+      f,
+      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
   }
 };
@@ -4794,18 +4808,63 @@ proto.controller.App.prototype.clearLabelsMap = function() {
 
 
 /**
- * optional google.protobuf.Timestamp create_time = 4;
+ * optional int32 deploy_timeout = 4;
+ * @return {number}
+ */
+proto.controller.App.prototype.getDeployTimeout = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
+};
+
+
+/** @param {number} value */
+proto.controller.App.prototype.setDeployTimeout = function(value) {
+  jspb.Message.setProto3IntField(this, 4, value);
+};
+
+
+/**
+ * optional string strategy = 5;
+ * @return {string}
+ */
+proto.controller.App.prototype.getStrategy = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 5, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.App.prototype.setStrategy = function(value) {
+  jspb.Message.setProto3StringField(this, 5, value);
+};
+
+
+/**
+ * optional string release = 6;
+ * @return {string}
+ */
+proto.controller.App.prototype.getRelease = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 6, ""));
+};
+
+
+/** @param {string} value */
+proto.controller.App.prototype.setRelease = function(value) {
+  jspb.Message.setProto3StringField(this, 6, value);
+};
+
+
+/**
+ * optional google.protobuf.Timestamp create_time = 7;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.App.prototype.getCreateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 4));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 7));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.App.prototype.setCreateTime = function(value) {
-  jspb.Message.setWrapperField(this, 4, value);
+  jspb.Message.setWrapperField(this, 7, value);
 };
 
 
@@ -4822,23 +4881,23 @@ proto.controller.App.prototype.clearCreateTime = function() {
  * @return {boolean}
  */
 proto.controller.App.prototype.hasCreateTime = function() {
-  return jspb.Message.getField(this, 4) != null;
+  return jspb.Message.getField(this, 7) != null;
 };
 
 
 /**
- * optional google.protobuf.Timestamp update_time = 5;
+ * optional google.protobuf.Timestamp update_time = 8;
  * @return {?proto.google.protobuf.Timestamp}
  */
 proto.controller.App.prototype.getUpdateTime = function() {
   return /** @type{?proto.google.protobuf.Timestamp} */ (
-    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 5));
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 8));
 };
 
 
 /** @param {?proto.google.protobuf.Timestamp|undefined} value */
 proto.controller.App.prototype.setUpdateTime = function(value) {
-  jspb.Message.setWrapperField(this, 5, value);
+  jspb.Message.setWrapperField(this, 8, value);
 };
 
 
@@ -4855,52 +4914,40 @@ proto.controller.App.prototype.clearUpdateTime = function() {
  * @return {boolean}
  */
 proto.controller.App.prototype.hasUpdateTime = function() {
-  return jspb.Message.getField(this, 5) != null;
+  return jspb.Message.getField(this, 8) != null;
 };
 
 
 /**
- * optional int32 deploy_timeout = 6;
- * @return {number}
+ * optional google.protobuf.Timestamp delete_time = 9;
+ * @return {?proto.google.protobuf.Timestamp}
  */
-proto.controller.App.prototype.getDeployTimeout = function() {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+proto.controller.App.prototype.getDeleteTime = function() {
+  return /** @type{?proto.google.protobuf.Timestamp} */ (
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 9));
 };
 
 
-/** @param {number} value */
-proto.controller.App.prototype.setDeployTimeout = function(value) {
-  jspb.Message.setProto3IntField(this, 6, value);
+/** @param {?proto.google.protobuf.Timestamp|undefined} value */
+proto.controller.App.prototype.setDeleteTime = function(value) {
+  jspb.Message.setWrapperField(this, 9, value);
 };
 
 
 /**
- * optional string strategy = 7;
- * @return {string}
+ * Clears the message field making it undefined.
  */
-proto.controller.App.prototype.getStrategy = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 7, ""));
-};
-
-
-/** @param {string} value */
-proto.controller.App.prototype.setStrategy = function(value) {
-  jspb.Message.setProto3StringField(this, 7, value);
+proto.controller.App.prototype.clearDeleteTime = function() {
+  this.setDeleteTime(undefined);
 };
 
 
 /**
- * optional string release = 8;
- * @return {string}
+ * Returns whether this field is set.
+ * @return {boolean}
  */
-proto.controller.App.prototype.getRelease = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 8, ""));
-};
-
-
-/** @param {string} value */
-proto.controller.App.prototype.setRelease = function(value) {
-  jspb.Message.setProto3StringField(this, 8, value);
+proto.controller.App.prototype.hasDeleteTime = function() {
+  return jspb.Message.getField(this, 9) != null;
 };
 
 
