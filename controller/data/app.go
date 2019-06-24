@@ -237,21 +237,36 @@ func (r *AppRepo) List() (interface{}, error) {
 	return apps, rows.Err()
 }
 
-func (r *AppRepo) ListPage(pageToken *PageToken) ([]*ct.App, error) {
-	rows, err := r.db.Query("app_list_page", pageToken.BeforeID, pageToken.Size)
+func (r *AppRepo) ListPage(pageToken *PageToken) ([]*ct.App, *PageToken, error) {
+	rows, err := r.db.Query("app_list_page", pageToken.BeforeID, pageToken.Size+1)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	apps := []*ct.App{}
 	for rows.Next() {
 		app, err := scanApp(rows)
 		if err != nil {
 			rows.Close()
-			return nil, err
+			return nil, nil, err
 		}
 		apps = append(apps, app)
 	}
-	return apps, rows.Err()
+
+	var lastApp *ct.App
+	var nextPageToken *PageToken
+	if len(apps) == pageToken.Size+1 {
+		// remove the extra app from the list
+		apps = apps[0:pageToken.Size]
+		lastApp = apps[0]
+	}
+	if lastApp != nil {
+		nextPageToken = &PageToken{
+			BeforeID: &lastApp.ID,
+			Size:     pageToken.Size,
+		}
+	}
+
+	return apps, nextPageToken, rows.Err()
 }
 
 func (r *AppRepo) SetRelease(app *ct.App, releaseID string) error {

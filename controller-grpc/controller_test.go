@@ -327,12 +327,6 @@ func (s *S) TestStreamApps(c *C) {
 	c.Assert(res.Apps[0], DeepEquals, testApp2)
 	c.Assert(res.Apps[1].DisplayName, DeepEquals, testApp1.DisplayName)
 	c.Assert(receivedEOF, Equals, true)
-	c.Assert(res.NextPageToken, Not(Equals), "")
-	c.Assert(res.PageComplete, Equals, true)
-	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1, PageToken: res.NextPageToken})
-	c.Assert(res, Not(IsNil))
-	c.Assert(len(res.Apps), Equals, 0)
-	c.Assert(receivedEOF, Equals, true)
 	c.Assert(res.NextPageToken, Equals, "")
 	c.Assert(res.PageComplete, Equals, true)
 }

@@ -281,7 +281,7 @@ func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, *da
 	}
 
 	labelFilters := req.GetLabelFilters()
-	ctApps, err := s.appRepo.ListPage(pageToken)
+	ctApps, nextPageToken, err := s.appRepo.ListPage(pageToken)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -296,14 +296,6 @@ func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, *da
 	appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
 	if len(appIDs) == 0 {
 		appIDs = nil
-	}
-
-	var nextPageToken *data.PageToken
-	if len(ctApps) > 0 {
-		nextPageToken = &data.PageToken{
-			BeforeID: &ctApps[len(ctApps)-1].ID,
-			Size:     pageSize,
-		}
 	}
 
 outer:
