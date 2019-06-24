@@ -51,7 +51,16 @@ func (s *BackupSuite) Test_v20161114_0p1_nodejs_redis(t *c.C) {
 }
 
 func (s *BackupSuite) Test_v20170719_0_nodejs_redis(t *c.C) {
-	s.testClusterBackup(t, "v20170719.0-nodejs-redis.tar")
+	s.testClusterBackupWithFn(t, "v20170719.0-nodejs-redis.tar", func(t *c.C, x *Cluster) {
+		// deploy app again, confirm stack is heroku-18
+		r := s.newGitRepo(t, "https://github.com/flynn-examples/nodejs-flynn-example")
+		t.Assert(r.git("commit", "-m", "second", "--allow-empty"), Succeeds)
+		t.Assert(x.flynn("-a", "nodejs", "remote", "add"), Succeeds)
+		t.Assert(r.git("push", "flynn", "master"), Succeeds)
+		release, err := x.controller.GetAppRelease("nodejs")
+		t.Assert(err, c.IsNil)
+		t.Assert(release.Meta["slugrunner.stack"], c.Equals, "heroku-18")
+	})
 }
 
 func (s *BackupSuite) Test_v20170719_0_nodejs_docker(t *c.C) {
@@ -59,6 +68,10 @@ func (s *BackupSuite) Test_v20170719_0_nodejs_docker(t *c.C) {
 }
 
 func (s *BackupSuite) testClusterBackup(t *c.C, name string) {
+	s.testClusterBackupWithFn(t, name, nil)
+}
+
+func (s *BackupSuite) testClusterBackupWithFn(t *c.C, name string, fn func(*c.C, *Cluster)) {
 	if args.BootConfig.BackupsDir == "" {
 		t.Skip("--backups-dir not set")
 	}
@@ -139,4 +152,8 @@ func (s *BackupSuite) testClusterBackup(t *c.C, name string) {
 	statusAuthKeyResult := x.flynn("/", "-a", "status", "env", "get", "AUTH_KEY")
 	t.Assert(statusAuthKeyResult, Succeeds)
 	t.Assert(dashboardStatusKeyResult.Output, c.Equals, statusAuthKeyResult.Output)
+
+	if fn != nil {
+		fn(t, x)
+	}
 }
