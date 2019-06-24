@@ -8,6 +8,7 @@ import (
 var preparedStatements = map[string]string{
 	"ping":                                  pingQuery,
 	"app_list":                              appListQuery,
+	"app_list_page":                         appListPageQuery,
 	"app_select_by_name":                    appSelectByNameQuery,
 	"app_select_by_name_for_update":         appSelectByNameForUpdateQuery,
 	"app_select_by_name_or_id":              appSelectByNameOrIDQuery,
@@ -98,10 +99,7 @@ func PrepareStatements(conn *pgx.Conn) error {
 			return err
 		}
 	}
-	if err := que.PrepareStatements(conn); err != nil {
-		return err
-	}
-	return nil
+	return que.PrepareStatements(conn)
 }
 
 const (
@@ -111,6 +109,20 @@ const (
 	appListQuery = `
 SELECT app_id, name, meta, strategy, release_id, deploy_timeout, created_at, updated_at
 FROM apps WHERE deleted_at IS NULL ORDER BY created_at DESC`
+	appListPageQuery = `
+
+SELECT a.app_id, a.name, a.meta, a.strategy, a.release_id, a.deploy_timeout, a.created_at, a.updated_at
+FROM apps AS a
+LEFT OUTER JOIN (SELECT app_id, created_at FROM apps WHERE app_id = $1 LIMIT 1) AS b ON true
+WHERE a.deleted_at IS NULL
+AND CASE WHEN b IS NULL THEN true
+ELSE
+	a.created_at <= b.created_at
+	AND a.app_id != b.app_id
+END
+ORDER BY a.created_at DESC
+LIMIT $2;
+`
 	appSelectByNameQuery = `
 SELECT app_id, name, meta, strategy, release_id, deploy_timeout, created_at, updated_at
 FROM apps WHERE deleted_at IS NULL AND name = $1`

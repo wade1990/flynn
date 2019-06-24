@@ -4,7 +4,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +47,7 @@ func setupTestDB(c *C, dbname string) *postgres.DB {
 	}
 	pgxpool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
 		ConnConfig: pgx.ConnConfig{
-			Host:     os.Getenv("PGHOST"),
+			Host:     "/var/run/postgresql",
 			Database: dbname,
 		},
 	})
@@ -192,7 +191,7 @@ func (s *S) TestStreamApps(c *C) {
 		return false
 	}
 
-	unaryReceiveApps := func(req *protobuf.StreamAppsRequest) (apps []*protobuf.App, receivedEOF bool) {
+	unaryReceiveApps := func(req *protobuf.StreamAppsRequest) (res *protobuf.StreamAppsResponse, receivedEOF bool) {
 		ctx, ctxCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer func() {
 			if !receivedEOF {
@@ -202,7 +201,7 @@ func (s *S) TestStreamApps(c *C) {
 		stream, err := s.grpc.StreamApps(ctx, req)
 		c.Assert(err, IsNil)
 		for i := 0; i < 2; i++ {
-			res, err := stream.Recv()
+			r, err := stream.Recv()
 			if err == io.EOF {
 				receivedEOF = true
 				return
@@ -211,7 +210,7 @@ func (s *S) TestStreamApps(c *C) {
 				return
 			}
 			c.Assert(err, IsNil)
-			apps = res.Apps
+			res = r
 		}
 		return
 	}
@@ -233,30 +232,33 @@ func (s *S) TestStreamApps(c *C) {
 	}
 
 	// test fetching a single app
-	apps, receivedEOF := unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1})
-	c.Assert(len(apps), Equals, 1)
-	c.Assert(apps[0], DeepEquals, testApp3)
+	res, receivedEOF := unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	c.Assert(res.Apps[0], DeepEquals, testApp3)
 	c.Assert(receivedEOF, Equals, true)
 
 	// test fetching a singple app by name
-	apps, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{NameFilters: []string{testApp2.Name}})
-	c.Assert(len(apps), Equals, 1)
-	c.Assert(apps[0], DeepEquals, testApp2)
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{NameFilters: []string{testApp2.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	c.Assert(res.Apps[0], DeepEquals, testApp2)
 	c.Assert(receivedEOF, Equals, true)
 
 	// test fetching an multiple apps by name
-	apps, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name, testApp2.Name}})
-	c.Assert(len(apps), Equals, 2)
-	c.Assert(apps[0], DeepEquals, testApp2)
-	c.Assert(apps[1], DeepEquals, testApp1)
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name, testApp2.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 2)
+	c.Assert(res.Apps[0], DeepEquals, testApp2)
+	c.Assert(res.Apps[1], DeepEquals, testApp1)
 	c.Assert(receivedEOF, Equals, true)
 
 	// test streaming updates
 	stream, cancel := streamAppsWithCancel(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name}, StreamUpdates: true})
-	res := receiveAppsStream(stream)
+	res = receiveAppsStream(stream)
 	c.Assert(res, Not(IsNil))
 	c.Assert(res.Apps[0], DeepEquals, testApp1)
-	s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-4"}) // through in a create to test that the we get the update and not the create
+	testApp4 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-4"}) // through in a create to test that the we get the update and not the create
 	testApp1.Labels = map[string]string{"test.one": "1"}
 	updatedTestApp1 := s.updateTestApp(c, testApp1)
 	c.Assert(updatedTestApp1.Labels, DeepEquals, testApp1.Labels)
@@ -268,8 +270,8 @@ func (s *S) TestStreamApps(c *C) {
 
 	// test streaming updates without filters
 	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{StreamUpdates: true})
-	receiveAppsStream(stream)                                         // initial page
-	s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-5"}) // through in a create to test that the we get the update and not the create
+	receiveAppsStream(stream)                                                     // initial page
+	testApp5 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-5"}) // through in a create to test that the we get the update and not the create
 	testApp1.Labels = map[string]string{"test.two": "2"}
 	updatedTestApp1 = s.updateTestApp(c, testApp1)
 	c.Assert(updatedTestApp1.Labels, DeepEquals, testApp1.Labels)
@@ -296,10 +298,43 @@ func (s *S) TestStreamApps(c *C) {
 	receiveAppsStream(stream) // initial page
 	testApp1.Labels = map[string]string{"test.four": "4"}
 	updatedTestApp1 = s.updateTestApp(c, testApp1) // through in a update to test that we get the create and not the update
-	s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-7"})
+	testApp7 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-7"})
 	res = receiveAppsStream(stream)
 	c.Assert(res, IsNil)
 	cancel()
+
+	// test unary pagination
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	c.Assert(res.Apps[0].DisplayName, DeepEquals, testApp7.DisplayName)
+	c.Assert(receivedEOF, Equals, true)
+	c.Assert(res.NextPageToken, Not(Equals), "")
+	c.Assert(res.PageComplete, Equals, true)
+	for i, testApp := range []*protobuf.App{testApp6, testApp5, testApp4, testApp3} {
+		comment := Commentf("iteraction %d", i)
+		res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1, PageToken: res.NextPageToken})
+		c.Assert(res, Not(IsNil), comment)
+		c.Assert(len(res.Apps), Equals, 1, comment)
+		c.Assert(res.Apps[0].DisplayName, DeepEquals, testApp.DisplayName, comment)
+		c.Assert(receivedEOF, Equals, true, comment)
+		c.Assert(res.NextPageToken, Not(Equals), "", comment)
+		c.Assert(res.PageComplete, Equals, true, comment)
+	}
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 2, PageToken: res.NextPageToken})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 2)
+	c.Assert(res.Apps[0], DeepEquals, testApp2)
+	c.Assert(res.Apps[1].DisplayName, DeepEquals, testApp1.DisplayName)
+	c.Assert(receivedEOF, Equals, true)
+	c.Assert(res.NextPageToken, Not(Equals), "")
+	c.Assert(res.PageComplete, Equals, true)
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1, PageToken: res.NextPageToken})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 0)
+	c.Assert(receivedEOF, Equals, true)
+	c.Assert(res.NextPageToken, Equals, "")
+	c.Assert(res.PageComplete, Equals, true)
 }
 
 func (s *S) TestStreamReleases(c *C) {

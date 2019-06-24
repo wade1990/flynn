@@ -267,17 +267,27 @@ type server struct {
 	*Config
 }
 
-func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, error) {
+func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, *data.PageToken, error) {
 	pageSize := int(req.GetPageSize())
+	pageToken, err := data.ParsePageToken(req.PageToken)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if pageSize > 0 {
+		pageToken.Size = pageSize
+	} else {
+		pageSize = pageToken.Size
+	}
 
 	labelFilters := req.GetLabelFilters()
-	ctApps, err := s.appRepo.List()
+	ctApps, err := s.appRepo.ListPage(pageToken)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if pageSize == 0 {
-		pageSize = len(ctApps.([]*ct.App))
+		pageSize = len(ctApps)
 	}
 
 	apps := make([]*protobuf.App, 0, pageSize)
@@ -288,8 +298,16 @@ func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, err
 		appIDs = nil
 	}
 
+	var nextPageToken *data.PageToken
+	if len(ctApps) > 0 {
+		nextPageToken = &data.PageToken{
+			BeforeID: &ctApps[len(ctApps)-1].ID,
+			Size:     pageSize,
+		}
+	}
+
 outer:
-	for _, a := range ctApps.([]*ct.App) {
+	for _, a := range ctApps {
 		// filter apps by ID or Name, TODO(jvatic): move this into the data repo
 		if appIDs != nil {
 			found := false
@@ -333,19 +351,30 @@ outer:
 		}
 	}
 
-	return apps, nil
+	return apps, nextPageToken, nil
 }
 
 func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Controller_StreamAppsServer) error {
 	unary := !(req.StreamUpdates || req.StreamCreates)
+	var pageToken *data.PageToken
+	var err error
+	if req.PageToken != "" {
+		pageToken, err = data.ParsePageToken(req.PageToken)
+		if err != nil {
+			// TODO(jvatic): return proper error code
+			return err
+		}
+	}
+	fmt.Printf("PAGE_TOKEN: %v\n", pageToken)
 
 	var apps []*protobuf.App
+	var nextPageToken *data.PageToken
 	var appsMtx sync.RWMutex
 	refreshApps := func() error {
 		appsMtx.Lock()
 		defer appsMtx.Unlock()
 		var err error
-		apps, err = s.listApps(req)
+		apps, nextPageToken, err = s.listApps(req)
 		return err
 	}
 
@@ -353,13 +382,13 @@ func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Con
 		appsMtx.RLock()
 		stream.Send(&protobuf.StreamAppsResponse{
 			Apps:          apps,
-			NextPageToken: "", // TODO(jvatic): Pagination
+			NextPageToken: nextPageToken.String(),
+			PageComplete:  true,
 		})
 		appsMtx.RUnlock()
 	}
 
 	var sub *EventListener
-	var err error
 	if !unary {
 		appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
 		sub, err = s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
