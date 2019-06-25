@@ -7313,7 +7313,8 @@ proto.controller.Release.toObject = function(includeInstance, msg) {
     labelsMap: (f = msg.getLabelsMap()) ? f.toObject(includeInstance, undefined) : [],
     processesMap: (f = msg.getProcessesMap()) ? f.toObject(includeInstance, proto.controller.ProcessType.toObject) : [],
     type: jspb.Message.getFieldWithDefault(msg, 7, 0),
-    createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
+    createTime: (f = msg.getCreateTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f),
+    deleteTime: (f = msg.getDeleteTime()) && google_protobuf_timestamp_pb.Timestamp.toObject(includeInstance, f)
   };
 
   if (includeInstance) {
@@ -7385,6 +7386,11 @@ proto.controller.Release.deserializeBinaryFromReader = function(msg, reader) {
       reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
       msg.setCreateTime(value);
       break;
+    case 9:
+      var value = new google_protobuf_timestamp_pb.Timestamp;
+      reader.readMessage(value,google_protobuf_timestamp_pb.Timestamp.deserializeBinaryFromReader);
+      msg.setDeleteTime(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -7451,6 +7457,14 @@ proto.controller.Release.serializeBinaryToWriter = function(message, writer) {
   if (f != null) {
     writer.writeMessage(
       8,
+      f,
+      google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
+    );
+  }
+  f = message.getDeleteTime();
+  if (f != null) {
+    writer.writeMessage(
+      9,
       f,
       google_protobuf_timestamp_pb.Timestamp.serializeBinaryToWriter
     );
@@ -7613,6 +7627,39 @@ proto.controller.Release.prototype.clearCreateTime = function() {
  */
 proto.controller.Release.prototype.hasCreateTime = function() {
   return jspb.Message.getField(this, 8) != null;
+};
+
+
+/**
+ * optional google.protobuf.Timestamp delete_time = 9;
+ * @return {?proto.google.protobuf.Timestamp}
+ */
+proto.controller.Release.prototype.getDeleteTime = function() {
+  return /** @type{?proto.google.protobuf.Timestamp} */ (
+    jspb.Message.getWrapperField(this, google_protobuf_timestamp_pb.Timestamp, 9));
+};
+
+
+/** @param {?proto.google.protobuf.Timestamp|undefined} value */
+proto.controller.Release.prototype.setDeleteTime = function(value) {
+  jspb.Message.setWrapperField(this, 9, value);
+};
+
+
+/**
+ * Clears the message field making it undefined.
+ */
+proto.controller.Release.prototype.clearDeleteTime = function() {
+  this.setDeleteTime(undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {boolean}
+ */
+proto.controller.Release.prototype.hasDeleteTime = function() {
+  return jspb.Message.getField(this, 9) != null;
 };
 
 

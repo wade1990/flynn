@@ -980,6 +980,11 @@ export class Release extends jspb.Message {
   getCreateTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
   setCreateTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
 
+  hasDeleteTime(): boolean;
+  clearDeleteTime(): void;
+  getDeleteTime(): google_protobuf_timestamp_pb.Timestamp | undefined;
+  setDeleteTime(value?: google_protobuf_timestamp_pb.Timestamp): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): Release.AsObject;
   static toObject(includeInstance: boolean, msg: Release): Release.AsObject;
@@ -999,6 +1004,7 @@ export namespace Release {
     processesMap: Array<[string, ProcessType.AsObject]>,
     type: ReleaseTypeMap[keyof ReleaseTypeMap],
     createTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
+    deleteTime?: google_protobuf_timestamp_pb.Timestamp.AsObject,
   }
 }
 
