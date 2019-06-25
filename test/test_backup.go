@@ -56,7 +56,7 @@ func (s *BackupSuite) Test_v20160814_0_nodejs_mysql(t *c.C) {
 
 		// deploy app again with stack set to cedar-14
 		t.Assert(r.git("commit", "-m", "third", "--allow-empty"), Succeeds)
-		t.Assert(r.git("env", "set", "FLYNN_STACK=cedar-14"), Succeeds)
+		t.Assert(r.flynn("env", "set", "FLYNN_STACK=cedar-14"), Succeeds)
 		t.Assert(r.git("push", "flynn", "master"), Succeeds)
 		release, err = x.controller.GetAppRelease("nodejs")
 		t.Assert(err, c.IsNil)
