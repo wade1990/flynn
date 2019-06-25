@@ -1,12 +1,15 @@
 package protobuf
 
 func MatchLabelFilters(labels map[string]string, labelFilters []*LabelFilter) bool {
+	if len(labelFilters) == 0 {
+		return true
+	}
 	for _, f := range labelFilters {
-		if !f.Match(labels) {
-			return false
+		if f.Match(labels) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (f *LabelFilter) Match(labels map[string]string) bool {
