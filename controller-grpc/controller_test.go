@@ -326,6 +326,23 @@ func (s *S) TestStreamApps(c *C) {
 	c.Assert(res.Apps[0], DeepEquals, testApp1) // has no labels
 	c.Assert(receivedEOF, Equals, true)
 
+	// test filtering by labels with pagination [OP_NOT_EXISTS]
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1, LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.labels-filter",
+					Op:  protobuf.LabelFilter_Expression_OP_NOT_EXISTS,
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	// testApp3 and testApp2 both have test.labels-filter
+	c.Assert(res.Apps[0], DeepEquals, testApp1) // has no labels
+	c.Assert(receivedEOF, Equals, true)
+
 	// test streaming updates
 	stream, cancel := streamAppsWithCancel(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name}, StreamUpdates: true})
 	res = receiveAppsStream(stream)

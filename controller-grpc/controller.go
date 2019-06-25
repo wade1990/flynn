@@ -290,13 +290,13 @@ func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, *da
 		pageSize = len(ctApps)
 	}
 
-	apps := make([]*protobuf.App, 0, pageSize)
-	n := 0
-
 	appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
 	if len(appIDs) == 0 {
 		appIDs = nil
 	}
+
+	apps := make([]*protobuf.App, 0, pageSize)
+	n := 0
 
 outer:
 	for _, a := range ctApps {
@@ -370,6 +370,24 @@ outer:
 		if n == pageSize {
 			break
 		}
+	}
+
+	// make sure we fill the page if possible
+	if n < pageSize && nextPageToken != nil {
+		// fetch next page and merge with existing one
+		nextApps, npt, err := s.listApps(&protobuf.StreamAppsRequest{
+			PageSize:      req.PageSize,
+			PageToken:     nextPageToken.String(),
+			NameFilters:   req.NameFilters,
+			LabelFilters:  req.LabelFilters,
+			StreamUpdates: req.StreamUpdates,
+			StreamCreates: req.StreamCreates,
+		})
+		if err != nil {
+			return apps, nextPageToken, nil
+		}
+		nextApps = append(nextApps, apps...)
+		return nextApps, npt, nil
 	}
 
 	return apps, nextPageToken, nil
