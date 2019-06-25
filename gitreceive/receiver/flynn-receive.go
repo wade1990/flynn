@@ -73,12 +73,25 @@ Options:
 		return err
 	}
 
+	app, err := client.GetApp(appName)
+	if err == controller.ErrNotFound {
+		return fmt.Errorf("Unknown app %q", appName)
+	} else if err != nil {
+		return fmt.Errorf("Error retrieving app: %s", err)
+	}
+	prevRelease, err := client.GetAppRelease(app.Name)
+	if err == controller.ErrNotFound {
+		prevRelease = &ct.Release{}
+	} else if err != nil {
+		return fmt.Errorf("Error getting current app release: %s", err)
+	}
+
 	slugbuilderImageID := os.Getenv("SLUGBUILDER_18_IMAGE_ID")
 	slugrunnerImageID := os.Getenv("SLUGRUNNER_18_IMAGE_ID")
 	stackName := "heroku-18"
 	cfStackName := "cflinuxfs3"
 
-	if stack := env["FLYNN_STACK"]; stack != "" {
+	if stack := prevRelease.Env["FLYNN_STACK"]; stack != "" {
 		switch stack {
 		case "heroku-18":
 		case "cedar-14":
@@ -101,19 +114,6 @@ Options:
 	slugRunnerID := slugrunnerImageID
 	if _, err := client.GetArtifact(slugRunnerID); err != nil {
 		return fmt.Errorf("Error getting slugrunner image: %s", err)
-	}
-
-	app, err := client.GetApp(appName)
-	if err == controller.ErrNotFound {
-		return fmt.Errorf("Unknown app %q", appName)
-	} else if err != nil {
-		return fmt.Errorf("Error retrieving app: %s", err)
-	}
-	prevRelease, err := client.GetAppRelease(app.Name)
-	if err == controller.ErrNotFound {
-		prevRelease = &ct.Release{}
-	} else if err != nil {
-		return fmt.Errorf("Error getting current app release: %s", err)
 	}
 
 	fmt.Printf("-----> Building %s...\n", app.Name)
