@@ -725,7 +725,7 @@ OR uri = (SELECT env->>'REDIS_IMAGE_URI' FROM releases WHERE release_id = (SELEC
 	// ensure the image ID environment variables are set for legacy redis app
 	// with image URI variable
 	sqlBuf.WriteString(fmt.Sprintf(`
-UPDATE releases SET env = jsonb_set(env, '{REDIS_IMAGE_ID}', ('"' || (SELECT artifact_id::text FROM artifacts WHERE uri = 's') || '"')::jsonb, true)
+UPDATE releases SET env = jsonb_set(env, '{REDIS_IMAGE_ID}', ('"' || (SELECT artifact_id::text FROM artifacts WHERE uri = '%s') || '"')::jsonb, true)
 WHERE env->>'REDIS_IMAGE_URI' IS NOT NULL;`,
 		artifacts["redis-image"].URI))
 
