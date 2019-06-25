@@ -317,7 +317,22 @@ outer:
 		for _, f := range labelFilters {
 			for _, e := range f.Expressions {
 				switch e.Op {
-				case protobuf.LabelFilter_Expression_OP_IN: // TODO(jvatic)
+				case protobuf.LabelFilter_Expression_OP_IN:
+					for _, ev := range e.Values {
+						foundMatch := false
+						for k, av := range a.Meta {
+							if k != e.Key {
+								continue
+							}
+							if ev == av {
+								foundMatch = true
+								break
+							}
+						}
+						if !foundMatch {
+							continue outer
+						}
+					}
 				case protobuf.LabelFilter_Expression_OP_NOT_IN:
 					for _, ev := range e.Values {
 						for k, av := range a.Meta {
@@ -329,8 +344,22 @@ outer:
 							}
 						}
 					}
-				case protobuf.LabelFilter_Expression_OP_EXISTS: // TODO(jvatic)
-				case protobuf.LabelFilter_Expression_OP_NOT_EXISTS: // TODO(jvatic)
+				case protobuf.LabelFilter_Expression_OP_EXISTS:
+					foundKey := false
+					for k := range a.Meta {
+						if k == e.Key {
+							foundKey = true
+						}
+					}
+					if !foundKey {
+						continue outer
+					}
+				case protobuf.LabelFilter_Expression_OP_NOT_EXISTS:
+					for k := range a.Meta {
+						if k == e.Key {
+							continue outer
+						}
+					}
 				}
 			}
 		}

@@ -170,8 +170,8 @@ func (s *S) TestOptionsRequest(c *C) { // grpc-web
 
 func (s *S) TestStreamApps(c *C) {
 	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-1"})
-	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-2"})
-	testApp3 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-3"})
+	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-2", Labels: map[string]string{"test.labels-filter": "include"}})
+	testApp3 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-3", Labels: map[string]string{"test.labels-filter": "exclude"}})
 
 	isErrCanceled := func(err error) bool {
 		if s, ok := status.FromError(err); ok {
@@ -251,6 +251,79 @@ func (s *S) TestStreamApps(c *C) {
 	c.Assert(len(res.Apps), Equals, 2)
 	c.Assert(res.Apps[0], DeepEquals, testApp2)
 	c.Assert(res.Apps[1], DeepEquals, testApp1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_NOT_IN]
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key:    "test.labels-filter",
+					Op:     protobuf.LabelFilter_Expression_OP_NOT_IN,
+					Values: []string{"exclude"},
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 2)
+	// testApp3 has test.labels-filter: exclude
+	c.Assert(res.Apps[0], DeepEquals, testApp2) // has test.labels-filter: include
+	c.Assert(res.Apps[1], DeepEquals, testApp1) // has no labels
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_IN]
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key:    "test.labels-filter",
+					Op:     protobuf.LabelFilter_Expression_OP_IN,
+					Values: []string{"include"},
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	// testApp3 has test.labels-filter: exclude
+	c.Assert(res.Apps[0], DeepEquals, testApp2) // has test.labels-filter: include
+	// testApp1 has no labels
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_EXISTS]
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.labels-filter",
+					Op:  protobuf.LabelFilter_Expression_OP_EXISTS,
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 2)
+	c.Assert(res.Apps[0], DeepEquals, testApp3) // has test.labels-filter
+	c.Assert(res.Apps[1], DeepEquals, testApp2) // has test.labels-filter
+	// testApp1 has no labels
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_NOT_EXISTS]
+	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.labels-filter",
+					Op:  protobuf.LabelFilter_Expression_OP_NOT_EXISTS,
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Apps), Equals, 1)
+	// testApp3 and testApp2 both have test.labels-filter
+	c.Assert(res.Apps[0], DeepEquals, testApp1) // has no labels
 	c.Assert(receivedEOF, Equals, true)
 
 	// test streaming updates
