@@ -537,6 +537,9 @@ $$ LANGUAGE plpgsql`,
 	migrations.Add(32,
 		`INSERT INTO deployment_strategies (name) VALUES ('one-down-one-up')`,
 	)
+	migrations.Add(33,
+		`ALTER TABLE events ADD COLUMN op text`,
+	)
 }
 
 func MigrateDB(db *postgres.DB) error {

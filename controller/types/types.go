@@ -470,6 +470,13 @@ const (
 	EventTypeDeprecatedScale EventType = "scale"
 )
 
+type EventOp string
+
+const (
+	EventOpCreate EventOp = "op_create"
+	EventOpUpdate EventOp = "op_update"
+)
+
 type Event struct {
 	ID         int64           `json:"id,omitempty"`
 	AppID      string          `json:"app,omitempty"`
@@ -477,6 +484,7 @@ type Event struct {
 	ObjectID   string          `json:"object_id,omitempty"`
 	UniqueID   string          `json:"-"`
 	Data       json.RawMessage `json:"data,omitempty"`
+	Op         EventOp         `json:"-"`
 	CreatedAt  *time.Time      `json:"created_at,omitempty"`
 }
 

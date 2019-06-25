@@ -250,7 +250,7 @@ LEFT OUTER JOIN deployment_events e2
   ON (d.deployment_id = e2.object_id::uuid AND e1.created_at < e2.created_at)
 WHERE e2.created_at IS NULL AND d.app_id = $1 ORDER BY d.created_at DESC`
 	eventSelectQuery = `
-SELECT event_id, app_id, object_id, object_type, data, created_at
+SELECT event_id, app_id, object_id, object_type, data, op, created_at
 FROM events WHERE event_id = $1`
 	eventInsertQuery = `
 INSERT INTO events (app_id, object_id, object_type, data)

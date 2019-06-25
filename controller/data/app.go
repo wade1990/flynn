@@ -74,6 +74,7 @@ func (r *AppRepo) Add(data interface{}) error {
 		AppID:      app.ID,
 		ObjectID:   app.ID,
 		ObjectType: ct.EventTypeApp,
+		Op:         ct.EventOpCreate,
 	}, app); err != nil {
 		tx.Rollback()
 		return err
@@ -212,6 +213,7 @@ func (r *AppRepo) Update(id string, data map[string]interface{}) (interface{}, e
 		AppID:      app.ID,
 		ObjectID:   app.ID,
 		ObjectType: ct.EventTypeApp,
+		Op:         ct.EventOpUpdate,
 	}, app); err != nil {
 		tx.Rollback()
 		return nil, err

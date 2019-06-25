@@ -85,6 +85,10 @@ func CreateEvent(dbExec func(string, ...interface{}) error, e *ct.Event, data in
 		fields = append(fields, "unique_id")
 		args = append(args, e.UniqueID)
 	}
+	if e.Op != "" {
+		fields = append(fields, "op")
+		args = append(args, e.Op)
+	}
 	query := "INSERT INTO events ("
 	for i, n := range fields {
 		if i > 0 {
