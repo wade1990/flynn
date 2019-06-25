@@ -298,7 +298,6 @@ func (s *server) listApps(req *protobuf.StreamAppsRequest) ([]*protobuf.App, *da
 	apps := make([]*protobuf.App, 0, pageSize)
 	n := 0
 
-outer:
 	for _, a := range ctApps {
 		// filter apps by ID or Name, TODO(jvatic): move this into the data repo
 		if appIDs != nil {
@@ -314,54 +313,8 @@ outer:
 			}
 		}
 
-		for _, f := range labelFilters {
-			for _, e := range f.Expressions {
-				switch e.Op {
-				case protobuf.LabelFilter_Expression_OP_IN:
-					for _, ev := range e.Values {
-						foundMatch := false
-						for k, av := range a.Meta {
-							if k != e.Key {
-								continue
-							}
-							if ev == av {
-								foundMatch = true
-								break
-							}
-						}
-						if !foundMatch {
-							continue outer
-						}
-					}
-				case protobuf.LabelFilter_Expression_OP_NOT_IN:
-					for _, ev := range e.Values {
-						for k, av := range a.Meta {
-							if k != e.Key {
-								continue
-							}
-							if ev == av {
-								continue outer
-							}
-						}
-					}
-				case protobuf.LabelFilter_Expression_OP_EXISTS:
-					foundKey := false
-					for k := range a.Meta {
-						if k == e.Key {
-							foundKey = true
-						}
-					}
-					if !foundKey {
-						continue outer
-					}
-				case protobuf.LabelFilter_Expression_OP_NOT_EXISTS:
-					for k := range a.Meta {
-						if k == e.Key {
-							continue outer
-						}
-					}
-				}
-			}
+		if !protobuf.MatchLabelFilters(a.Meta, labelFilters) {
+			continue
 		}
 
 		apps = append(apps, utils.ConvertApp(a))
@@ -449,7 +402,6 @@ func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Con
 			}
 			switch event.ObjectType {
 			case ct.EventTypeApp:
-				appsMtx.RLock()
 				var ctApp *ct.App
 				if err := json.Unmarshal(event.Data, &ctApp); err != nil {
 					// TODO(jvatic): Handle error
@@ -458,31 +410,17 @@ func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Con
 				}
 				app := utils.ConvertApp(ctApp)
 				shouldSend := false
-				if req.StreamCreates && req.StreamUpdates {
+				if (req.StreamCreates && event.Op == ct.EventOpCreate) || (req.StreamUpdates && event.Op == ct.EventOpUpdate) {
 					shouldSend = true
-				} else if req.StreamCreates {
-					appFound := false
-					for _, a := range apps {
-						if a.Name == app.Name {
-							appFound = true
-							break
-						}
-					}
-					shouldSend = !appFound
-				} else if req.StreamUpdates {
-					for _, a := range apps {
-						if a.Name == app.Name {
-							shouldSend = true
-							break
-						}
-					}
+				}
+				if !protobuf.MatchLabelFilters(app.Labels, req.GetLabelFilters()) {
+					shouldSend = false
 				}
 				if shouldSend {
 					stream.Send(&protobuf.StreamAppsResponse{
 						Apps: []*protobuf.App{app},
 					})
 				}
-				appsMtx.RUnlock()
 			case ct.EventTypeAppDeletion:
 				if !req.StreamUpdates {
 					continue

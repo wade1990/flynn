@@ -358,6 +358,25 @@ func (s *S) TestStreamApps(c *C) {
 	c.Assert(res.Apps[0], DeepEquals, updatedTestApp1)
 	cancel()
 
+	// test streaming updates that don't match the LabelFilters [OP_EXISTS]
+	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.labels-filter-update",
+					Op:  protobuf.LabelFilter_Expression_OP_EXISTS,
+				},
+			},
+		},
+	}, StreamUpdates: true})
+	receiveAppsStream(stream) // initial page
+	testApp1.Labels = map[string]string{"test.labels": "exclude me"}
+	updatedTestApp1 = s.updateTestApp(c, testApp1)
+	c.Assert(updatedTestApp1.Labels, DeepEquals, testApp1.Labels)
+	res = receiveAppsStream(stream)
+	c.Assert(res, IsNil)
+	cancel()
+
 	// test streaming updates without filters
 	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{StreamUpdates: true})
 	receiveAppsStream(stream)                                                     // initial page
@@ -383,7 +402,7 @@ func (s *S) TestStreamApps(c *C) {
 	c.Assert(res.Apps[0], DeepEquals, testApp6)
 	cancel()
 
-	// test streaming creates that don't match the filters
+	// test streaming creates that don't match the NameFilters
 	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{NameFilters: []string{testApp1.Name}, StreamCreates: true})
 	receiveAppsStream(stream) // initial page
 	testApp1.Labels = map[string]string{"test.four": "4"}
@@ -393,15 +412,34 @@ func (s *S) TestStreamApps(c *C) {
 	c.Assert(res, IsNil)
 	cancel()
 
+	// test streaming creates that don't match the LabelFilters [OP_EXISTS]
+	stream, cancel = streamAppsWithCancel(&protobuf.StreamAppsRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.labels-filter-create",
+					Op:  protobuf.LabelFilter_Expression_OP_EXISTS,
+				},
+			},
+		},
+	}, StreamCreates: true})
+	receiveAppsStream(stream) // initial page
+	testApp1.Labels = map[string]string{"test.four": "5"}
+	updatedTestApp1 = s.updateTestApp(c, testApp1) // through in a update to test that we get the create and not the update
+	testApp8 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-8"})
+	res = receiveAppsStream(stream)
+	c.Assert(res, IsNil)
+	cancel()
+
 	// test unary pagination
 	res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1})
 	c.Assert(res, Not(IsNil))
 	c.Assert(len(res.Apps), Equals, 1)
-	c.Assert(res.Apps[0].DisplayName, DeepEquals, testApp7.DisplayName)
+	c.Assert(res.Apps[0].DisplayName, DeepEquals, testApp8.DisplayName)
 	c.Assert(receivedEOF, Equals, true)
 	c.Assert(res.NextPageToken, Not(Equals), "")
 	c.Assert(res.PageComplete, Equals, true)
-	for i, testApp := range []*protobuf.App{testApp6, testApp5, testApp4, testApp3} {
+	for i, testApp := range []*protobuf.App{testApp7, testApp6, testApp5, testApp4, testApp3} {
 		comment := Commentf("iteraction %d", i)
 		res, receivedEOF = unaryReceiveApps(&protobuf.StreamAppsRequest{PageSize: 1, PageToken: res.NextPageToken})
 		c.Assert(res, Not(IsNil), comment)
