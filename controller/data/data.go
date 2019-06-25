@@ -21,6 +21,8 @@ const DEFAULT_PAGE_SIZE = 1000
 type PageToken struct {
 	BeforeID *string
 	Size     int
+
+	beforeIDInt64 *int64
 }
 
 func ParsePageToken(tokenStr string) (*PageToken, error) {
@@ -43,6 +45,21 @@ func ParsePageToken(tokenStr string) (*PageToken, error) {
 		token.Size = DEFAULT_PAGE_SIZE
 	}
 	return token, nil
+}
+
+func (t *PageToken) BeforeIDInt64() *int64 {
+	if t.beforeIDInt64 != nil {
+		return t.beforeIDInt64
+	}
+	if t.BeforeID == nil {
+		return nil
+	}
+	beforeID, err := strconv.ParseInt(*t.BeforeID, 10, 64)
+	if err != nil {
+		return nil
+	}
+	t.beforeIDInt64 = &beforeID
+	return t.beforeIDInt64
 }
 
 func (t *PageToken) String() string {
