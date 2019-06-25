@@ -106,8 +106,9 @@ message StreamReleasesRequest {
   // filters are ORed
   repeated LabelFilter label_filters = 4;
 
-  // When true, leaves the stream open and sends any updates to each resource
-  // returned in the initial page until the stream is closed.
+  // When true, leaves the stream open and sends any updates (i.e. resource
+  // deletions) to each resource returned in the initial page until the stream
+  // is closed.
   bool stream_updates = 5;
 
   // When true, leaves the stream open and sends newly created resources
@@ -410,6 +411,7 @@ message Release {
   map<string, ProcessType> processes = 6;
   ReleaseType type = 7;
   google.protobuf.Timestamp create_time = 8;
+  google.protobuf.Timestamp delete_time = 9;
 }
 
 enum ScaleRequestState {
