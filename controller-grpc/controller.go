@@ -377,16 +377,6 @@ outer:
 
 func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Controller_StreamAppsServer) error {
 	unary := !(req.StreamUpdates || req.StreamCreates)
-	var pageToken *data.PageToken
-	var err error
-	if req.PageToken != "" {
-		pageToken, err = data.ParsePageToken(req.PageToken)
-		if err != nil {
-			// TODO(jvatic): return proper error code
-			return err
-		}
-	}
-	fmt.Printf("PAGE_TOKEN: %v\n", pageToken)
 
 	var apps []*protobuf.App
 	var nextPageToken *data.PageToken
@@ -410,6 +400,7 @@ func (s *server) StreamApps(req *protobuf.StreamAppsRequest, stream protobuf.Con
 	}
 
 	var sub *EventListener
+	var err error
 	if !unary {
 		appIDs := utils.ParseAppIDsFromNameFilters(req.GetNameFilters())
 		sub, err = s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeApp, ct.EventTypeAppDeletion, ct.EventTypeAppRelease}, "")
