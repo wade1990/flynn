@@ -127,6 +127,24 @@ func (s *S) TearDownSuite(c *C) {
 	}
 }
 
+func isErrCanceled(err error) bool {
+	if s, ok := status.FromError(err); ok {
+		if s.Code() == codes.Canceled {
+			return true
+		}
+	}
+	return false
+}
+
+func isErrDeadlineExceeded(err error) bool {
+	if s, ok := status.FromError(err); ok {
+		if s.Code() == codes.DeadlineExceeded {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *S) createTestApp(c *C, app *protobuf.App) *protobuf.App {
 	ctApp := utils.BackConvertApp(app)
 	err := s.conf.appRepo.Add(ctApp)
@@ -172,24 +190,6 @@ func (s *S) TestStreamApps(c *C) {
 	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-1"})
 	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-2", Labels: map[string]string{"test.labels-filter": "include"}})
 	testApp3 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-1-3", Labels: map[string]string{"test.labels-filter": "exclude"}})
-
-	isErrCanceled := func(err error) bool {
-		if s, ok := status.FromError(err); ok {
-			if s.Code() == codes.Canceled {
-				return true
-			}
-		}
-		return false
-	}
-
-	isErrDeadlineExceeded := func(err error) bool {
-		if s, ok := status.FromError(err); ok {
-			if s.Code() == codes.DeadlineExceeded {
-				return true
-			}
-		}
-		return false
-	}
 
 	unaryReceiveApps := func(req *protobuf.StreamAppsRequest) (res *protobuf.StreamAppsResponse, receivedEOF bool) {
 		ctx, ctxCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -461,30 +461,269 @@ func (s *S) TestStreamApps(c *C) {
 
 func (s *S) TestStreamReleases(c *C) {
 	testApp1 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2-1"})
-	testRelease1 := s.createTestRelease(c, testApp1.Name, &protobuf.Release{Env: map[string]string{"ONE": "1"}})
+	testApp2 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2-2"})
+	testApp3 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2-3"})
+	testApp4 := s.createTestApp(c, &protobuf.App{DisplayName: "stream-test-2-4"})
+	testRelease1 := s.createTestRelease(c, testApp2.Name, &protobuf.Release{Env: map[string]string{"ONE": "1"}, Labels: map[string]string{"test.int": "1"}})
+	testRelease2 := s.createTestRelease(c, testApp1.Name, &protobuf.Release{Env: map[string]string{"TWO": "2"}, Labels: map[string]string{"test.int": "2"}})
+	testRelease3 := s.createTestRelease(c, testApp1.Name, &protobuf.Release{Env: map[string]string{"THREE": "3"}, Labels: map[string]string{"test.string": "foo"}})
+	testRelease4 := s.createTestRelease(c, testApp3.Name, &protobuf.Release{Env: map[string]string{"FOUR": "4"}, Labels: map[string]string{"test.string": "bar", "test.int": "4"}})
 
-	ctx, ctxCancel := context.WithCancel(context.Background())
-	stream, err := s.grpc.StreamReleases(ctx, &protobuf.StreamReleasesRequest{PageSize: 1})
-	c.Assert(err, IsNil)
-
-	var releases []*protobuf.Release
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
+	unaryReceiveReleases := func(req *protobuf.StreamReleasesRequest) (res *protobuf.StreamReleasesResponse, receivedEOF bool) {
+		ctx, ctxCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer func() {
+			if !receivedEOF {
+				ctxCancel()
+			}
+		}()
+		stream, err := s.grpc.StreamReleases(ctx, req)
 		c.Assert(err, IsNil)
-		releases = res.Releases
-		ctxCancel()
-		break
+		for i := 0; i < 2; i++ {
+			r, err := stream.Recv()
+			if err == io.EOF {
+				receivedEOF = true
+				return
+			}
+			if isErrCanceled(err) {
+				return
+			}
+			c.Assert(err, IsNil)
+			res = r
+		}
+		return
 	}
 
-	c.Assert(len(releases), Equals, 1)
-	r := releases[0]
-	c.Assert(strings.HasPrefix(r.Name, testApp1.Name), Equals, true)
-	c.Assert(r.Artifacts, DeepEquals, testRelease1.Artifacts)
-	c.Assert(r.Env, DeepEquals, testRelease1.Env)
-	c.Assert(r.Labels, DeepEquals, testRelease1.Labels)
-	c.Assert(r.Processes, DeepEquals, testRelease1.Processes)
-	c.Assert(r.CreateTime, DeepEquals, testRelease1.CreateTime)
+	streamReleasesWithCancel := func(req *protobuf.StreamReleasesRequest) (protobuf.Controller_StreamReleasesClient, context.CancelFunc) {
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		stream, err := s.grpc.StreamReleases(ctx, req)
+		c.Assert(err, IsNil)
+		return stream, cancel
+	}
+
+	receiveReleasesStream := func(stream protobuf.Controller_StreamReleasesClient) *protobuf.StreamReleasesResponse {
+		res, err := stream.Recv()
+		if err == io.EOF || isErrCanceled(err) || isErrDeadlineExceeded(err) {
+			return nil
+		}
+		c.Assert(err, IsNil)
+		return res
+	}
+
+	// test fetching the latest release
+	res, receivedEOF := unaryReceiveReleases(&protobuf.StreamReleasesRequest{PageSize: 1})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp3.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease4)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching a single release by name
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{NameFilters: []string{testRelease2.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease2)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching a single release by app name
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{NameFilters: []string{testApp2.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp2.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching multiple releases by name
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{NameFilters: []string{testRelease1.Name, testRelease2.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 2)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease2)
+	c.Assert(strings.HasPrefix(res.Releases[1].Name, testApp2.Name), Equals, true)
+	c.Assert(res.Releases[1], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching multiple releases by app name
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{NameFilters: []string{testApp1.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 2)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease3)
+	c.Assert(strings.HasPrefix(res.Releases[1].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[1], DeepEquals, testRelease2)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test fetching multiple releases by a mixture of app name and release name
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{NameFilters: []string{testApp2.Name, testRelease2.Name}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 2)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease2)
+	c.Assert(strings.HasPrefix(res.Releases[1].Name, testApp2.Name), Equals, true)
+	c.Assert(res.Releases[1], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_IN]
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key:    "test.int",
+					Op:     protobuf.LabelFilter_Expression_OP_IN,
+					Values: []string{"1", "2"},
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 2)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease2)
+	c.Assert(strings.HasPrefix(res.Releases[1].Name, testApp2.Name), Equals, true)
+	c.Assert(res.Releases[1], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_NOT_IN]
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key:    "test.int",
+					Op:     protobuf.LabelFilter_Expression_OP_NOT_IN,
+					Values: []string{"2", "4"},
+				}, // AND
+				&protobuf.LabelFilter_Expression{
+					Key:    "test.string",
+					Op:     protobuf.LabelFilter_Expression_OP_NOT_IN,
+					Values: []string{"foo", "bar"},
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp2.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_EXISTS]
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.int",
+					Op:  protobuf.LabelFilter_Expression_OP_EXISTS,
+				}, // AND
+				&protobuf.LabelFilter_Expression{
+					Key: "test.string",
+					Op:  protobuf.LabelFilter_Expression_OP_EXISTS,
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp3.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease4)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test filtering by labels [OP_NOT_EXISTS]
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.int",
+					Op:  protobuf.LabelFilter_Expression_OP_NOT_EXISTS,
+				},
+			},
+		}, // OR
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.string",
+					Op:  protobuf.LabelFilter_Expression_OP_NOT_EXISTS,
+				},
+			},
+		},
+	}})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 3)
+	c.Assert(strings.HasPrefix(res.Releases[0].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[0], DeepEquals, testRelease3)
+	c.Assert(strings.HasPrefix(res.Releases[1].Name, testApp1.Name), Equals, true)
+	c.Assert(res.Releases[1], DeepEquals, testRelease2)
+	c.Assert(strings.HasPrefix(res.Releases[2].Name, testApp2.Name), Equals, true)
+	c.Assert(res.Releases[2], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+
+	// test streaming creates for specific app
+	stream, cancel := streamReleasesWithCancel(&protobuf.StreamReleasesRequest{NameFilters: []string{testApp4.Name}, StreamCreates: true})
+	receiveReleasesStream(stream) // initial page
+	testRelease5 := s.createTestRelease(c, testApp3.Name, &protobuf.Release{Env: map[string]string{"Five": "5"}, Labels: map[string]string{"test.string": "baz"}})
+	testRelease6 := s.createTestRelease(c, testApp4.Name, &protobuf.Release{Env: map[string]string{"Six": "6"}, Labels: map[string]string{"test.string": "biz"}})
+	res = receiveReleasesStream(stream)
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(res.Releases[0], DeepEquals, testRelease6)
+	cancel()
+
+	// test creates are not streamed when flag not set
+	stream, cancel = streamReleasesWithCancel(&protobuf.StreamReleasesRequest{NameFilters: []string{testApp4.Name}})
+	receiveReleasesStream(stream) // initial page
+	testRelease7 := s.createTestRelease(c, testApp4.Name, &protobuf.Release{Env: map[string]string{"Seven": "7"}, Labels: map[string]string{"test.string": "flu"}})
+	res = receiveReleasesStream(stream)
+	c.Assert(res, IsNil)
+	cancel()
+
+	// test streaming creates that don't match the LabelFilters [OP_EXISTS]
+	stream, cancel = streamReleasesWithCancel(&protobuf.StreamReleasesRequest{LabelFilters: []*protobuf.LabelFilter{
+		&protobuf.LabelFilter{
+			Expressions: []*protobuf.LabelFilter_Expression{
+				&protobuf.LabelFilter_Expression{
+					Key: "test.int",
+					Op:  protobuf.LabelFilter_Expression_OP_EXISTS,
+				},
+			},
+		},
+	}, StreamCreates: true})
+	receiveReleasesStream(stream) // initial page
+	testRelease8 := s.createTestRelease(c, testApp4.Name, &protobuf.Release{Labels: map[string]string{"test.string": "hue"}})
+	res = receiveReleasesStream(stream)
+	c.Assert(res, IsNil)
+	cancel()
+
+	// test streaming creates that don't match the NameFilters
+	stream, cancel = streamReleasesWithCancel(&protobuf.StreamReleasesRequest{NameFilters: []string{testApp4.Name}, StreamCreates: true})
+	receiveReleasesStream(stream) // initial page
+	testRelease9 := s.createTestRelease(c, testApp3.Name, &protobuf.Release{Labels: map[string]string{"test.string": "bue"}})
+	res = receiveReleasesStream(stream)
+	c.Assert(res, IsNil)
+	cancel()
+
+	// test unary pagination
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{PageSize: 1})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 1)
+	c.Assert(res.Releases[0], DeepEquals, testRelease9)
+	c.Assert(receivedEOF, Equals, true)
+	c.Assert(res.NextPageToken, Not(Equals), "")
+	c.Assert(res.PageComplete, Equals, true)
+	for i, testRelease := range []*protobuf.Release{testRelease8, testRelease7, testRelease6, testRelease5, testRelease4, testRelease3} {
+		comment := Commentf("iteraction %d", i)
+		res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{PageSize: 1, PageToken: res.NextPageToken})
+		c.Assert(res, Not(IsNil), comment)
+		c.Assert(len(res.Releases), Equals, 1, comment)
+		c.Assert(res.Releases[0], DeepEquals, testRelease, comment)
+		c.Assert(receivedEOF, Equals, true, comment)
+		c.Assert(res.NextPageToken, Not(Equals), "", comment)
+		c.Assert(res.PageComplete, Equals, true, comment)
+	}
+	res, receivedEOF = unaryReceiveReleases(&protobuf.StreamReleasesRequest{PageSize: 2, PageToken: res.NextPageToken})
+	c.Assert(res, Not(IsNil))
+	c.Assert(len(res.Releases), Equals, 2)
+	c.Assert(res.Releases[0], DeepEquals, testRelease2)
+	c.Assert(res.Releases[1], DeepEquals, testRelease1)
+	c.Assert(receivedEOF, Equals, true)
+	c.Assert(res.NextPageToken, Equals, "")
+	c.Assert(res.PageComplete, Equals, true)
 }

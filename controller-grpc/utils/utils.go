@@ -38,12 +38,24 @@ func ParseAppIDsFromNameFilters(nameFilters []string) []string {
 	appIDs := make([]string, 0, len(nameFilters))
 	for _, name := range nameFilters {
 		appID := ParseIDFromName(name, "apps")
-		if appID == "" {
+		if appID == "" || !strings.HasSuffix(name, appID) {
 			continue
 		}
 		appIDs = append(appIDs, appID)
 	}
 	return appIDs
+}
+
+func ParseReleaseIDsFromNameFilters(nameFilters []string) []string {
+	releaseIDs := make([]string, 0, len(nameFilters))
+	for _, name := range nameFilters {
+		releaseID := ParseIDFromName(name, "releases")
+		if releaseID == "" {
+			continue
+		}
+		releaseIDs = append(releaseIDs, releaseID)
+	}
+	return releaseIDs
 }
 
 func ParseIDFromName(name string, resource string) string {

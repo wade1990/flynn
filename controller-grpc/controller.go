@@ -673,40 +673,49 @@ func (s *server) StreamScales(req *protobuf.StreamScalesRequest, stream protobuf
 }
 
 func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream protobuf.Controller_StreamReleasesServer) error {
-	appIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
+	unary := !(req.StreamUpdates || req.StreamCreates)
+	pageSize := int(req.PageSize)
+	pageToken, err := data.ParsePageToken(req.PageToken)
+	if err != nil {
+		// TODO(jvatic): return proper error code
+		return err
+	}
 
+	if pageSize > 0 {
+		pageToken.Size = pageSize
+	} else {
+		pageSize = pageToken.Size
+	}
+
+	eventAppIDs := utils.ParseAppIDsFromNameFilters(req.NameFilters)
+	appIDs := make(map[string]struct{}, len(eventAppIDs))
+	for _, appID := range eventAppIDs {
+		appIDs[appID] = struct{}{}
+	}
+
+	releaseIDs := make(map[string]struct{}, len(req.NameFilters))
+	for _, releaseID := range utils.ParseReleaseIDsFromNameFilters(req.NameFilters) {
+		releaseIDs[releaseID] = struct{}{}
+	}
+
+	if len(releaseIDs) > 0 {
+		// the events list and stream can't currently handle both types of ID
+		// filters. TODO(jvatic): make events repo filter by multiple object IDs
+		eventAppIDs = nil
+	}
+
+	var nextPageToken *data.PageToken
 	var releases []*protobuf.Release
 	var releasesMtx sync.RWMutex
 	sendResponse := func() {
 		releasesMtx.RLock()
 		defer releasesMtx.RUnlock()
 		stream.Send(&protobuf.StreamReleasesResponse{
-			Releases: releases,
+			Releases:      releases,
+			NextPageToken: nextPageToken.String(),
+			PageComplete:  true,
 		})
 	}
-
-	sendResponseWithDelay := func() func() {
-		d := 10 * time.Millisecond
-		incoming := make(chan struct{})
-
-		go func() {
-			t := time.NewTimer(d)
-			t.Stop()
-
-			for {
-				select {
-				case <-incoming:
-					t.Reset(d)
-				case <-t.C:
-					go sendResponse()
-				}
-			}
-		}()
-
-		return func() {
-			go func() { incoming <- struct{}{} }()
-		}
-	}()
 
 	unmarshalRelease := func(event *ct.Event) (*protobuf.Release, error) {
 		var ctRelease *ct.Release
@@ -717,16 +726,49 @@ func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream prot
 		return utils.ConvertRelease(ctRelease), nil
 	}
 
-	prependRelease := func(event *ct.Event) error {
-		req, err := unmarshalRelease(event)
+	maybeAcceptRelease := func(event *ct.Event) (release *protobuf.Release, accepted bool, err error) {
+		// apply name filters
+		if len(releaseIDs) > 0 {
+			if _, ok := releaseIDs[event.ObjectID]; !ok {
+				if len(appIDs) > 0 {
+					if _, ok := appIDs[event.AppID]; !ok {
+						return
+					}
+				} else {
+					return
+				}
+			}
+		}
+
+		var r *protobuf.Release
+		r, err = unmarshalRelease(event)
+		if err != nil {
+			return
+		}
+
+		if !protobuf.MatchLabelFilters(r.Labels, req.GetLabelFilters()) {
+			return
+		}
+
+		accepted = true
+		release = r
+		return
+	}
+
+	maybePrependRelease := func(event *ct.Event) error {
+		r, accepted, err := maybeAcceptRelease(event)
 		if err != nil {
 			return err
 		}
+		if !accepted {
+			return nil
+		}
+
 		releasesMtx.Lock()
 		_releases := make([]*protobuf.Release, 0, len(releases)+1)
-		_releases = append(_releases, req)
+		_releases = append(_releases, r)
 		for _, sr := range releases {
-			if sr.GetName() == req.GetName() {
+			if sr.GetName() == r.GetName() {
 				continue
 			}
 			_releases = append(_releases, sr)
@@ -736,7 +778,7 @@ func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream prot
 		return nil
 	}
 
-	sub, err := s.subscribeEvents(appIDs, []ct.EventType{ct.EventTypeRelease}, "")
+	sub, err := s.subscribeEvents(eventAppIDs, []ct.EventType{ct.EventTypeRelease}, "")
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
@@ -745,16 +787,30 @@ func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream prot
 
 	// get all events up until now
 	var currID int64
-	list, err := s.eventRepo.ListEvents(appIDs, []string{string(ct.EventTypeRelease)}, "", nil, nil, 0)
+	count := pageSize
+	if count > 0 {
+		count = count + 1 // request 1 more than what we need to see if there's a next page
+	}
+	list, err := s.eventRepo.ListEvents(eventAppIDs, []string{string(ct.EventTypeRelease)}, "", pageToken.BeforeIDInt64(), nil, count)
 	if err != nil {
 		// TODO(jvatic): return proper error code
 		return err
+	}
+	if pageToken.BeforeIDInt64() != nil {
+		currID = *pageToken.BeforeIDInt64()
+	}
+	if (pageSize == 0 || len(list) == pageSize+1) && len(list) > 0 {
+		list = list[0 : len(list)-1] // get rid of extra event
+		event := list[0]
+		beforeID := fmt.Sprintf("%d", event.ID)
+		nextPageToken = &data.PageToken{BeforeID: &beforeID, Size: pageSize}
 	}
 	// list is in DESC order, so iterate in reverse
 	for i := len(list) - 1; i >= 0; i-- {
 		event := list[i]
 		currID = event.ID
-		if err := prependRelease(event); err != nil {
+
+		if err := maybePrependRelease(event); err != nil {
 			// TODO(jvatic): Handle error
 			fmt.Printf("ReleasesStream(%v): Error parsing data: %s\n", req.NameFilters, err)
 			continue
@@ -762,14 +818,16 @@ func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream prot
 	}
 	sendResponse()
 
+	if unary {
+		return nil
+	}
+
 	// stream new events as they are created
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
-			sendResponseWithDelay()
-
 			event, ok := <-sub.Events
 			if !ok {
 				break
@@ -781,10 +839,17 @@ func (s *server) StreamReleases(req *protobuf.StreamReleasesRequest, stream prot
 			}
 			currID = event.ID
 
-			if err := prependRelease(event); err != nil {
+			release, ok, err := maybeAcceptRelease(event)
+			if err != nil {
 				// TODO(jvatic): Handle error
 				fmt.Printf("ReleasesStream(%v): Error parsing data: %s\n", req.NameFilters, err)
 				continue
+			}
+
+			if ok {
+				stream.Send(&protobuf.StreamReleasesResponse{
+					Releases: []*protobuf.Release{release},
+				})
 			}
 		}
 	}()
